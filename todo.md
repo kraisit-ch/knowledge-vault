@@ -134,3 +134,24 @@ git add . && git commit -m "docs(backend): add ef-core performance" && git push
 - [ ] Custom domain เช่น `kb.mercent.co.th` (ตั้งที่ Settings → Pages)
 - [x] ย้ายเอกสารเก่า (Kafka, Playwright, Docker) มาใช้ธีม `kv-deck` เดียวกัน
 - [ ] Script ตรวจว่าทุกไฟล์ใน `docs/` ถูกลงทะเบียนใน `catalog.json`
+- [ ] ปุ่มอ่านในโหมดบทความ (เลื่อนอ่านต่อเนื่องแทนสไลด์) สำหรับอ่านบนมือถือ
+
+---
+
+## 7. บันทึกงาน (Work Log)
+
+> เพิ่มรายการใหม่ไว้ **บนสุด** ทุกครั้งที่ push งาน ระบุวันที่, สิ่งที่ทำ และ commit
+
+### 2026-10-06
+
+| เวลา | งาน | Commit |
+|---|---|---|
+| 19:37 | ลิงก์ในเนื้อหาสไลด์ (เช่น "อ่านเจาะลึก →") เปิดแท็บใหม่อัตโนมัติผ่าน `kv-deck.js` ส่วนปุ่ม 🏠 และโลโก้เปิดแท็บเดิม | `b5acdec` |
+| 19:13 | เขียน **Kafka vs RabbitMQ vs BullMQ** ใหม่ให้เข้าใจง่าย (16 → 12 สไลด์): ปัญหา → สิ่งที่ส่ง 3 แบบ → กลไก → ตารางเปรียบเทียบ → เหมาะ/ไม่เหมาะ → ตัวอย่างจริง → คำถาม 4 ข้อ · การ์ดหน้าแรกกลับมาเปิดแท็บเดิม · ปรับ letter-spacing หัวข้อภาษาไทย และสีหัวตาราง | `fdba47c` |
+| 18:48 | การ์ดหน้าแรกเปิดแท็บใหม่ (ยกเลิกภายหลังที่ `fdba47c`) | `412112d` |
+| 18:33 | เพิ่ม **Kafka Deep Dive** (16), **RabbitMQ Deep Dive** (14), **BullMQ Deep Dive** (14) · ลิงก์จากเรื่องเปรียบเทียบ · เปลี่ยนเครดิตเป็น "© MERCENT GROUP" | `f44455c` |
+| 18:12 | ย้ายเอกสารเก่า 3 เรื่อง (Kafka vs RabbitMQ vs BullMQ, Playwright 101, aaPanel vs Coolify) มาใช้ธีม `kv-deck` · เพิ่ม component decision tree / status dot / score / recommendation · แก้บั๊กการ์ดสีทองทำให้ตัวหนังสือเป็นสีทองทั้งการ์ด | `fd5276e` |
+| 17:47 | หน้าแรกใหม่โทนฟ้า-ทอง (ค้นหา, หมวดหมู่, dark mode, footer MERCENT GROUP) · สร้างธีมกลาง `kv-deck.css/js` · เพิ่มเอกสาร React Essentials, Next.js App Router, .NET Clean Architecture, API Contract, Git Workflow · template + `todo.md` | `2ca4544` |
+| 17:25 | สร้าง repo `knowledge-vault` + เปิด GitHub Pages · จัดโฟลเดอร์ `docs/<หมวด>` · `catalog.json` + หน้าสารบัญแรก | `7fa1b2e` |
+
+**สรุปสถานะ ณ สิ้นวัน:** เอกสาร 11 เรื่อง · 6 หมวด · ทุกเรื่องใช้ธีมเดียวกัน
