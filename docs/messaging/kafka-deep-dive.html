@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>Apache Kafka Deep Dive</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css">
+</head>
+<body data-title="Apache Kafka Deep Dive" data-mark="KF">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">Messaging · Deep Dive</div>
+      <h1><span class="grad">Apache Kafka</span><br>เจาะลึกตั้งแต่แนวคิดถึง Production</h1>
+      <p class="lead">เข้าใจ Topic, Partition, Offset, Consumer Group, การรับประกันการส่งข้อมูล และวิธีใช้ Kafka กับ .NET ให้ปลอดภัยและไม่ทำข้อมูลหาย</p>
+      <div class="tag-row">
+        <span class="tag gold">Kafka 4.x (KRaft)</span><span class="tag blue">.NET Confluent.Kafka</span>
+        <span class="tag">Event Streaming</span><span class="tag">Exactly-once</span><span class="tag">Outbox</span>
+      </div>
+      <div class="quote">Kafka ไม่ใช่ “คิว” แต่เป็น “บันทึกเหตุการณ์แบบต่อท้ายอย่างเดียว” ที่หลายระบบอ่านซ้ำได้</div>
+    </div>
+    <template class="note"><p>เรื่องนี้ต่อจาก “Kafka vs RabbitMQ vs BullMQ” ถ้ายังไม่แน่ใจว่าควรใช้ Kafka ไหม ให้ดูเรื่องนั้นก่อน</p></template>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="สถาปัตยกรรม">
+    <div class="slide-inner">
+      <div class="eyebrow">Architecture</div>
+      <h2>ส่วนประกอบหลักของ Kafka Cluster</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="node">Producer<small>Order API (.NET)</small></div><div class="arrow">→</div>
+          <div class="node gold">Kafka Cluster<small>Broker 1 · 2 · 3</small></div><div class="arrow">→</div>
+          <div class="node green">Consumer Groups<small>Payment · Analytics · Search</small></div>
+        </div>
+        <div class="flow mt"><div class="node violet">KRaft Controllers<small>เก็บ metadata แทน ZooKeeper</small></div></div>
+      </div>
+      <div class="grid grid-4 mt">
+        <div class="card"><h4>Broker</h4><p class="small muted">เซิร์ฟเวอร์ที่เก็บข้อมูลและรับส่ง message (Production ควรมีอย่างน้อย 3)</p></div>
+        <div class="card gold"><h4>Topic</h4><p class="small muted">หมวดของเหตุการณ์ เช่น <code>orders.created</code></p></div>
+        <div class="card"><h4>Partition</h4><p class="small muted">ส่วนย่อยของ topic ที่ทำให้ขยายขนานได้</p></div>
+        <div class="card violet"><h4>KRaft<button class="term" data-term="kraft"></button></h4><p class="small muted">Kafka 4.0 ตัด ZooKeeper ออกแล้ว ใช้ KRaft อย่างเดียว</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="Topic / Partition / Offset">
+    <div class="slide-inner">
+      <div class="eyebrow">Core Concept</div>
+      <h2>Topic → Partition → Offset</h2>
+      <div class="diagram">
+        <p class="small muted">Topic: <code>orders.created</code> (3 partitions)</p>
+        <div class="layers">
+          <div class="node">Partition 0<small>[0] [1] [2] [3] [4] [5] → ต่อท้ายเรื่อย ๆ</small></div>
+          <div class="node gold">Partition 1<small>[0] [1] [2] [3] → ต่อท้ายเรื่อย ๆ</small></div>
+          <div class="node violet">Partition 2<small>[0] [1] [2] [3] [4] → ต่อท้ายเรื่อย ๆ</small></div>
+        </div>
+      </div>
+      <div class="grid grid-3 mt">
+        <div class="card"><h4>Append-only log</h4><p class="small muted">message ใหม่ต่อท้ายเสมอ แก้หรือลบทีละตัวไม่ได้</p></div>
+        <div class="card gold"><h4>Offset<button class="term" data-term="offset"></button></h4><p class="small muted">เลขลำดับใน partition consumer จำว่าอ่านถึงไหนแล้ว</p></div>
+        <div class="card good"><h4>ไม่ถูกลบหลังอ่าน</h4><p class="small muted">ข้อมูลอยู่ตาม retention ทำให้ replay ย้อนหลังได้</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="Key และลำดับข้อมูล">
+    <div class="slide-inner">
+      <div class="eyebrow">Ordering</div>
+      <h2>Message Key = ตัวกำหนด Partition และ <span class="gold">ลำดับ</span></h2>
+      <div class="grid grid-2">
+        <div class="card"><h3>กฎสำคัญ</h3><ul>
+          <li>Kafka รับประกันลำดับ <strong>ภายใน partition เดียว</strong> เท่านั้น</li>
+          <li>message ที่มี key เดียวกัน → ไป partition เดียวกันเสมอ (hash ของ key)</li>
+          <li>ไม่มี key → กระจายไปหลาย partition ลำดับไม่แน่นอน</li>
+        </ul></div>
+        <div class="card gold"><h3>เลือก key อย่างไร</h3><ul>
+          <li>ต้องการลำดับต่อ “อะไร” ให้ใช้สิ่งนั้นเป็น key</li>
+          <li>ออเดอร์ → <code>orderId</code>, บัญชี → <code>accountId</code></li>
+          <li>ระวัง <strong>hot partition</strong>: key ที่ข้อมูลเยอะผิดปกติ (เช่นร้านค้าใหญ่ร้านเดียว)</li>
+        </ul></div>
+      </div>
+      <div class="diagram mt"><div class="flow">
+        <div class="node">OrderCreated<small>key=ORD-1</small></div><div class="node">OrderPaid<small>key=ORD-1</small></div><div class="node">OrderShipped<small>key=ORD-1</small></div>
+        <div class="arrow">→</div><div class="node gold">Partition 1<small>ลำดับถูกต้องเสมอ</small></div>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="Consumer Group">
+    <div class="slide-inner">
+      <div class="eyebrow">Scaling Consumers</div>
+      <h2>Consumer Group: ขยายการอ่านแบบขนาน</h2>
+      <div class="grid grid-2">
+        <div class="diagram">
+          <p class="small muted center">Topic 4 partitions · Group <code>payment-service</code></p>
+          <div class="branch-grid">
+            <div class="node">P0</div><div class="node">P1</div><div class="node gold">P2</div><div class="node gold">P3</div>
+          </div>
+          <div class="flow mt"><div class="arrow">↓</div></div>
+          <div class="branch-grid" style="grid-template-columns:repeat(2,1fr)">
+            <div class="node green">Consumer A<small>P0, P1</small></div><div class="node green">Consumer B<small>P2, P3</small></div>
+          </div>
+        </div>
+        <div class="grid">
+          <div class="card gold"><h4>1 partition → 1 consumer ต่อ group</h4><p class="small muted">จำนวน consumer ที่ทำงานจริง ≤ จำนวน partition ตัวที่เกินจะว่าง</p></div>
+          <div class="card"><h4>หลาย group อ่าน topic เดียวกันได้</h4><p class="small muted">Payment, Analytics, Search แต่ละ group มี offset ของตัวเอง</p></div>
+          <div class="card bad"><h4>Rebalance<button class="term" data-term="rebalance"></button></h4><p class="small muted">เมื่อ consumer เข้า/ออก partition จะถูกแบ่งใหม่ ใช้ <code>CooperativeSticky</code> เพื่อลดการหยุดชะงัก</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="Replication & Durability">
+    <div class="slide-inner">
+      <div class="eyebrow">Durability</div>
+      <h2>Replication: ทำอย่างไรไม่ให้ข้อมูลหาย</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>Config</th><th>ค่าแนะนำ (Production)</th><th>ความหมาย</th></tr>
+        <tr><td><code>replication.factor</code></td><td><strong class="gold">3</strong></td><td>เก็บสำเนา 3 broker (1 leader + 2 follower)</td></tr>
+        <tr><td><code>min.insync.replicas</code></td><td><strong class="gold">2</strong></td><td>ต้องเขียนสำเร็จอย่างน้อย 2 สำเนาจึงนับว่าสำเร็จ</td></tr>
+        <tr><td><code>acks</code> (producer)</td><td><strong class="gold">all</strong></td><td>รอให้ replica ใน ISR<button class="term" data-term="isr"></button> ยืนยันครบ</td></tr>
+        <tr><td><code>enable.idempotence</code></td><td><strong class="gold">true</strong></td><td>กัน message ซ้ำเมื่อ producer retry</td></tr>
+        <tr><td><code>unclean.leader.election.enable</code></td><td><strong class="gold">false</strong></td><td>ไม่ยอมให้ replica ที่ข้อมูลไม่ครบขึ้นเป็น leader</td></tr>
+      </table></div>
+      <div class="callout warn">ผลลัพธ์: broker ล่มได้ 1 ตัวโดยระบบยังรับเขียนต่อได้และข้อมูลไม่หาย</div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="Delivery Semantics">
+    <div class="slide-inner">
+      <div class="eyebrow">Delivery Guarantees</div>
+      <h2>At-most-once · At-least-once · Exactly-once</h2>
+      <div class="grid grid-3">
+        <div class="card bad"><h3>At-most-once</h3><p class="muted">commit offset ก่อนประมวลผล</p><p class="small">ถ้าพังกลางทาง = <strong class="red">ข้อมูลหาย</strong></p></div>
+        <div class="card good"><h3>At-least-once <span class="tag gold">แนะนำ</span></h3><p class="muted">ประมวลผลเสร็จแล้วค่อย commit</p><p class="small">ถ้าพัง = <strong class="gold">อาจได้ซ้ำ</strong> → consumer ต้อง idempotent</p></div>
+        <div class="card violet"><h3>Exactly-once</h3><p class="muted">Transactions + <code>read_committed</code></p><p class="small">ได้ผลเฉพาะ Kafka → Kafka ถ้าเขียนลง DB ภายนอกยังต้อง idempotent อยู่ดี</p></div>
+      </div>
+      <div class="quote">ออกแบบให้ “รับซ้ำได้โดยไม่เกิดผลซ้ำ” (Idempotent Consumer) ง่ายและทนทานกว่าไล่ทำ Exactly-once ทุกที่</div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="Producer ใน .NET">
+    <div class="slide-inner">
+      <div class="eyebrow">.NET · Producer</div>
+      <h2>Producer ด้วย <span class="gold">Confluent.Kafka</span></h2>
+      <div class="callout">ห้ามสร้าง producer ใหม่ทุก request และเรียก <code>producer.Flush()</code> ตอนแอปปิด เพื่อส่ง message ที่ค้างใน buffer ให้หมด</div>
+<pre class="code" data-lang="csharp">
+var config = new ProducerConfig
+{
+    BootstrapServers = "kafka-1:9092,kafka-2:9092,kafka-3:9092",
+    Acks = Acks.All,
+    EnableIdempotence = true,          // กันซ้ำตอน retry
+    LingerMs = 5,                      // รวม batch เล็กน้อยเพื่อ throughput
+    CompressionType = CompressionType.Zstd,
+};
+
+// ลงทะเบียนเป็น Singleton — producer หนึ่งตัวใช้ทั้งแอป (thread-safe)
+using var producer = new ProducerBuilder&lt;string, string&gt;(config).Build();
+
+var evt = new OrderCreated(order.Id, order.CustomerId, order.Total, DateTimeOffset.UtcNow);
+var result = await producer.ProduceAsync("orders.created", new Message&lt;string, string&gt;
+{
+    Key = order.Id.ToString(),                   // ลำดับต่อออเดอร์
+    Value = JsonSerializer.Serialize(evt),
+    Headers = new Headers { { "event-type", "OrderCreated"u8.ToArray() } },
+}, ct);
+
+_logger.LogInformation("Produced {OrderId} to {TopicPartitionOffset}", order.Id, result.TopicPartitionOffset);
+</pre>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="Consumer ใน .NET">
+    <div class="slide-inner">
+      <div class="eyebrow">.NET · Consumer</div>
+      <h2>Consumer แบบ At-least-once ใน BackgroundService</h2>
+      <div class="callout warn"><code>Consume()</code> เป็น blocking call ให้รัน loop ใน <code>Task.Run</code> หรือ thread แยก และเรียก <code>consumer.Close()</code> ตอน shutdown เพื่อออกจาก group อย่างสุภาพ</div>
+<pre class="code" data-lang="csharp">
+var config = new ConsumerConfig
+{
+    BootstrapServers = "kafka-1:9092",
+    GroupId = "payment-service",
+    AutoOffsetReset = AutoOffsetReset.Earliest,
+    EnableAutoCommit = false,                       // commit เองหลังประมวลผลสำเร็จ
+    PartitionAssignmentStrategy = PartitionAssignmentStrategy.CooperativeSticky,
+};
+
+using var consumer = new ConsumerBuilder&lt;string, string&gt;(config).Build();
+consumer.Subscribe("orders.created");
+
+while (!stoppingToken.IsCancellationRequested)
+{
+    var cr = consumer.Consume(stoppingToken);
+    var evt = JsonSerializer.Deserialize&lt;OrderCreated&gt;(cr.Message.Value)!;
+
+    using var scope = _scopeFactory.CreateScope();  // DbContext เป็น Scoped
+    var handler = scope.ServiceProvider.GetRequiredService&lt;OrderCreatedHandler&gt;();
+    await handler.HandleAsync(evt, stoppingToken);  // ต้อง idempotent
+
+    consumer.Commit(cr);                            // commit หลังสำเร็จเท่านั้น
+}
+</pre>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title="Retry & Dead Letter">
+    <div class="slide-inner">
+      <div class="eyebrow">Error Handling</div>
+      <h2>Kafka ไม่มี Retry/DLQ ในตัว ต้องออกแบบเอง</h2>
+      <div class="diagram"><div class="flow">
+        <div class="node">orders.created</div><div class="arrow">→ fail →</div>
+        <div class="node gold">orders.created.retry-1m</div><div class="arrow">→ fail →</div>
+        <div class="node gold">orders.created.retry-10m</div><div class="arrow">→ fail →</div>
+        <div class="node violet">orders.created.dlq</div>
+      </div></div>
+      <div class="grid grid-3 mt">
+        <div class="card"><h4>Transient error</h4><p class="small muted">DB timeout, API 503 → retry ใน process 2–3 ครั้ง (exponential backoff) ก่อนส่งไป retry topic</p></div>
+        <div class="card bad"><h4>Poison message<button class="term" data-term="poison"></button></h4><p class="small muted">JSON ผิด, ข้อมูลไม่ครบ → ส่ง DLQ ทันที ห้ามวนซ้ำ ไม่งั้น partition ค้างทั้งแถว</p></div>
+        <div class="card gold"><h4>DLQ ต้องมีคนดู</h4><p class="small muted">แนบ header: error, stack, original topic/offset และมี alert + เครื่องมือ replay</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide" data-title="Outbox Pattern">
+    <div class="slide-inner">
+      <div class="eyebrow">Consistency</div>
+      <h2>Transactional Outbox: บันทึก DB + ส่ง Event ไม่หลุด</h2>
+      <div class="grid grid-2">
+        <div class="dont"><h4>Dual write (เสี่ยง)</h4>
+<pre class="code" data-lang="csharp">
+await db.SaveChangesAsync();          // สำเร็จ
+await producer.ProduceAsync(...);     // แอปล่มตรงนี้ = event หาย
+</pre></div>
+        <div class="do"><h4>Outbox</h4>
+<pre class="code" data-lang="csharp">
+db.Orders.Add(order);
+db.OutboxMessages.Add(OutboxMessage.From(new OrderCreated(...)));
+await db.SaveChangesAsync();          // transaction เดียวกัน
+
+// OutboxPublisher (BackgroundService) อ่านแถวที่ยังไม่ส่ง
+// → ProduceAsync → mark ProcessedAt
+</pre></div>
+      </div>
+      <div class="diagram mt"><div class="flow">
+        <div class="node">Order API</div><div class="arrow">→</div>
+        <div class="node gold">DB: Orders + Outbox<small>1 transaction</small></div><div class="arrow">→</div>
+        <div class="node">Outbox Publisher<small>หรือ Debezium CDC</small></div><div class="arrow">→</div>
+        <div class="node violet">Kafka</div>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- 12 -->
+  <section class="slide" data-title="Retention & Compaction">
+    <div class="slide-inner">
+      <div class="eyebrow">Storage</div>
+      <h2>Retention vs Log Compaction</h2>
+      <div class="grid grid-2">
+        <div class="card"><h3><code>cleanup.policy=delete</code></h3><p class="muted">ลบตามเวลา/ขนาด เช่น <code>retention.ms=604800000</code> (7 วัน)</p><p class="small">เหมาะกับ event stream ทั่วไป, log, clickstream</p></div>
+        <div class="card gold"><h3><code>cleanup.policy=compact</code><button class="term" data-term="compaction"></button></h3><p class="muted">เก็บเฉพาะค่าล่าสุดของแต่ละ key</p><p class="small">เหมาะกับ “สถานะล่าสุด” เช่น ราคาสินค้า, profile ลูกค้า, config</p></div>
+      </div>
+      <div class="grid grid-3 mt">
+        <div class="card"><h4>Naming</h4><p class="small muted"><code>&lt;domain&gt;.&lt;entity&gt;.&lt;event&gt;</code> เช่น <code>sales.order.created</code></p></div>
+        <div class="card"><h4>Partition count</h4><p class="small muted">เริ่ม 6–12 ต่อ topic เพิ่มได้แต่ลดไม่ได้ และเพิ่มแล้ว key จะย้าย partition</p></div>
+        <div class="card"><h4>Schema</h4><p class="small muted">ใช้ Schema Registry (Avro/Protobuf/JSON Schema) กันข้อมูลเปลี่ยนรูปแบบแล้ว consumer พัง</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 13 -->
+  <section class="slide" data-title="Dev Environment">
+    <div class="slide-inner">
+      <div class="eyebrow">Local Setup</div>
+      <h2>รัน Kafka บนเครื่องด้วย Docker (KRaft, 1 node)</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="yaml">
+# docker-compose.yml (สำหรับ dev เท่านั้น)
+services:
+  kafka:
+    image: apache/kafka:latest
+    ports: ["9092:9092"]
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    ports: ["8080:8080"]
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4>ปิด auto create topic ใน Production</h4><p class="small muted">สร้าง topic ผ่าน IaC / script พร้อมกำหนด partition, replication, retention</p></div>
+          <div class="card"><h4>Integration test</h4><p class="small muted">ใช้ Testcontainers (<code>Testcontainers.Kafka</code>) สร้าง Kafka จริงใน test</p></div>
+          <div class="card violet"><h4>Managed service</h4><p class="small muted">ถ้าทีมไม่มีคนดูแล cluster พิจารณา Confluent Cloud / AWS MSK / Aiven</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 14 -->
+  <section class="slide" data-title="Monitoring">
+    <div class="slide-inner">
+      <div class="eyebrow">Observability</div>
+      <h2>Metric ที่ต้องเฝ้าดู</h2>
+      <div class="grid grid-4">
+        <div class="card gold"><div class="big-number">Lag</div><p class="small muted">Consumer lag<button class="term" data-term="lag"></button> ต่อ group/partition — สำคัญที่สุด</p></div>
+        <div class="card bad"><div class="big-number">URP</div><p class="small muted">Under-replicated partitions ต้องเป็น 0</p></div>
+        <div class="card"><div class="big-number">Rebalance</div><p class="small muted">ถ้าเกิดบ่อย = consumer ช้า/ล่ม หรือ timeout สั้นไป</p></div>
+        <div class="card violet"><div class="big-number">Disk</div><p class="small muted">พื้นที่ broker เทียบ retention</p></div>
+      </div>
+      <p class="muted mt">เครื่องมือ: Kafka UI / Redpanda Console, Prometheus + JMX/kafka-exporter + Grafana, Burrow สำหรับ lag</p>
+    </div>
+  </section>
+
+  <!-- 15 -->
+  <section class="slide" data-title="ข้อผิดพลาดที่พบบ่อย">
+    <div class="slide-inner">
+      <div class="eyebrow">Pitfalls</div>
+      <h2>ข้อผิดพลาดที่พบบ่อย</h2>
+      <div class="grid grid-2">
+        <div class="card bad"><h4>ใช้ Kafka เป็น job queue</h4><p class="small muted">งานที่ต้อง delay, priority, retry ทีละ job → BullMQ / RabbitMQ เหมาะกว่า</p></div>
+        <div class="card bad"><h4>Consumer ช้าเกิน <code>max.poll.interval.ms</code></h4><p class="small muted">ถูกเตะออกจาก group → rebalance วนไม่จบ ลด batch หรือแยกงานหนักออก</p></div>
+        <div class="card bad"><h4>Auto commit + ประมวลผล async</h4><p class="small muted">offset ถูก commit ก่อนงานเสร็จ → ข้อมูลหายเมื่อ crash</p></div>
+        <div class="card bad"><h4>Message ใหญ่เกินไป</h4><p class="small muted">ค่าเริ่มต้น ~1MB เก็บไฟล์ใน object storage แล้วส่งแค่ URL</p></div>
+        <div class="card bad"><h4>ไม่มี key แต่ต้องการลำดับ</h4><p class="small muted">event ของออเดอร์เดียวกันมาสลับลำดับ</p></div>
+        <div class="card bad"><h4>เปลี่ยน schema แบบไม่ backward compatible</h4><p class="small muted">consumer เวอร์ชันเก่าพังทันที</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 16 -->
+  <section class="slide" data-title="Checklist">
+    <div class="slide-inner">
+      <div class="eyebrow">Production Checklist</div>
+      <h2>Checklist ก่อนขึ้น Production</h2>
+      <div class="grid grid-2">
+        <div class="card good"><ul>
+          <li>☐ 3 brokers, <code>replication.factor=3</code>, <code>min.insync.replicas=2</code></li>
+          <li>☐ Producer: <code>acks=all</code>, idempotence เปิด</li>
+          <li>☐ Key ถูกเลือกตามลำดับที่ต้องการ</li>
+          <li>☐ Consumer commit หลังประมวลผล + idempotent</li>
+          <li>☐ มี retry topic / DLQ + alert</li>
+        </ul></div>
+        <div class="card gold"><ul>
+          <li>☐ Outbox สำหรับ event ที่มาจากการเขียน DB</li>
+          <li>☐ Schema Registry / versioning ของ event</li>
+          <li>☐ TLS + SASL และ ACL แยกสิทธิ์ต่อ service</li>
+          <li>☐ Dashboard: lag, URP, disk, rebalance</li>
+          <li>☐ ทดสอบ broker ล่ม และ consumer restart แล้ว</li>
+        </ul></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+<script>
+window.KV_GLOSSARY = {
+  kraft: {
+    title: "KRaft (Kafka Raft)",
+    body: "ระบบจัดการ metadata ของ cluster ที่อยู่ในตัว Kafka เอง (ใช้ Raft consensus) มาแทน ZooKeeper ตั้งแต่ Kafka 4.0 ใช้ KRaft อย่างเดียว ทำให้ติดตั้งและดูแลง่ายขึ้น",
+    example: "เดิมต้องรัน ZooKeeper 3 เครื่อง + Kafka 3 เครื่อง ตอนนี้รัน Kafka ที่ทำหน้าที่ controller ได้เลย"
+  },
+  offset: {
+    title: "Offset",
+    body: "ตัวเลขลำดับของ message ภายใน partition consumer group จะบันทึก offset ล่าสุดที่ประมวลผลแล้ว (commit) เพื่อให้ตอน restart อ่านต่อจากจุดเดิม",
+    example: "เหมือนที่คั่นหนังสือ อ่านถึงหน้า 120 ก็คั่นไว้ พรุ่งนี้มาเปิดอ่านต่อหน้า 121"
+  },
+  rebalance: {
+    title: "Rebalance",
+    body: "กระบวนการแบ่ง partition ให้ consumer ใน group ใหม่ เกิดเมื่อมี consumer เข้า/ออก/ค้าง ระหว่างนั้นการอ่านอาจหยุดชั่วคราว",
+    example: "deploy service ใหม่แบบ rolling 3 pod → เกิด rebalance หลายรอบ ใช้ CooperativeSticky และ static membership เพื่อลดผลกระทบ"
+  },
+  isr: {
+    title: "ISR (In-Sync Replicas)",
+    body: "กลุ่ม replica ที่ตามข้อมูลของ leader ทัน เมื่อใช้ acks=all producer จะรอให้ทุกตัวใน ISR ยืนยัน และถ้า ISR เหลือน้อยกว่า min.insync.replicas จะปฏิเสธการเขียน",
+    example: "replication 3, min ISR 2 → broker ล่ม 1 ตัวยังเขียนได้ ล่ม 2 ตัวจะหยุดรับเขียนเพื่อไม่ให้ข้อมูลเสี่ยงหาย"
+  },
+  poison: {
+    title: "Poison Message",
+    body: "message ที่ประมวลผลไม่ได้ไม่ว่าจะลองกี่ครั้ง เช่น รูปแบบข้อมูลผิด ถ้า retry วนไปเรื่อย ๆ จะทำให้ message หลังจากนั้นใน partition เดียวกันค้างทั้งหมด",
+    example: "event ที่ field total เป็น string \"abc\" → ส่งเข้า DLQ ทันทีแล้วอ่าน message ถัดไป"
+  },
+  compaction: {
+    title: "Log Compaction",
+    body: "นโยบายเก็บข้อมูลที่ Kafka จะลบ message เก่าของ key เดียวกันทิ้ง เหลือเฉพาะค่าล่าสุด ส่ง value เป็น null (tombstone) เพื่อลบ key",
+    example: "topic product.prices มีราคาของสินค้าแต่ละตัวเพียงค่าล่าสุด service ใหม่อ่านตั้งแต่ต้นก็ได้ราคาปัจจุบันครบ"
+  },
+  lag: {
+    title: "Consumer Lag",
+    body: "จำนวน message ที่เข้ามาแล้วแต่ consumer group ยังอ่านไม่ถึง (offset ล่าสุดของ partition − offset ที่ commit) ถ้าเพิ่มขึ้นต่อเนื่องแปลว่าประมวลผลไม่ทัน",
+    example: "lag ของ email-service พุ่งเป็น 50,000 ช่วงแคมเปญ → เพิ่ม consumer (ไม่เกินจำนวน partition) หรือเร่งการประมวลผล"
+  }
+};
+</script>
+<script src="../../assets/kv-deck.js"></script>
+</body>
+</html>

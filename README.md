@@ -27,4 +27,4 @@ python -m http.server 8765
 แล้วเปิด http://localhost:8765
 
 ---
-© MERCENT GROUP Co., Ltd.
+© MERCENT GROUP

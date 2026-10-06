@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>BullMQ Deep Dive</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css">
+</head>
+<body data-title="BullMQ Deep Dive" data-mark="BQ">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">Messaging · Deep Dive</div>
+      <h1><span class="grad">BullMQ</span><br>Background Job สำหรับ Node.js / Next.js</h1>
+      <p class="lead">เจาะลึก Queue, Worker, Retry/Backoff, Delay, Priority, Rate Limit, Job Scheduler, Flow และการรัน Worker แยกจาก Next.js ให้เสถียรใน Production</p>
+      <div class="tag-row">
+        <span class="tag gold">BullMQ v5</span><span class="tag blue">TypeScript</span>
+        <span class="tag">Redis</span><span class="tag">Job Scheduler</span><span class="tag">Flows</span>
+      </div>
+      <div class="quote">BullMQ คือ “กระดานมอบหมายงาน” ที่รู้ว่างานไหนรอ งานไหนกำลังทำ งานไหนพัง และต้องลองใหม่เมื่อไร</div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="ส่วนประกอบหลัก">
+    <div class="slide-inner">
+      <div class="eyebrow">Architecture</div>
+      <h2>ส่วนประกอบหลักของ BullMQ</h2>
+      <div class="diagram"><div class="flow">
+        <div class="node">Next.js / API<small>Queue.add()</small></div><div class="arrow">→</div>
+        <div class="node gold">Redis<small>เก็บ job + สถานะ</small></div><div class="arrow">→</div>
+        <div class="node violet">Worker process<small>new Worker()</small></div><div class="arrow">→</div>
+        <div class="node green">ส่งอีเมล / PDF / เรียก API</div>
+      </div></div>
+      <div class="grid grid-4 mt">
+        <div class="card"><h4>Queue</h4><p class="small muted">ใช้เพิ่ม job และจัดการคิว (pause, clean, ดูจำนวน)</p></div>
+        <div class="card violet"><h4>Worker</h4><p class="small muted">ดึง job มาประมวลผล ตั้ง concurrency ได้</p></div>
+        <div class="card gold"><h4>QueueEvents</h4><p class="small muted">ฟัง event ของทั้งคิว (completed, failed, progress)</p></div>
+        <div class="card"><h4>FlowProducer</h4><p class="small muted">สร้าง job แม่-ลูกที่ต้องรอกัน</p></div>
+      </div>
+      <div class="callout">BullMQ ไม่มี broker ของตัวเอง ทุกอย่างอยู่ใน Redis การดูแล Redis จึงสำคัญเท่ากับตัวแอป</div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="Job Lifecycle">
+    <div class="slide-inner">
+      <div class="eyebrow">Lifecycle</div>
+      <h2>วงจรชีวิตของ Job</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="node gold">delayed<small>รอถึงเวลา</small></div><div class="arrow">→</div>
+          <div class="node">waiting<small>/ prioritized</small></div><div class="arrow">→</div>
+          <div class="node violet">active<small>worker กำลังทำ</small></div><div class="arrow">→</div>
+          <div class="node green">completed</div>
+        </div>
+        <div class="flow mt">
+          <div class="node violet">active</div><div class="arrow">→ error →</div>
+          <div class="node gold">delayed (backoff)<small>ถ้ายังเหลือ attempts</small></div><div class="arrow">หรือ</div>
+          <div class="node" style="border-color:rgba(255,107,107,.5);background:rgba(255,107,107,.08)">failed<small>attempts หมด</small></div>
+        </div>
+      </div>
+      <div class="grid grid-3 mt">
+        <div class="card"><h4>waiting-children</h4><p class="small muted">job แม่ใน Flow รอให้ลูกทำเสร็จทั้งหมด</p></div>
+        <div class="card bad"><h4>Stalled<button class="term" data-term="stalled"></button></h4><p class="small muted">worker ตายระหว่างทำ job จะถูกนำกลับมาทำใหม่อัตโนมัติ</p></div>
+        <div class="card gold"><h4>ลบอัตโนมัติ</h4><p class="small muted">ตั้ง <code>removeOnComplete</code> / <code>removeOnFail</code> ไม่งั้น Redis บวม</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="Connection & Queue">
+    <div class="slide-inner">
+      <div class="eyebrow">Setup</div>
+      <h2>สร้าง Connection และ Queue (ใช้ร่วมกันทั้งโปรเจกต์)</h2>
+<pre class="code" data-lang="ts">
+// lib/queues.ts
+import { Queue } from "bullmq";
+import IORedis from "ioredis";
+
+export const connection = new IORedis(process.env.REDIS_URL!, {
+  maxRetriesPerRequest: null,   // จำเป็นสำหรับ Worker
+});
+
+export type EmailJob =
+  | { type: "welcome"; userId: string }
+  | { type: "order-confirmation"; orderId: string };
+
+export const emailQueue = new Queue&lt;EmailJob&gt;("email", {
+  connection,
+  defaultJobOptions: {
+    attempts: 5,
+    backoff: { type: "exponential", delay: 2_000 },     // 2s, 4s, 8s, 16s ...
+    removeOnComplete: { age: 24 * 3600, count: 1_000 }, // เก็บ 1 วัน / 1,000 รายการ
+    removeOnFail: { age: 7 * 24 * 3600 },               // เก็บงานพัง 7 วันไว้ตรวจ
+  },
+});
+</pre>
+      <div class="callout">ใส่ type ให้ข้อมูล job เสมอ (discriminated union) เพื่อให้ Worker รู้รูปแบบข้อมูลแน่นอน และเก็บข้อมูลให้เล็ก ส่งแค่ id ไม่ส่งทั้ง object</div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="เพิ่ม Job">
+    <div class="slide-inner">
+      <div class="eyebrow">Producer</div>
+      <h2>เพิ่ม Job จาก Next.js (Server Action / Route Handler)</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="ts">
+// app/orders/actions.ts
+"use server";
+import { emailQueue } from "@/lib/queues";
+
+export async function placeOrder(input: PlaceOrderInput) {
+  const order = await api.post("/orders", input);
+
+  await emailQueue.add(
+    "order-confirmation",
+    { type: "order-confirmation", orderId: order.id },
+    {
+      jobId: `order-confirmation:${order.id}`, // กันเพิ่มซ้ำ
+      delay: 5_000,                            // รอ 5 วินาที
+      priority: 1,                             // 1 = สำคัญสุด
+    },
+  );
+  return order;
+}
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4><code>jobId</code> กำหนดเอง</h4><p class="small muted">ถ้ามี job id นี้อยู่แล้ว BullMQ จะไม่เพิ่มซ้ำ ช่วยกันกดสั่งซื้อซ้ำ</p></div>
+          <div class="card"><h4><code>delay</code></h4><p class="small muted">หน่วงเวลาก่อนเริ่ม เช่น ส่งอีเมลเตือนตะกร้าหลัง 1 ชั่วโมง</p></div>
+          <div class="card"><h4><code>priority</code></h4><p class="small muted">เลขน้อยทำก่อน ใช้เท่าที่จำเป็นเพราะมีต้นทุน</p></div>
+          <div class="card violet"><h4><code>addBulk()</code></h4><p class="small muted">เพิ่มหลาย job ใน round-trip เดียว</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="Worker">
+    <div class="slide-inner">
+      <div class="eyebrow">Consumer</div>
+      <h2>Worker: ประมวลผล Job</h2>
+<pre class="code" data-lang="ts">
+// worker/email.worker.ts  (รันเป็น process แยก: node dist/worker.js)
+import { Worker, UnrecoverableError } from "bullmq";
+import { connection, type EmailJob } from "../lib/queues";
+
+const worker = new Worker&lt;EmailJob&gt;(
+  "email",
+  async (job) =&gt; {
+    switch (job.data.type) {
+      case "order-confirmation": {
+        const order = await api.get(`/orders/${job.data.orderId}`);
+        if (!order) throw new UnrecoverableError("Order not found"); // ไม่ต้อง retry
+        await job.updateProgress(50);
+        const res = await mailer.send(orderConfirmationTemplate(order));
+        return { messageId: res.id };                               // เก็บเป็น returnvalue
+      }
+      case "welcome":
+        return mailer.send(welcomeTemplate(job.data.userId));
+    }
+  },
+  { connection, concurrency: 10 },
+);
+
+worker.on("failed", (job, err) =&gt;
+  logger.error({ jobId: job?.id, attempts: job?.attemptsMade, err }, "email job failed"));
+</pre>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="Retry & Error">
+    <div class="slide-inner">
+      <div class="eyebrow">Error Handling</div>
+      <h2>Retry, Backoff และ Error ที่ไม่ควร Retry</h2>
+      <div class="grid grid-3">
+        <div class="card gold"><h3>Transient error</h3><p class="muted">API 503, timeout, rate limit ปลายทาง</p><p class="small">→ <code>throw</code> ปกติ ให้ BullMQ retry ตาม backoff</p></div>
+        <div class="card bad"><h3>Permanent error</h3><p class="muted">ข้อมูลไม่มีแล้ว, input ผิด</p><p class="small">→ <code>throw new UnrecoverableError()</code> ไป failed ทันที</p></div>
+        <div class="card violet"><h3>Custom backoff</h3><p class="muted">เช่น อ่าน header <code>Retry-After</code></p><p class="small">→ <code>settings.backoffStrategy</code> ใน Worker</p></div>
+      </div>
+      <div class="table-wrap mt"><table class="table">
+        <tr><th>attempt</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr>
+        <tr><td>exponential, delay 2s</td><td>ทันที</td><td>+2s</td><td>+4s</td><td>+8s</td><td>+16s → failed</td></tr>
+      </table></div>
+      <div class="callout warn">Job อาจถูกทำซ้ำได้ (retry, stalled) ดังนั้น <strong>งานต้อง idempotent</strong> เช่น เช็คว่าส่งอีเมลออเดอร์นี้ไปแล้วหรือยังก่อนส่ง</div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="Concurrency & Rate Limit">
+    <div class="slide-inner">
+      <div class="eyebrow">Throughput</div>
+      <h2>Concurrency และ Rate Limit</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="ts">
+const worker = new Worker("sms", processor, {
+  connection,
+  concurrency: 20,                          // ทำพร้อมกัน 20 job ต่อ process
+  limiter: { max: 100, duration: 1_000 },   // ทั้งคิวไม่เกิน 100 job/วินาที
+});
+
+// เจอ 429 จาก provider → พักทั้งคิวตามที่ provider บอก
+if (res.status === 429) {
+  await worker.rateLimit(retryAfterMs);
+  throw Worker.RateLimitError();
+}
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4>Concurrency</h4><p class="small muted">งาน I/O (เรียก API, ส่งเมล) ตั้งสูงได้ 10–50 · งาน CPU หนัก (สร้าง PDF, resize รูป) ให้ต่ำและใช้ sandboxed processor<button class="term" data-term="sandbox"></button></p></div>
+          <div class="card"><h4>Rate limit เป็นระดับคิว</h4><p class="small muted">มีผลรวมทุก worker ทุกเครื่อง เหมาะกับ API ภายนอกที่จำกัดโควตา</p></div>
+          <div class="card violet"><h4>Scale out</h4><p class="small muted">เพิ่มจำนวน worker process / container ได้เลย Redis เป็นตัวกลางแจกงาน</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="Job Scheduler (Cron)">
+    <div class="slide-inner">
+      <div class="eyebrow">Scheduling</div>
+      <h2>งานตั้งเวลาด้วย <span class="gold">Job Scheduler</span></h2>
+<pre class="code" data-lang="ts">
+// รันตอน worker start — upsert = เรียกซ้ำได้ ไม่สร้างซ้ำ
+await reportQueue.upsertJobScheduler(
+  "daily-sales-report",                                   // scheduler id
+  { pattern: "0 8 * * *", tz: "Asia/Bangkok" },           // ทุกวัน 08:00 เวลาไทย
+  { name: "daily-sales-report", data: { channel: "line" } },
+);
+
+await cleanupQueue.upsertJobScheduler(
+  "purge-temp-files",
+  { every: 15 * 60 * 1000 },                              // ทุก 15 นาที
+);
+
+// ยกเลิก
+await reportQueue.removeJobScheduler("daily-sales-report");
+</pre>
+      <div class="grid grid-2 mt">
+        <div class="card good"><h4>ดีกว่า cron ในเครื่อง</h4><p class="small muted">มีหลาย worker ก็รันครั้งเดียว มี retry และดูประวัติได้</p></div>
+        <div class="card gold"><h4>ระบุ timezone เสมอ</h4><p class="small muted">server มักเป็น UTC ถ้าไม่ใส่ <code>tz</code> งาน 08:00 จะรันตอน 15:00 เวลาไทย</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title="Flows">
+    <div class="slide-inner">
+      <div class="eyebrow">Workflows</div>
+      <h2>Flows: Job แม่รอ Job ลูกทำเสร็จ</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="ts">
+import { FlowProducer } from "bullmq";
+const flow = new FlowProducer({ connection });
+
+await flow.add({
+  name: "build-monthly-report",
+  queueName: "reports",
+  data: { month: "2026-10" },
+  children: [
+    { name: "sales",     queueName: "report-parts", data: { part: "sales" } },
+    { name: "inventory", queueName: "report-parts", data: { part: "inventory" } },
+    { name: "customers", queueName: "report-parts", data: { part: "customers" } },
+  ],
+});
+
+// ใน worker ของแม่: รวมผลของลูกทั้งหมด
+const parts = await job.getChildrenValues();
+</pre>
+        <div class="diagram">
+          <div class="flow"><div class="node gold">build-monthly-report<small>waiting-children</small></div></div>
+          <div class="flow mt"><div class="arrow">↑ รอทั้ง 3 เสร็จ</div></div>
+          <div class="branch-grid" style="grid-template-columns:repeat(3,1fr)">
+            <div class="node violet">sales</div><div class="node violet">inventory</div><div class="node violet">customers</div>
+          </div>
+          <p class="small muted center mt">ลูกทำขนานกันได้ แม่เริ่มเมื่อลูกครบ</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide" data-title="Deploy คู่กับ Next.js">
+    <div class="slide-inner">
+      <div class="eyebrow">Deployment</div>
+      <h2>Worker ต้องรัน <span class="gold">แยกจาก Next.js</span></h2>
+      <div class="diagram"><div class="flow">
+        <div class="node">Next.js container<small>เพิ่ม job เท่านั้น</small></div><div class="arrow">→</div>
+        <div class="node gold">Redis<small>noeviction + AOF</small></div><div class="arrow">←</div>
+        <div class="node violet">Worker container × N<small>node dist/worker.js</small></div>
+      </div></div>
+      <div class="grid grid-3 mt">
+        <div class="card bad"><h4>ห้ามรัน Worker ใน Next.js</h4><p class="small muted">serverless (Vercel) ไม่มี process ค้าง และ dev hot-reload จะสร้าง worker ซ้ำ</p></div>
+        <div class="card gold"><h4>Graceful shutdown</h4><p class="small muted">ฟัง <code>SIGTERM</code> แล้ว <code>await worker.close()</code> ให้ job ที่ทำอยู่จบก่อน container ปิด</p></div>
+        <div class="card"><h4>Redis config</h4><p class="small muted"><code>maxmemory-policy noeviction</code> ไม่งั้น Redis อาจลบ key ของ job ทิ้งเงียบ ๆ</p></div>
+      </div>
+<pre class="code" data-lang="ts">
+const shutdown = async () =&gt; { await worker.close(); await connection.quit(); process.exit(0); };
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
+</pre>
+    </div>
+  </section>
+
+  <!-- 12 -->
+  <section class="slide" data-title="Monitoring">
+    <div class="slide-inner">
+      <div class="eyebrow">Observability</div>
+      <h2>ดูสถานะคิวด้วย Dashboard และ Metric</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="ts">
+// app/admin/queues — Bull Board (ต้องป้องกันด้วย auth!)
+import { createBullBoard } from "@bull-board/api";
+import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
+import { ExpressAdapter } from "@bull-board/express";
+
+const serverAdapter = new ExpressAdapter();
+serverAdapter.setBasePath("/admin/queues");
+createBullBoard({
+  queues: [new BullMQAdapter(emailQueue), new BullMQAdapter(reportQueue)],
+  serverAdapter,
+});
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4>Waiting count</h4><p class="small muted">เพิ่มต่อเนื่อง = worker ไม่พอ</p></div>
+          <div class="card bad"><h4>Failed rate</h4><p class="small muted">alert เมื่อ failed เพิ่มเกินเกณฑ์</p></div>
+          <div class="card"><h4>Job duration</h4><p class="small muted">วัดจาก <code>finishedOn - processedOn</code></p></div>
+          <div class="card violet"><h4>Redis memory</h4><p class="small muted">ถ้าโตเรื่อย ๆ เช็ค removeOnComplete</p></div>
+        </div>
+      </div>
+      <p class="muted small mt">ทางเลือก: Bull Board (ฟรี, open source) หรือ Taskforce.sh (เสียเงิน, จากผู้พัฒนา BullMQ)</p>
+    </div>
+  </section>
+
+  <!-- 13 -->
+  <section class="slide" data-title="ข้อผิดพลาดที่พบบ่อย">
+    <div class="slide-inner">
+      <div class="eyebrow">Pitfalls</div>
+      <h2>ข้อผิดพลาดที่พบบ่อย</h2>
+      <div class="grid grid-2">
+        <div class="card bad"><h4>ไม่ตั้ง removeOnComplete</h4><p class="small muted">job สำเร็จสะสมเป็นล้าน Redis memory เต็ม</p></div>
+        <div class="card bad"><h4>ใส่ข้อมูลใหญ่ใน job.data</h4><p class="small muted">ส่งไฟล์/รูป base64 → เก็บใน storage แล้วส่ง key</p></div>
+        <div class="card bad"><h4>ลืม <code>maxRetriesPerRequest: null</code></h4><p class="small muted">Worker error ตอน Redis สะดุดชั่วคราว</p></div>
+        <div class="card bad"><h4>ใช้ Redis cluster/managed ที่ eviction เปิดอยู่</h4><p class="small muted">job หายแบบไม่มี error</p></div>
+        <div class="card bad"><h4>งาน CPU หนักใน main thread</h4><p class="small muted">event loop ค้าง lock หมดอายุ → job stalled ซ้ำ</p></div>
+        <div class="card bad"><h4>ต้องการให้ .NET อ่าน job</h4><p class="small muted">BullMQ ไม่มี client .NET ทางการ ถ้าข้ามภาษา ใช้ RabbitMQ หรือให้ .NET เรียก API ฝั่ง Node เพื่อเพิ่ม job</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 14 -->
+  <section class="slide" data-title="Checklist">
+    <div class="slide-inner">
+      <div class="eyebrow">Production Checklist</div>
+      <h2>Checklist ก่อนขึ้น Production</h2>
+      <div class="grid grid-2">
+        <div class="card good"><ul>
+          <li>☐ Redis: <code>noeviction</code>, เปิด AOF, มี backup / HA</li>
+          <li>☐ <code>attempts</code> + <code>backoff</code> ทุกคิว</li>
+          <li>☐ <code>removeOnComplete</code> / <code>removeOnFail</code></li>
+          <li>☐ Job idempotent + ใช้ <code>jobId</code> กันซ้ำ</li>
+          <li>☐ <code>UnrecoverableError</code> สำหรับ error ถาวร</li>
+        </ul></div>
+        <div class="card gold"><ul>
+          <li>☐ Worker เป็น process/container แยก + graceful shutdown</li>
+          <li>☐ concurrency / limiter เหมาะกับปลายทาง</li>
+          <li>☐ Job Scheduler ระบุ <code>tz: "Asia/Bangkok"</code></li>
+          <li>☐ Bull Board ป้องกันด้วย auth</li>
+          <li>☐ Alert: waiting สูง, failed เพิ่ม, Redis memory</li>
+        </ul></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+<script>
+window.KV_GLOSSARY = {
+  stalled: {
+    title: "Stalled Job",
+    body: "job ที่อยู่ในสถานะ active แต่ worker หยุดต่ออายุ lock (เช่น process crash หรือ event loop ค้างนานเกินไป) BullMQ จะตรวจพบแล้วย้ายกลับไปรอทำใหม่ จึงเป็นอีกเหตุผลที่ job ต้อง idempotent",
+    example: "container ถูก kill ระหว่างสร้าง PDF → job ถูกหยิบไปทำใหม่โดย worker ตัวอื่น"
+  },
+  sandbox: {
+    title: "Sandboxed Processor",
+    body: "การรันฟังก์ชันประมวลผล job ในไฟล์แยกบน child process หรือ worker thread แทนที่จะรันใน process หลัก ทำให้งาน CPU หนักไม่บล็อก event loop และถ้าพังก็ไม่ลาก worker หลักล่มไปด้วย",
+    example: "new Worker('pdf', path.join(__dirname, 'pdf.processor.js'), { useWorkerThreads: true })"
+  }
+};
+</script>
+<script src="../../assets/kv-deck.js"></script>
+</body>
+</html>

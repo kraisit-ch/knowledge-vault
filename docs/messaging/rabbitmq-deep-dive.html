@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>RabbitMQ Deep Dive</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css">
+</head>
+<body data-title="RabbitMQ Deep Dive" data-mark="RMQ">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">Messaging · Deep Dive</div>
+      <h1><span class="grad">RabbitMQ</span><br>เจาะลึก Routing, Reliability และ Retry</h1>
+      <p class="lead">เข้าใจ Exchange, Binding, Queue ประเภทต่าง ๆ, Ack/Prefetch, Publisher Confirms, Dead Letter และการเขียน Producer/Consumer ด้วย .NET ให้ข้อความไม่หาย</p>
+      <div class="tag-row">
+        <span class="tag gold">RabbitMQ 4.x</span><span class="tag blue">.NET RabbitMQ.Client 7</span>
+        <span class="tag">AMQP 0-9-1</span><span class="tag">Quorum Queue</span><span class="tag">DLX</span>
+      </div>
+      <div class="quote">RabbitMQ คือ “ศูนย์คัดแยกพัสดุ” ผู้ส่งไม่ต้องรู้ว่าปลายทางคือใคร แค่บอกว่าพัสดุเป็นประเภทไหน</div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="AMQP Model">
+    <div class="slide-inner">
+      <div class="eyebrow">Core Model</div>
+      <h2>Producer ไม่ส่งเข้า Queue ตรง ๆ แต่ส่งเข้า <span class="gold">Exchange</span></h2>
+      <div class="diagram"><div class="flow">
+        <div class="node">Producer<small>Order API</small></div><div class="arrow">→ routing key →</div>
+        <div class="node gold">Exchange<small>ตัดสินใจว่าไปไหน</small></div><div class="arrow">→ binding →</div>
+        <div class="node violet">Queue<small>เก็บรอจนกว่าจะ ack</small></div><div class="arrow">→</div>
+        <div class="node green">Consumer<small>Worker</small></div>
+      </div></div>
+      <div class="grid grid-4 mt">
+        <div class="card"><h4>Connection</h4><p class="small muted">TCP connection ราคาแพง ใช้ร่วมกันทั้งแอป (1–2 ต่อ process)</p></div>
+        <div class="card"><h4>Channel</h4><p class="small muted">ช่องทางเสมือนใน connection แยก channel ต่อ consumer / publisher</p></div>
+        <div class="card gold"><h4>Binding<button class="term" data-term="binding"></button></h4><p class="small muted">กฎที่ผูก exchange กับ queue พร้อม pattern</p></div>
+        <div class="card violet"><h4>vhost</h4><p class="small muted">แยก namespace/สิทธิ์ เช่น <code>/shop-prod</code>, <code>/shop-dev</code></p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="Exchange Types">
+    <div class="slide-inner">
+      <div class="eyebrow">Routing</div>
+      <h2>Exchange 4 แบบ</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>ประเภท</th><th>วิธี Route</th><th>ตัวอย่างการใช้</th></tr>
+        <tr><td><strong class="gold">direct</strong></td><td>routing key ต้องตรงกับ binding key ทุกตัวอักษร</td><td><code>payment.process</code> → payment queue</td></tr>
+        <tr><td><strong class="gold">topic</strong></td><td>pattern ด้วย <code>*</code> (1 คำ) และ <code>#</code> (0 คำขึ้นไป)</td><td><code>order.created.th</code> ตรงกับ <code>order.*.th</code> และ <code>order.#</code></td></tr>
+        <tr><td><strong class="gold">fanout</strong></td><td>ส่งทุก queue ที่ผูกไว้ ไม่สน routing key</td><td>broadcast: ล้าง cache ทุก instance</td></tr>
+        <tr><td><strong class="gold">headers</strong></td><td>เทียบจาก header แทน routing key</td><td>route ตาม <code>format=pdf</code> และ <code>priority=high</code></td></tr>
+      </table></div>
+      <div class="callout">ทีมเราใช้ <strong>topic exchange</strong> เป็นค่าเริ่มต้น เพราะยืดหยุ่นที่สุดและเพิ่ม consumer ใหม่ได้โดยไม่แก้ producer</div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="ตัวอย่าง Topic Routing">
+    <div class="slide-inner">
+      <div class="eyebrow">Example</div>
+      <h2>ตัวอย่าง: Route ออเดอร์ตามเหตุการณ์และภูมิภาค</h2>
+      <div class="diagram">
+        <div class="flow"><div class="node">Order API<small>publish <code>order.created.th</code></small></div><div class="arrow">→</div><div class="node gold">Exchange: <code>orders</code> (topic)</div></div>
+        <div class="branch-grid">
+          <div class="node violet">payment.q<small><code>order.created.*</code></small></div>
+          <div class="node violet">th-warehouse.q<small><code>order.*.th</code></small></div>
+          <div class="node violet">audit.q<small><code>order.#</code></small></div>
+          <div class="node violet">vn-warehouse.q<small><code>order.*.vn</code> ✗</small></div>
+        </div>
+      </div>
+      <p class="muted mt">ผลลัพธ์: <code>order.created.th</code> ไปถึง payment, th-warehouse และ audit แต่ไม่ไป vn-warehouse</p>
+      <div class="grid grid-2 mt">
+        <div class="card gold"><h4>Naming routing key</h4><p class="small muted"><code>&lt;entity&gt;.&lt;event&gt;.&lt;region&gt;</code> ตัวเล็ก คั่นด้วยจุด</p></div>
+        <div class="card"><h4>Naming queue</h4><p class="small muted"><code>&lt;service&gt;.&lt;purpose&gt;</code> เช่น <code>payment.order-created</code></p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="Queue Types">
+    <div class="slide-inner">
+      <div class="eyebrow">Queue Types</div>
+      <h2>เลือกประเภท Queue</h2>
+      <div class="grid grid-3">
+        <div class="card"><h3>Classic Queue</h3><p class="muted">ประเภทเดิม เร็ว ไม่มี replication (ตั้งแต่ 4.0 ไม่มี mirrored queue แล้ว)</p><p class="small">เหมาะกับ: ข้อมูลชั่วคราว, reply queue, งานที่หายได้</p></div>
+        <div class="card gold"><h3>Quorum Queue <span class="tag gold">แนะนำ</span></h3><p class="muted">replicate ด้วย Raft ข้าม node ทนต่อ node ล่ม มี delivery limit</p><p class="small">เหมาะกับ: งานธุรกิจทุกอย่างที่ห้ามหาย</p></div>
+        <div class="card violet"><h3>Stream</h3><p class="muted">log แบบ append-only อ่านซ้ำได้ คล้าย Kafka</p><p class="small">เหมาะกับ: fan-out ปริมาณมาก, replay, เก็บย้อนหลัง</p></div>
+      </div>
+<pre class="code" data-lang="csharp">
+await channel.QueueDeclareAsync("payment.order-created", durable: true, exclusive: false, autoDelete: false,
+    arguments: new Dictionary&lt;string, object?&gt;
+    {
+        ["x-queue-type"] = "quorum",
+        ["x-dead-letter-exchange"] = "orders.dlx",
+        ["x-delivery-limit"] = 5,          // ส่งซ้ำเกิน 5 ครั้ง → dead letter
+    });
+</pre>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="Reliability">
+    <div class="slide-inner">
+      <div class="eyebrow">Reliability</div>
+      <h2>4 จุดที่ทำให้ข้อความ <span class="gold">ไม่หาย</span></h2>
+      <ol class="steps">
+        <li><strong>Durable exchange + Quorum queue</strong> อยู่รอดเมื่อ broker restart</li>
+        <li><strong>Persistent message</strong> (<code>DeliveryMode = Persistent</code>) เขียนลงดิสก์</li>
+        <li><strong>Publisher Confirms</strong><button class="term" data-term="confirm"></button> broker ยืนยันว่ารับและเก็บแล้ว ไม่ได้ confirm = ส่งใหม่</li>
+        <li><strong>Manual Ack</strong> consumer ack หลังประมวลผลสำเร็จเท่านั้น ถ้าตายก่อน ack ข้อความกลับเข้าคิว</li>
+      </ol>
+      <div class="grid grid-2 mt">
+        <div class="card"><h4><code>mandatory: true</code></h4><p class="small muted">ถ้าไม่มี queue ไหนรับ broker ส่งคืน (BasicReturn) แทนที่จะทิ้งเงียบ ๆ</p></div>
+        <div class="card bad"><h4>autoAck: true = เสี่ยง</h4><p class="small muted">ข้อความถูกลบทันทีที่ส่งถึง consumer ถ้าแอปล่มระหว่างทำ = หาย</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="Publisher ใน .NET">
+    <div class="slide-inner">
+      <div class="eyebrow">.NET · Publisher</div>
+      <h2>Publisher ด้วย RabbitMQ.Client 7 (async API)</h2>
+<pre class="code" data-lang="csharp">
+var factory = new ConnectionFactory
+{
+    HostName = "rabbitmq", UserName = "shop-api", Password = config["Rabbit:Password"]!,
+    VirtualHost = "/shop-prod", ClientProvidedName = "order-api",
+};
+
+// Connection: Singleton ทั้งแอป
+await using var connection = await factory.CreateConnectionAsync();
+await using var channel = await connection.CreateChannelAsync(
+    new CreateChannelOptions(publisherConfirmationsEnabled: true,
+                             publisherConfirmationTrackingEnabled: true));
+
+await channel.ExchangeDeclareAsync("orders", ExchangeType.Topic, durable: true);
+
+var props = new BasicProperties
+{
+    Persistent = true,
+    ContentType = "application/json",
+    MessageId = evt.EventId.ToString(),     // ใช้กันซ้ำฝั่ง consumer
+    Type = nameof(OrderCreated),
+};
+
+// ใน v7 เมื่อเปิด confirmation tracking: await จะรอจน broker confirm (nack → throw)
+await channel.BasicPublishAsync("orders", "order.created.th", mandatory: true,
+    basicProperties: props, body: JsonSerializer.SerializeToUtf8Bytes(evt));
+</pre>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="Consumer ใน .NET">
+    <div class="slide-inner">
+      <div class="eyebrow">.NET · Consumer</div>
+      <h2>Consumer: Manual Ack + Prefetch</h2>
+<pre class="code" data-lang="csharp">
+await channel.BasicQosAsync(prefetchSize: 0, prefetchCount: 20, global: false);
+
+var consumer = new AsyncEventingBasicConsumer(channel);
+consumer.ReceivedAsync += async (_, ea) =&gt;
+{
+    try
+    {
+        var evt = JsonSerializer.Deserialize&lt;OrderCreated&gt;(ea.Body.Span)!;
+        using var scope = scopeFactory.CreateScope();
+        await scope.ServiceProvider.GetRequiredService&lt;OrderCreatedHandler&gt;()
+                   .HandleAsync(evt, ct);                      // ต้อง idempotent
+
+        await channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
+    }
+    catch (JsonException ex)
+    {
+        logger.LogError(ex, "Invalid message {MessageId}", ea.BasicProperties.MessageId);
+        await channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: false); // → DLX
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "Processing failed, will retry");
+        await channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: true);  // quorum นับ delivery-limit
+    }
+};
+
+await channel.BasicConsumeAsync("payment.order-created", autoAck: false, consumer: consumer);
+</pre>
+      <div class="callout">Prefetch<button class="term" data-term="prefetch"></button> กำหนดจำนวนข้อความที่ส่งมาค้างที่ consumer ได้พร้อมกัน งานเร็ว → 50–200, งานหนัก → 1–10</div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="Dead Letter & Retry">
+    <div class="slide-inner">
+      <div class="eyebrow">Error Handling</div>
+      <h2>Dead Letter Exchange + Delayed Retry</h2>
+      <div class="diagram"><div class="flow">
+        <div class="node violet">payment.order-created</div><div class="arrow">→ nack →</div>
+        <div class="node gold">retry.30s queue<small>x-message-ttl=30000<br>DLX → orders</small></div><div class="arrow">→ หมดเวลา →</div>
+        <div class="node violet">กลับ queue เดิม</div>
+      </div>
+      <div class="flow mt"><div class="node">เกิน delivery-limit / poison</div><div class="arrow">→</div><div class="node" style="border-color:rgba(255,107,107,.5);background:rgba(255,107,107,.08)">orders.dlx → *.dlq<small>รอคนตรวจ / replay</small></div></div></div>
+      <div class="grid grid-3 mt">
+        <div class="card"><h4>DLX<button class="term" data-term="dlx"></button></h4><p class="small muted">exchange ปลายทางเมื่อข้อความถูก reject, หมด TTL หรือเกิน delivery limit</p></div>
+        <div class="card gold"><h4>Retry แบบหน่วงเวลา</h4><p class="small muted">ใช้ queue รอที่มี TTL แล้ว dead-letter กลับคิวหลัก (เช่น 30s → 5m → 30m)</p></div>
+        <div class="card bad"><h4>อย่า requeue วนทันที</h4><p class="small muted">ข้อความเสียจะวนไม่หยุด กิน CPU และบล็อกงานอื่น</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title="Patterns">
+    <div class="slide-inner">
+      <div class="eyebrow">Messaging Patterns</div>
+      <h2>Pattern ที่ใช้บ่อย</h2>
+      <div class="grid grid-2">
+        <div class="card"><h3>Work Queue (Competing Consumers)</h3><p class="muted">หลาย worker อ่าน queue เดียวกัน RabbitMQ แจกงานแบบ round-robin ตาม prefetch</p><p class="small">ขยายด้วยการเพิ่ม worker ได้ทันที</p></div>
+        <div class="card gold"><h3>Pub/Sub</h3><p class="muted">แต่ละ service มี queue ของตัวเองผูกกับ exchange เดียวกัน</p><p class="small">ทุก service ได้สำเนาของ event</p></div>
+        <div class="card violet"><h3>RPC (Request/Reply)</h3><p class="muted">ส่ง <code>ReplyTo</code> + <code>CorrelationId</code> แล้วรอคำตอบ</p><p class="small">ใช้เท่าที่จำเป็น ถ้าต้องการ sync จริงใช้ HTTP/gRPC ง่ายกว่า</p></div>
+        <div class="card good"><h3>Library ระดับสูง</h3><p class="muted">MassTransit / Wolverine / NServiceBus จัดการ retry, outbox, saga ให้</p><p class="small">ตรวจ license ก่อนใช้ (MassTransit v9+ เป็น commercial)</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide" data-title="Dev Environment">
+    <div class="slide-inner">
+      <div class="eyebrow">Local Setup</div>
+      <h2>รัน RabbitMQ บนเครื่อง + Management UI</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="yaml">
+# docker-compose.yml (dev)
+services:
+  rabbitmq:
+    image: rabbitmq:4-management
+    ports:
+      - "5672:5672"     # AMQP
+      - "15672:15672"   # UI: http://localhost:15672
+    environment:
+      RABBITMQ_DEFAULT_USER: dev
+      RABBITMQ_DEFAULT_PASS: dev
+    volumes:
+      - rabbit-data:/var/lib/rabbitmq
+volumes:
+  rabbit-data:
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4>Topology as code</h4><p class="small muted">ประกาศ exchange/queue/binding ตอนแอป start (idempotent) หรือใช้ definitions.json</p></div>
+          <div class="card"><h4>แยก user ต่อ service</h4><p class="small muted">ให้สิทธิ์ configure/write/read เท่าที่ใช้ ห้ามใช้ <code>guest</code> ใน production</p></div>
+          <div class="card violet"><h4>Integration test</h4><p class="small muted"><code>Testcontainers.RabbitMq</code> สร้าง broker จริงในเทสต์</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 -->
+  <section class="slide" data-title="Monitoring">
+    <div class="slide-inner">
+      <div class="eyebrow">Observability</div>
+      <h2>Metric ที่ต้องเฝ้าดู</h2>
+      <div class="grid grid-4">
+        <div class="card gold"><div class="big-number">Ready</div><p class="small muted">ข้อความรอในคิว เพิ่มต่อเนื่อง = consumer ไม่ทัน</p></div>
+        <div class="card"><div class="big-number">Unacked</div><p class="small muted">ส่งให้ consumer แล้วยังไม่ ack สูงค้าง = consumer ค้าง</p></div>
+        <div class="card bad"><div class="big-number">DLQ</div><p class="small muted">มีข้อความเข้า DLQ ต้อง alert ทันที</p></div>
+        <div class="card violet"><div class="big-number">Alarms</div><p class="small muted">Memory / Disk alarm ทำให้ publisher ถูกบล็อก</p></div>
+      </div>
+      <p class="muted mt">เครื่องมือ: Management UI, plugin <code>rabbitmq_prometheus</code> + Grafana dashboard ทางการ, health check <code>rabbitmq-diagnostics</code></p>
+    </div>
+  </section>
+
+  <!-- 13 -->
+  <section class="slide" data-title="ข้อผิดพลาดที่พบบ่อย">
+    <div class="slide-inner">
+      <div class="eyebrow">Pitfalls</div>
+      <h2>ข้อผิดพลาดที่พบบ่อย</h2>
+      <div class="grid grid-2">
+        <div class="card bad"><h4>เปิด connection ใหม่ทุก message</h4><p class="small muted">ช้ามากและ broker รับไม่ไหว → ใช้ connection ร่วม, channel ต่อ thread</p></div>
+        <div class="card bad"><h4>ใช้ channel เดียวกันหลาย thread</h4><p class="small muted">channel ไม่ thread-safe สำหรับ publish พร้อมกัน</p></div>
+        <div class="card bad"><h4>ไม่ตั้ง prefetch</h4><p class="small muted">broker ดันข้อความทั้งหมดไปที่ consumer ตัวแรก RAM เต็ม</p></div>
+        <div class="card bad"><h4>ใช้ queue เป็นฐานข้อมูล</h4><p class="small muted">ข้อความค้างเป็นล้าน → ช้าลงมาก ควรมี TTL / max-length</p></div>
+        <div class="card bad"><h4>ต้องการลำดับเคร่งครัด แต่มีหลาย consumer</h4><p class="small muted">ลำดับเพี้ยน → ใช้ single active consumer หรือ consistent-hash exchange</p></div>
+        <div class="card bad"><h4>ไม่จัดการ connection หลุด</h4><p class="small muted">เปิด <code>AutomaticRecoveryEnabled</code> (ค่าเริ่มต้น) และ log เหตุการณ์ recovery</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 14 -->
+  <section class="slide" data-title="Checklist">
+    <div class="slide-inner">
+      <div class="eyebrow">Production Checklist</div>
+      <h2>Checklist ก่อนขึ้น Production</h2>
+      <div class="grid grid-2">
+        <div class="card good"><ul>
+          <li>☐ Cluster 3 nodes + Quorum queues</li>
+          <li>☐ Publisher confirms + persistent + mandatory</li>
+          <li>☐ Manual ack, prefetch เหมาะกับงาน</li>
+          <li>☐ DLX/DLQ + delivery-limit + delayed retry</li>
+          <li>☐ Consumer idempotent (เช็ค MessageId)</li>
+        </ul></div>
+        <div class="card gold"><ul>
+          <li>☐ TLS, user แยกต่อ service, ปิด guest</li>
+          <li>☐ Topology ประกาศด้วยโค้ด / definitions</li>
+          <li>☐ Prometheus + alert: ready, unacked, DLQ, alarms</li>
+          <li>☐ กำหนด max-length / TTL กันคิวบวม</li>
+          <li>☐ ทดสอบ node ล่ม + consumer crash แล้ว</li>
+        </ul></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+<script>
+window.KV_GLOSSARY = {
+  binding: {
+    title: "Binding",
+    body: "ความสัมพันธ์ระหว่าง exchange กับ queue พร้อม binding key/pattern ที่บอกว่าข้อความแบบไหนให้ส่งเข้า queue นี้",
+    example: "ผูก queue th-warehouse กับ exchange orders ด้วย pattern order.*.th"
+  },
+  confirm: {
+    title: "Publisher Confirms",
+    body: "กลไกที่ broker ส่งสัญญาณ ack/nack กลับไปหา publisher เมื่อรับข้อความและบันทึกเรียบร้อย (สำหรับ quorum queue คือ replicate ครบ quorum แล้ว) ทำให้ publisher รู้ว่าต้องส่งซ้ำหรือไม่",
+    example: "ส่งพัสดุแบบลงทะเบียน ได้ใบรับคืนมาจึงมั่นใจว่าถึงศูนย์คัดแยกแล้ว"
+  },
+  prefetch: {
+    title: "Prefetch (QoS)",
+    body: "จำนวนข้อความสูงสุดที่ยังไม่ ack ซึ่ง broker จะส่งมาค้างไว้ที่ consumer หนึ่งตัว ช่วยกระจายงานให้ worker หลายตัวเท่า ๆ กัน และกัน consumer รับงานเกินกำลัง",
+    example: "prefetch=10 → worker ถืองานได้ทีละ 10 ชิ้น ทำเสร็จ ack 1 ชิ้นจึงได้ชิ้นใหม่ 1 ชิ้น"
+  },
+  dlx: {
+    title: "Dead Letter Exchange (DLX)",
+    body: "exchange ที่ RabbitMQ จะส่งข้อความไปเมื่อข้อความถูก reject/nack แบบไม่ requeue, หมดอายุ TTL, คิวเต็ม หรือส่งซ้ำเกิน delivery limit",
+    example: "ข้อความที่ประมวลผลล้มเหลว 5 ครั้งถูกย้ายไป payment.dlq พร้อม header x-death บอกสาเหตุ"
+  }
+};
+</script>
+<script src="../../assets/kv-deck.js"></script>
+</body>
+</html>

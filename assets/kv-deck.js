@@ -43,7 +43,7 @@
       <button class="kv-btn" id="kvNext" type="button" aria-label="ถัดไป"><span class="kv-btn-label">ถัดไป</span>${icon.next}</button>
     </nav>
     <div class="kv-help">← → เปลี่ยนสไลด์ · M สารบัญ · N โน้ต · F เต็มจอ</div>
-    <div class="kv-credit">© ${new Date().getFullYear()} MERCENT GROUP Co., Ltd.</div>
+    <div class="kv-credit">© ${new Date().getFullYear()} MERCENT GROUP</div>
     <div class="kv-panel" id="kvMenu"><div class="kv-panel-head">สารบัญ<button class="kv-close" data-close>×</button></div><div class="kv-panel-body" id="kvMenuList"></div></div>
     <div class="kv-panel" id="kvNotes"><div class="kv-panel-head"><span id="kvNotesTitle">โน้ต</span><button class="kv-close" data-close>×</button></div><div class="kv-panel-body" id="kvNotesBody"></div></div>
     <div class="kv-backdrop" id="kvGloss" role="dialog" aria-modal="true">

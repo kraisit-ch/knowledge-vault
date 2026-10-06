@@ -119,6 +119,9 @@ git add . && git commit -m "docs(backend): add ef-core performance" && git push
 
 ### 🏗️ Architecture
 - [x] Kafka vs RabbitMQ vs BullMQ
+- [x] Apache Kafka Deep Dive
+- [x] RabbitMQ Deep Dive
+- [x] BullMQ Deep Dive
 - [ ] Monolith vs Modular Monolith vs Microservices
 - [ ] Event-driven / Outbox pattern กับ .NET
 - [ ] Caching Strategy ระดับระบบ (CDN, Redis, HTTP cache)
