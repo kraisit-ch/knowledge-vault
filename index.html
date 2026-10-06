@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Knowledge Vault</title>
+<style>
+:root{--bg:#f7f8fa;--fg:#1c2330;--mut:#667085;--card:#fff;--bd:#e4e7ec;--ac:#4f46e5}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1420;--fg:#e6e9ef;--mut:#98a2b3;--card:#171e2e;--bd:#263046;--ac:#818cf8}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,"Noto Sans Thai",sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:32px 16px}
+h1{margin:0}p.sub{color:var(--mut);margin:4px 0 20px}
+input{width:100%;padding:12px 14px;border:1px solid var(--bd);border-radius:10px;background:var(--card);color:var(--fg);font:inherit}
+nav{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
+nav button{border:1px solid var(--bd);background:var(--card);color:var(--fg);padding:6px 12px;border-radius:99px;cursor:pointer;font:inherit}
+nav button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+h2{margin:28px 0 10px;font-size:1.15rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+a.card{display:block;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;color:inherit;text-decoration:none}
+a.card:hover{border-color:var(--ac)}
+.meta{color:var(--mut);font-size:.85rem;margin-top:6px}
+.tag{display:inline-block;margin-right:6px}
+</style>
+</head>
+<body><div class="wrap">
+<h1 id="t"></h1><p class="sub" id="s"></p>
+<input id="q" type="search" placeholder="ค้นหา ชื่อเรื่อง / แท็ก ...">
+<nav id="nav"></nav><main id="list"></main>
+</div>
+<script>
+let C,cat="all";
+const $=id=>document.getElementById(id);
+fetch("catalog.json").then(r=>r.json()).then(d=>{C=d;document.title=d.title;$("t").textContent=d.title;$("s").textContent=d.subtitle;
+  $("nav").innerHTML=[{id:"all",name:"ทั้งหมด",icon:""},...d.categories].map(c=>`<button data-id="${c.id}">${c.icon} ${c.name}</button>`).join("");
+  $("nav").onclick=e=>{if(e.target.dataset.id){cat=e.target.dataset.id;render()}};
+  $("q").oninput=render;render()});
+function render(){
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.id===cat));
+  const q=$("q").value.toLowerCase();
+  $("list").innerHTML=C.categories.filter(c=>cat==="all"||c.id===cat).map(c=>{
+    const ds=C.docs.filter(d=>d.category===c.id&&(d.title+" "+(d.tags||[]).join(" ")).toLowerCase().includes(q));
+    if(!ds.length)return"";
+    return`<h2>${c.icon} ${c.name} (${ds.length})</h2><div class="grid">`+ds.map(d=>
+      `<a class="card" href="${encodeURI(d.path)}"><b>${d.title}</b><div class="meta">${d.date||""}<br>${(d.tags||[]).map(t=>`<span class="tag">#${t}</span>`).join("")}</div></a>`).join("")+"</div>"}).join("")||"<p>ไม่พบเอกสาร</p>";
+}
+</script></body></html>

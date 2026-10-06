@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Architecture Comparison: aaPanel vs Coolify vs Oracle</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --text-color: #e2e8f0;
+            --accent-green: #10b981; /* aaPanel / Docker General */
+            --accent-purple: #8b5cf6; /* Coolify */
+            --accent-dark: #64748b; /* Oracle */
+            --card-bg: #1e293b;
+            --heading-font: 'Sarabun', sans-serif;
+            --body-font: 'Sarabun', sans-serif;
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;800&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--body-font);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            overflow: hidden; /* Prevent scrolling, treat as slides */
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* Slide Structure */
+        .slide-container {
+            position: relative;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.5s ease-in-out;
+            transform: scale(0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center; /* Center vertically */
+            align-items: center;
+            padding: 40px;
+            box-sizing: border-box;
+            overflow-y: auto; /* Allow internal scrolling if content is long */
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1);
+            z-index: 10;
+        }
+
+        /* Content Styling */
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            text-align: center;
+            background: linear-gradient(to right, #4facfe 0%, #00f2fe 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(0, 242, 254, 0.3);
+        }
+
+        h2 {
+            font-size: 2.2rem;
+            color: #fff;
+            border-bottom: 3px solid var(--accent-purple);
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+
+        h3 {
+            font-size: 1.5rem;
+            color: #94a3b8;
+            margin-top: 20px;
+        }
+
+        .content-wrapper {
+            max-width: 1200px;
+            width: 100%;
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        /* Table Styling */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 1rem;
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #334155;
+        }
+
+        th {
+            background-color: #0f172a;
+            color: var(--accent-purple);
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        tr:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        /* List Styling */
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            margin-bottom: 12px;
+            padding-left: 25px;
+            position: relative;
+            line-height: 1.6;
+        }
+
+        li::before {
+            content: "➤";
+            color: var(--accent-purple);
+            position: absolute;
+            left: 0;
+        }
+
+        /* Highlight Boxes */
+        .highlight-box {
+            background: var(--card-bg);
+            border-left: 5px solid;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 0 10px 10px 0;
+        }
+
+        .box-green { border-color: var(--accent-green); }
+        .box-purple { border-color: var(--accent-purple); }
+        .box-dark { border-color: var(--accent-dark); }
+        .box-warning { border-color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
+
+        .tag {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        .tag-free { background-color: #10b981; color: #000; }
+
+        /* Navigation Controls */
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+        }
+
+        button {
+            background-color: var(--accent-purple);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: var(--heading-font);
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            background-color: #7c3aed;
+        }
+
+        button:disabled {
+            background-color: #475569;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .progress-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            height: 5px;
+            background-color: var(--accent-purple);
+            width: 0%;
+            transition: width 0.3s;
+            z-index: 100;
+        }
+
+        /* Specific text highlights */
+        .text-green { color: var(--accent-green); font-weight: bold; }
+        .text-purple { color: var(--accent-purple); font-weight: bold; }
+        .text-red { color: #ef4444; font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+    <div class="progress-bar" id="progressBar"></div>
+
+    <div class="slide-container">
+
+        <div class="slide active">
+            <h1>Infrastructure Comparison</h1>
+            <h2 style="border:none; text-align:center;">aaPanel vs Coolify vs Oracle (Manual)</h2>
+            <p style="text-align:center; font-size:1.2rem; color:#94a3b8;">การเปรียบเทียบเชิงลึก: สถาปัตยกรรม, ฟีเจอร์, และความเสี่ยง</p>
+            <div style="margin-top:50px; text-align:center;">
+                <p>กดปุ่ม <strong>Next</strong> หรือ <strong>ลูกศรขวา</strong> เพื่อเริ่มนำเสนอ</p>
+            </div>
+        </div>
+
+        <div class="slide">
+            <div class="content-wrapper">
+                <h2>ภาพรวม: ประเภทและจุดโฟกัส</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ประเภท</th>
+                            <th>Server Control Panel</th>
+                            <th>Self-hosted PaaS</th>
+                            <th>Infrastructure / Raw OS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>ค่าใช้จ่าย</strong></td>
+                            <td>ฟรี (มีเวอร์ชันเสียเงินสำหรับฟีเจอร์พิเศษ)</td>
+                            <td>ฟรี (Open Source 100%)</td>
+                            <td>ฟรี (ไม่มีค่า Software)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>จุดโฟกัส</strong></td>
+                            <td>จัดการไฟล์, DB, Server</td>
+                            <td>Deploy App, CI/CD, Git</td>
+                            <td>อิสระ, ประสิทธิภาพ</td>
+                        </tr>
+                        <tr>
+                            <td><strong>การ Deploy</strong></td>
+                            <td>อัปโหลดไฟล์ / ดึง Image เอง</td>
+                            <td>Git Push (อัตโนมัติ)</td>
+                            <td>พิมพ์คำสั่งเอง</td>
+                        </tr>
+                        <tr>
+                            <td><strong>จัดการ Domain/SSL</strong></td>
+                            <td>ตั้งค่าผ่าน UI (กึ่งอัตโนมัติ)</td>
+                            <td>อัตโนมัติ (Magic!)</td>
+                            <td>ทำเองทั้งหมด (Manual)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="slide">
+            <div class="content-wrapper">
+                <h2>เจาะลึกฟีเจอร์: Docker Manual vs PaaS</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ฟีเจอร์</th>
+                            <th>Docker ทั่วไป (Manual)</th>
+                            <th>Self-hosted PaaS (Coolify)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>การติดตั้ง App</td>
+                            <td>เขียน Dockerfile / docker-compose.yml เอง</td>
+                            <td>เชื่อม Git Repo หรือเลือกจาก Template</td>
+                        </tr>
+                        <tr>
+                            <td>HTTPS / Domain</td>
+                            <td>ลง Nginx + Certbot เอง + Config เอง</td>
+                            <td>อัตโนมัติ (Auto Provision)</td>
+                        </tr>
+                        <tr>
+                            <td>อัปเดตเวอร์ชัน</td>
+                            <td>SSH เข้าไป Pull & Restart เอง</td>
+                            <td>Git Push แล้วจบ (Auto Deploy)</td>
+                        </tr>
+                        <tr>
+                            <td>Database</td>
+                            <td>Config เองทุกบรรทัด</td>
+                            <td>คลิกเดียวเสร็จ</td>
+                        </tr>
+                        <tr>
+                            <td>การดู Logs</td>
+                            <td>CLI (docker logs)</td>
+                            <td>Web UI (Real-time)</td>
+                        </tr>
+                        <tr>
+                            <td>Git Integration</td>
+                            <td>Manual (ต้องกด Pull เอง หรือตั้ง Webhook ยาก)</td>
+                            <td>Native (เชื่อม GitHub/GitLab ได้เลย Push ปุ๊บ Deploy ปั๊บ)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="slide">
+            <div class="content-wrapper">
+                <h2>เจาะลึกฟีเจอร์ (ต่อ)</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ฟีเจอร์</th>
+                            <th>Docker ทั่วไป (Manual)</th>
+                            <th>Self-hosted PaaS (Coolify)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Preview Deployments (PR)</td>
+                            <td>No</td>
+                            <td>สร้างเว็บจำลองทุกครั้งที่มี Pull Request</td>
+                        </tr>
+                        <tr>
+                            <td>Automatic HTTPS</td>
+                            <td>Click-to-issue Let's Encrypt</td>
+                            <td>จัดการให้อัตโนมัติ พร้อมต่ออายุเอง</td>
+                        </tr>
+                        <tr>
+                            <td>Multi-Server</td>
+                            <td>1 Panel = 1 Server</td>
+                            <td>Centralized (คุมหลาย Server ได้จากหน้าเดียว)</td>
+                        </tr>
+                        <tr>
+                            <td>Team & RBAC</td>
+                            <td>ไม่เหมาะกับทีม</td>
+                            <td>แยกสิทธิ์ Viewer, Editor, Owner ได้</td>
+                        </tr>
+                        <tr>
+                            <td>ความรู้ที่ต้องใช้</td>
+                            <td>Linux, Network, Nginx, Bash</td>
+                            <td>พื้นฐาน Web Dev ทั่วไป</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="slide">
+            <div class="content-wrapper">
+                <h2>Rollback Strategy (การย้อนกลับเวอร์ชัน)</h2>
+                <p>Rollback ระหว่าง Docker แบบทั่วไป กับ Coolify นั้นมีความแตกต่างกันอย่างสิ้นเชิงในเชิง "สถาปัตยกรรม" และ "ความเสี่ยง"</p>
+                
+                <h3>ตารางเปรียบเทียบ Rollback</h3>
+                <table>
+                    <tr>
+                        <th>คุณสมบัติ</th>
+                        <th>Docker ทั่วไป (Manual)</th>
+                        <th>Self-hosted PaaS</th>
+                    </tr>
+                    <tr>
+                        <td>ความง่าย</td>
+                        <td>ยาก (ต้องแก้ไฟล์ Config + รันคำสั่ง)</td>
+                        <td>ง่าย (คลิกเลือกเวอร์ชันใน UI)</td>
+                    </tr>
+                    <tr>
+                        <td>ความเร็ว</td>
+                        <td>ช้า (ต้องแก้คน, อาจต้อง Pull image ใหม่)</td>
+                        <td>เร็ว (ใช้ Image เดิมที่แคชไว้)</td>
+                    </tr>
+                    <tr>
+                        <td>ความเสี่ยง</td>
+                        <td>สูง (Human Error, Config ผิด)</td>
+                        <td>ต่ำ (ระบบจัดการให้)</td>
+                    </tr>
+                    <tr>
+                        <td>Downtime</td>
+                        <td>มี (ช่วง Restart container)</td>
+                        <td>น้อยมาก (Coolify จัดการ Flow ให้)</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="slide">
+            <div class="content-wrapper">
+                <h2>Docker แบบทั่วไป (The "Manual" Way)</h2>
+                
+                <div class="highlight-box box-dark">
+                    <h3>กลไกทางเทคนิค</h3>
+                    <ul>
+                        <li><strong>Image Tagging คือหัวใจ:</strong> ถ้าคุณ Deploy โดยใช้ tag ว่า latest ตลอด (เช่น myapp:latest) คุณจะ Rollback ไม่ได้เลย เพราะ Image เก่าถูกทับไปแล้ว</li>
+                        <li><strong>วิธีที่ถูก:</strong> คุณต้อง Tag ทุกเวอร์ชัน เช่น myapp:v1, myapp:v2</li>
+                    </ul>
+                </div>
+
+                <div class="highlight-box box-dark">
+                    <h3>Process การ Rollback</h3>
+                    <ol>
+                        <li>แก้ไฟล์ docker-compose.yml เปลี่ยนจาก image: myapp:v2 กลับเป็น image: myapp:v1</li>
+                        <li>รันคำสั่ง docker compose up -d</li>
+                        <li>Docker จะหยุด Container ตัวปัจจุบัน (v2) -> ลบ Container -> สร้าง Container ใหม่จาก Image v1 -> Start</li>
+                    </ol>
+                </div>
+
+                <div class="highlight-box box-warning">
+                    <h3>จุดตาย (Pain Points)</h3>
+                    <ul>
+                        <li><strong>Downtime:</strong> มีช่วงเวลาที่เว็บเข้าไม่ได้ (Gap) ระหว่าง Stop ตัวเก่าและ Start ตัวใหม่</li>
+                        <li><strong>Config Drift:</strong> ถ้าแก้ .env แล้วไม่ได้ backup ของเก่า พอ Rollback โค้ดกลับไป แต่ Config เป็นของใหม่... พังครับ</li>
+                        <li><strong>Human Error:</strong> ต้องพิมพ์คำสั่งเอง ต้องจำ Tag เอง ถ้าจำผิดชีวิตเปลี่ยน</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="slide">
+            <div class="content-wrapper">
+                <h2>Coolify (The "Snapshot" Way)</h2>
+                <p>Coolify จัดการในระดับ Application Lifecycle Management มองเป็น "Deployment History"</p>
+
+                <div class="highlight-box box-purple">
+                    <h3>กลไกทางเทคนิค</h3>
+                    <ul>
+                        <li><strong>Commit-Based Tracking:</strong> ผูกติดกับ Git ทุกครั้งที่ Deploy จะบันทึก Commit Hash ไว้</li>
+                        <li><strong>Image Retention:</strong> เก็บ Image ของการ Deploy ครั้งก่อนๆ ไว้ ทำให้ไม่ต้อง Build ใหม่</li>
+                    </ul>
+                </div>
+
+                <div class="highlight-box box-purple">
+                    <h3>One-Click Rollback</h3>
+                    <ol>
+                        <li>เข้าไปดูประวัติการ Deploy (Deployment History)</li>
+                        <li>เลือกเวอร์ชันเก่าที่ขึ้นสถานะว่า "Success"</li>
+                        <li>กด "Redeploy" หรือ "Rollback"</li>
+                        <li>Coolify จะหยิบ Image หรือ Code ชุดนั้นมา Deploy ทับทันที</li>
+                    </ol>
+                </div>
+
+                <div class="highlight-box box-purple">
+                    <h3>ข้อได้เปรียบเชิงลึก</h3>
+                    <ul>
+                        <li><strong>Context Aware:</strong> รู้ว่า Commit ไหน คู่กับ Config แบบไหน</li>
+                        <li><strong>Automated Proxy Switching:</strong> Rollback เสร็จแล้วจะสั่ง Traefik สลับ Traffic ให้เองอัตโนมัติ</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="slide">
+            <div class="content-wrapper" style="border-color: #f59e0b;">
+                <h2 style="color: #f59e0b; border-color: #f59e0b;">⚠️ เรื่องใหญ่ที่ต้องระวัง (Database Migration)</h2>
+                <p>ไม่ว่าคุณจะใช้ Coolify หรือ Docker ธรรมดา สิ่งหนึ่งที่ Rollback ไม่ได้คือ Database (ข้อมูล)</p>
+
+                <div class="highlight-box box-warning">
+                    <h3>สถานการณ์สมมติ</h3>
+                    <ul>
+                        <li><strong>V1:</strong> มีตาราง Users (name, email)</li>
+                        <li><strong>V2:</strong> คุณแก้โค้ด และสั่ง Database Migration ลบคอลัมน์ email ทิ้ง</li>
+                        <li><strong>App พัง:</strong> คุณสั่ง Rollback กลับไป V1</li>
+                        <li><strong>ผลลัพธ์:</strong> App V1 จะพังทันทีที่ Start เพราะโค้ด V1 หาคอลัมน์ email ไม่เจอ (ถูกลบไปแล้วใน V2)</li>
+                    </ul>
+                </div>
+
+                <div class="highlight-box box-dark">
+                    <h3>ทางแก้</h3>
+                    <ul>
+                        <li><strong>Docker/Coolify:</strong> ช่วยได้แค่เรื่อง Code (App Logic)</li>
+                        <li><strong>Database:</strong> ต้องมีระบบ Backup/Restore หรือเขียน Script "Down Migration" ไว้เสมอ นี่คือจุดที่ DevOps ต้องเข้ามาดูแล</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="slide">
+            <div class="content-wrapper">
+                <h2>Multi-Node Management</h2>
+                <p>จุดตัดสำคัญระหว่าง "Enterprise Grade" และ "Hobby Grade"</p>
+                <div class="highlight-box box-dark">
+                    <p><strong>สำหรับ Head of Dev:</strong> "ถ้าพรุ่งนี้ User เข้ามาถล่มจน Server รับไม่ไหว เราจะขยาย (Scale) ไปเครื่องที่ 2, 3, 4 ได้เร็วแค่ไหน?"</p>
+                </div>
+                <p>เรามาดูการเปรียบเทียบเชิงลึกของ 3 สถาปัตยกรรม</p>
+            </div>
+        </div>
+
+        <div class="slide">
+            <div class="content-wrapper">
+                <h2 style="border-color: var(--accent-green);">1. aaPanel: "Islands Architecture" (บ้านใครบ้านมัน) 🏝️</h2>
+                <p>aaPanel ไม่ได้ถูกออกแบบมาให้ทำ Cluster หรือ Multi-Node</p>
+
+                <div class="highlight-box box-green">
+                    <h3>วิธีการ</h3>
+                    <ul>
+                        <li>ถ้ามี 3 Servers ต้องติดตั้ง aaPanel 3 ครั้ง (แยก IP)</li>
+                        <li>ต้อง Login เข้า 3 หน้าต่าง (Tab) เพื่อจัดการ</li>
+                    </ul>
+                </div>
+
+                <div class="highlight-box box-warning">
+                    <h3>ปัญหาใหญ่ (Pain Points)</h3>
+                    <ul>
+                        <li><strong>No Centralized View:</strong> ไม่เห็นภาพรวมว่าเครื่องไหนโหลดหนัก เครื่องไหนว่าง</li>
+                        <li><strong>No Auto-Sync:</strong> ถ้าแก้ Config Nginx เครื่อง 1 ต้องก๊อปไปแก้ที่เครื่อง 2 และ 3 เอง (Manual Sync)</li>
+                        <li><strong>Database แยกกัน:</strong> การทำ Database Replication ข้ามเครื่องเป็นเรื่องยากและต้องทำมือ</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="slide">
+            <div class="content-wrapper">
+                <h2 style="border-color: var(--accent-dark);">2. Oracle (Manual Docker Swarm / K8s): "The Mesh" 🕸️</h2>
+                <p>วิธีที่ "ถูกต้องตามหลักการ" แต่ "ซับซ้อนมหาศาล"</p>
+
+                <div class="highlight-box box-dark">
+                    <h3>วิธีการ (Docker Swarm)</h3>
+                    <ul>
+                        <li>รันคำสั่ง docker swarm init ที่เครื่องแม่ และ docker swarm join ที่เครื่องลูก</li>
+                        <li>สร้าง Overlay Network เพื่อให้ Container ข้ามเครื่องคุยกันได้</li>
+                    </ul>
+                </div>
+
+                <div class="highlight-box box-dark">
+                    <h3>ข้อดี</h3>
+                    <ul>
+                        <li><strong>High Availability (HA):</strong> ถ้าเครื่อง 1 ดับ Container จะย้ายไปเกิดใหม่ที่เครื่อง 2 อัตโนมัติ</li>
+                    </ul>
+                </div>
+
+                <div class="highlight-box box-warning">
+                    <h3>ข้อเสีย (High Toil)</h3>
+                    <ul>
+                        <li><strong>Learning Curve นรกแตก:</strong> ต้องรู้เรื่อง Raft Consensus, Overlay Networking, Ingress Routing</li>
+                        <li><strong>Troubleshooting ยาก:</strong> เวลาระบบ Network มีปัญหา การหาจุดตาย (Debug) ยากมาก</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="slide">
+            <div class="content-wrapper">
+                <h2 style="border-color: var(--accent-purple);">3. Coolify: "Hub & Spoke" (ศูนย์บัญชาการ) 🎡 🏆</h2>
+                <p>ใช้วิธีฉลาดกว่าคือ "Remote Docker over SSH"</p>
+
+                <div class="highlight-box box-purple">
+                    <h3>วิธีการ</h3>
+                    <ol>
+                        <li>ติดตั้ง Coolify บนเครื่องหลัก (Control Plane)</li>
+                        <li>เพิ่ม Server ลูก (Worker Nodes) เข้ามาผ่าน SSH Key</li>
+                        <li>จบ! Coolify จะเข้าไปลง Docker Engine ให้เอง และควบคุมจากหน้าจอเดียว</li>
+                    </ol>
+                </div>
+
+                <div class="highlight-box box-purple">
+                    <h3>ความเทพ (Killer Features)</h3>
+                    <ul>
+                        <li><strong>Single Dashboard:</strong> เห็น CPU/RAM/Disk ของทั้ง 10 เครื่อง ในหน้าจอเดียว</li>
+                        <li><strong>Deployment Target:</strong> มีเมนู Dropdown เลือกได้ว่า "จะลงที่เครื่องไหน?" (เช่น App ลง Server A, DB ลง Server B)</li>
+                        <li><strong>Load Balancing (Built-in):</strong> จัดการ Routing ภายในเครื่องให้ ส่วนข้ามเครื่องแค่ตั้ง Cloudflare/LB ชี้มาที่ IP ทั้งหมด</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="slide">
+            <div class="content-wrapper">
+                <h2>ตารางสรุป Multi-Node</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ฟีเจอร์</th>
+                            <th>🟢 Docker ทั่วไป (Islands)</th>
+                            <th>⚫ Oracle (Swarm/K8s)</th>
+                            <th>🟣 Coolify (Hub & Spoke)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>การเชื่อมต่อ</td>
+                            <td>None (แยกกันอยู่)</td>
+                            <td>Overlay Network (Mesh)</td>
+                            <td>SSH Tunnel (Centralized)</td>
+                        </tr>
+                        <tr>
+                            <td>การติดตั้ง</td>
+                            <td>ลงทีละเครื่อง Login แยก</td>
+                            <td>พิมพ์คำสั่ง Join Token</td>
+                            <td>Click-to-Add (ผ่าน SSH)</td>
+                        </tr>
+                        <tr>
+                            <td>การมองเห็น</td>
+                            <td>ดูได้ทีละเครื่อง</td>
+                            <td>CLI (docker node ls)</td>
+                            <td>Unified Dashboard (รวมศูนย์)</td>
+                        </tr>
+                        <tr>
+                            <td>การย้าย App</td>
+                            <td>Backup -> ย้ายไฟล์ -> Restore</td>
+                            <td>Auto (Scheduler จัดการ)</td>
+                            <td>Change Destination -> Deploy ใหม่</td>
+                        </tr>
+                        <tr>
+                            <td>ความยาก</td>
+                            <td>ง่าย (แต่เสียเวลาดูแล)</td>
+                            <td>ยากที่สุด (Enterprise)</td>
+                            <td>ง่ายที่สุด (Modern)</td>
+                        </tr>
+                        <tr>
+                            <td>เหมาะสำหรับ</td>
+                            <td>เว็บไซต์เล็กๆ หลายๆ เว็บ</td>
+                            <td>ระบบธนาคาร / Large Scale</td>
+                            <td>SME / Startup / Software House</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="controls">
+        <button id="prevBtn" disabled>❮ Prev</button>
+        <button id="nextBtn">Next ❯</button>
+    </div>
+
+    <script>
+        const slides = document.querySelectorAll('.slide');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const progressBar = document.getElementById('progressBar');
+        let currentSlide = 0;
+
+        function updateSlide() {
+            slides.forEach((slide, index) => {
+                slide.classList.remove('active');
+                if (index === currentSlide) {
+                    slide.classList.add('active');
+                }
+            });
+
+            // Update Buttons
+            prevBtn.disabled = currentSlide === 0;
+            nextBtn.disabled = currentSlide === slides.length - 1;
+
+            // Update Progress Bar
+            const progress = ((currentSlide + 1) / slides.length) * 100;
+            progressBar.style.width = `${progress}%`;
+        }
+
+        nextBtn.addEventListener('click', () => {
+            if (currentSlide < slides.length - 1) {
+                currentSlide++;
+                updateSlide();
+            }
+        });
+
+        prevBtn.addEventListener('click', () => {
+            if (currentSlide > 0) {
+                currentSlide--;
+                updateSlide();
+            }
+        });
+
+        // Keyboard Navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                if (currentSlide < slides.length - 1) {
+                    currentSlide++;
+                    updateSlide();
+                }
+            } else if (e.key === 'ArrowLeft') {
+                if (currentSlide > 0) {
+                    currentSlide--;
+                    updateSlide();
+                }
+            }
+        });
+
+        // Initialize
+        updateSlide();
+    </script>
+</body>
+</html>

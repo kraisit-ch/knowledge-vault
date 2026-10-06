@@ -1,0 +1,14 @@
+{
+  "title": "Knowledge Vault",
+  "subtitle": "คลังความรู้ส่วนตัว — เอกสาร HTML แยกตามหมวด",
+  "categories": [
+    { "id": "messaging", "name": "Messaging & Queue", "icon": "📨" },
+    { "id": "testing",   "name": "Testing",            "icon": "🧪" },
+    { "id": "devops",    "name": "DevOps & Server",    "icon": "🖥️" }
+  ],
+  "docs": [
+    { "category": "messaging", "title": "Apache Kafka vs RabbitMQ vs BullMQ", "path": "docs/messaging/kafka-rabbitmq-bullmq-presentation.html", "date": "2026-10-06", "tags": ["kafka", "rabbitmq", "bullmq"] },
+    { "category": "testing",   "title": "Playwright 101 Training", "path": "docs/testing/playwright-training.html", "date": "2026-05-29", "tags": ["playwright", "e2e"] },
+    { "category": "devops",    "title": "Server Architecture: aaPanel vs Coolify vs Oracle", "path": "docs/devops/docker-coolify-aapanel.html", "date": "2026-02-10", "tags": ["docker", "coolify", "aapanel"] }
+  ]
+}
