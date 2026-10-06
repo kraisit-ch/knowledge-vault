@@ -128,5 +128,5 @@ git add . && git commit -m "docs(backend): add ef-core performance" && git push
 ## 6. งานปรับปรุงเว็บ (Backlog)
 - [ ] เพิ่มปุ่มพิมพ์เป็น PDF ต่อเรื่อง
 - [ ] Custom domain เช่น `kb.mercent.co.th` (ตั้งที่ Settings → Pages)
-- [ ] ย้ายเอกสารเก่า (Kafka, Playwright, Docker) มาใช้ธีม `kv-deck` เดียวกัน
+- [x] ย้ายเอกสารเก่า (Kafka, Playwright, Docker) มาใช้ธีม `kv-deck` เดียวกัน
 - [ ] Script ตรวจว่าทุกไฟล์ใน `docs/` ถูกลงทะเบียนใน `catalog.json`

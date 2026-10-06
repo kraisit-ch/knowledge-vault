@@ -1,297 +1,314 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Playwright 101 Training</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap');
-        
-        body, html {
-            margin: 0; padding: 0;
-            font-family: 'Sarabun', sans-serif;
-            background-color: #1e1e1e; color: #ffffff;
-            scroll-behavior: smooth;
-        }
-        .slide {
-            min-height: 100vh;
-            display: flex; flex-direction: column;
-            justify-content: center; align-items: center;
-            padding: 50px 10%; box-sizing: border-box;
-            border-bottom: 2px solid #333;
-        }
-        .slide:nth-child(even) { background-color: #252526; }
-        
-        .content-box { width: 100%; max-width: 1200px; }
-        
-        h1 { color: #45ba4b; font-size: 3.5rem; text-align: center; margin-bottom: 10px; }
-        h2 { color: #45ba4b; font-size: 2.5rem; border-bottom: 2px solid #45ba4b; padding-bottom: 15px; margin-bottom: 30px; }
-        p { font-size: 1.5rem; line-height: 1.6; color: #d4d4d4; }
-        ul, ol { font-size: 1.4rem; line-height: 1.8; color: #d4d4d4; margin-bottom: 20px; }
-        li strong { color: #569cd6; }
-        
-        .highlight { color: #ce9178; font-weight: bold; }
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
-        .grid-2-asym { display: grid; grid-template-columns: 1.5fr 1fr; gap: 40px; align-items: center; }
-        
-        pre {
-            background-color: #1e1e1e; border: 1px solid #444; border-radius: 8px;
-            padding: 20px; font-size: 1.1rem; overflow-x: auto;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            margin-top: 0;
-        }
-        code { font-family: 'Consolas', monospace; color: #dcdcaa; }
-        .comment { color: #6a9955; }
-        .keyword { color: #569cd6; }
-        .string { color: #ce9178; }
-        .func { color: #dcdcaa; }
-        .folder { color: #d7ba7d; font-weight: bold; }
-        .yaml-key { color: #9cdcfe; }
-        
-        .nav-hint { margin-top: 30px; font-size: 1rem; color: #888; text-align: center; }
-        .pro-badge { background-color: #d16969; color: white; padding: 4px 12px; border-radius: 20px; font-size: 1.2rem; vertical-align: middle; margin-left: 15px; font-weight: bold; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>Playwright 101 Training</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css">
 </head>
-<body>
+<body data-title="Playwright 101 Training" data-mark="PW">
+<main class="slides">
 
-    <div class="slide" id="slide1">
-        <div class="content-box" style="text-align: center;">
-            <h1>🚀 Playwright 101</h1>
-            <p style="font-size: 2rem; color: #569cd6;">Automated E2E Testing สำหรับทีม React / Next.js</p>
-            <p>เรียนรู้การเขียนสคริปต์ทดสอบระบบให้เหมือนมีผู้ใช้งานจริง</p>
-            <div class="nav-hint">👇 เลื่อนลงเพื่อดูสไลด์ถัดไป</div>
-        </div>
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">Testing · E2E Automation</div>
+      <h1>🚀 <span class="grad">Playwright 101</span></h1>
+      <p class="lead">Automated E2E Testing สำหรับทีม React / Next.js<br>เรียนรู้การเขียนสคริปต์ทดสอบระบบให้เหมือนมีผู้ใช้งานจริง</p>
+      <div class="tag-row">
+        <span class="tag gold">E2E Test</span><span class="tag blue">TypeScript</span>
+        <span class="tag">Page Object Model</span><span class="tag">Codegen</span><span class="tag">CI/CD</span>
+      </div>
     </div>
+  </section>
 
-    <div class="slide" id="slide2">
-        <div class="content-box">
-            <h2>1. Playwright คืออะไร? ทำไมเราถึงต้องใช้?</h2>
-            <p>Playwright คือเครื่องมือจาก Microsoft ใช้เขียนโค้ดเพื่อควบคุมเบราว์เซอร์ให้ทำงานแทนคน (Automated Testing)</p>
-            <ul>
-                <li><strong>เป้าหมาย:</strong> ลดภาระการกดเทสต์ด้วยมือ (Manual Test) ป้องกันบั๊กหลุดขึ้น Production เวลามีการอัปเดตโค้ดใหม่</li>
-                <li><strong>ทำไมต้อง Playwright:</strong>
-                    <ul>
-                        <li>ทำงานเร็วมาก และรองรับทุกเบราว์เซอร์ (Chrome, Firefox, Safari)</li>
-                        <li>มีระบบ <span class="highlight">Auto-wait</span> (รอหน้าเว็บโหลดเสร็จหรือปุ่มคลิกได้เอง ไม่ต้องเขียนคำสั่ง sleep)</li>
-                        <li>มี Tool ไว้ดูย้อนหลังเหมือนดูวิดีโอเวลาเทสต์พัง</li>
-                    </ul>
-                </li>
-            </ul>
-        </div>
+  <!-- 2 -->
+  <section class="slide" data-title="Playwright คืออะไร">
+    <div class="slide-inner">
+      <div class="eyebrow">Introduction</div>
+      <h2>1. Playwright คืออะไร? ทำไมเราถึงต้องใช้?</h2>
+      <p class="lead">Playwright คือเครื่องมือจาก Microsoft ใช้เขียนโค้ดเพื่อควบคุมเบราว์เซอร์ให้ทำงานแทนคน (Automated Testing)</p>
+      <div class="card gold mt"><h3>🎯 เป้าหมาย</h3><p class="muted">ลดภาระการกดเทสต์ด้วยมือ (Manual Test) ป้องกันบั๊กหลุดขึ้น Production เวลามีการอัปเดตโค้ดใหม่</p></div>
+      <div class="grid grid-3 mt">
+        <div class="card"><div class="icon">⚡</div><h3>เร็ว + ทุกเบราว์เซอร์</h3><p class="muted">ทำงานเร็วมาก และรองรับ Chrome, Firefox, Safari</p></div>
+        <div class="card good"><div class="icon">⏳</div><h3>Auto-wait<button class="term" data-term="autowait"></button></h3><p class="muted">รอหน้าเว็บโหลดเสร็จหรือปุ่มคลิกได้เอง ไม่ต้องเขียนคำสั่ง sleep</p></div>
+        <div class="card violet"><div class="icon">🎬</div><h3>ดูย้อนหลังได้</h3><p class="muted">มี Tool ไว้ดูย้อนหลังเหมือนดูวิดีโอเวลาเทสต์พัง</p></div>
+      </div>
     </div>
+  </section>
 
-    <div class="slide" id="slide3">
-        <div class="content-box">
-            <h2>2. หัวใจสำคัญ 3 อย่างของการเขียนเทสต์ (AAA)</h2>
-            <p>การเขียนสคริปต์เทสต์ 1 ข้อ จะประกอบไปด้วย 3 ขั้นตอนเสมอ</p>
-            <ol>
-                <li><strong>Arrange & Find (เตรียมและค้นหา):</strong> การหาปุ่ม, ช่องกรอกข้อความ โดยเราจะใช้ฟังก์ชัน <code>page.locator()</code> หรือ <code>page.getByTestId()</code></li>
-                <li><strong>Act (กระทำ):</strong> สั่งให้ทำบางอย่าง เช่น <code>.click()</code> (คลิก), <code>.fill()</code> (พิมพ์ข้อความ)</li>
-                <li><strong>Assert (ตรวจสอบ):</strong> เช็กว่าผลลัพธ์ถูกต้องไหม โดยใช้คำสั่ง <code>expect()</code> เช่น <code>expect(page).toHaveURL('/dashboard')</code></li>
-            </ol>
-        </div>
+  <!-- 3 -->
+  <section class="slide" data-title="หัวใจ 3 อย่าง (AAA)">
+    <div class="slide-inner">
+      <div class="eyebrow">Test Anatomy</div>
+      <h2>2. หัวใจสำคัญ 3 อย่างของการเขียนเทสต์ (AAA<button class="term" data-term="aaa"></button>)</h2>
+      <p class="lead">การเขียนสคริปต์เทสต์ 1 ข้อ จะประกอบไปด้วย 3 ขั้นตอนเสมอ</p>
+      <div class="diagram"><div class="flow">
+        <div class="node">Arrange &amp; Find<small>เตรียมและค้นหา</small></div><div class="arrow">→</div>
+        <div class="node gold">Act<small>กระทำ</small></div><div class="arrow">→</div>
+        <div class="node green">Assert<small>ตรวจสอบ</small></div>
+      </div></div>
+      <ol class="steps mt">
+        <li><strong>Arrange &amp; Find (เตรียมและค้นหา):</strong> การหาปุ่ม, ช่องกรอกข้อความ โดยเราจะใช้ฟังก์ชัน <code>page.locator()</code> หรือ <code>page.getByTestId()</code></li>
+        <li><strong>Act (กระทำ):</strong> สั่งให้ทำบางอย่าง เช่น <code>.click()</code> (คลิก), <code>.fill()</code> (พิมพ์ข้อความ)</li>
+        <li><strong>Assert (ตรวจสอบ):</strong> เช็กว่าผลลัพธ์ถูกต้องไหม โดยใช้คำสั่ง <code>expect()</code> เช่น <code>expect(page).toHaveURL('/dashboard')</code></li>
+      </ol>
     </div>
+  </section>
 
-    <div class="slide" id="slide4">
-        <div class="content-box">
-            <h2>3. โครงสร้างโปรเจกต์มาตรฐาน (Directory Structure)</h2>
-            <p>เราจะวางโฟลเดอร์ <span class="folder">e2e/</span> ไว้ในโปรเจกต์ React/Next.js ของเราเลย โดยแบ่งหน้าที่ทำงาน 4 ส่วนหลักชัดเจน</p>
-            <div class="grid-2">
-                <div>
-<pre><code>my-nextjs-app/
+  <!-- 4 -->
+  <section class="slide" data-title="โครงสร้างโปรเจกต์">
+    <div class="slide-inner">
+      <div class="eyebrow">Directory Structure</div>
+      <h2>3. โครงสร้างโปรเจกต์มาตรฐาน</h2>
+      <p class="muted">วางโฟลเดอร์ <code>e2e/</code> ไว้ในโปรเจกต์ React/Next.js ของเราเลย โดยแบ่งหน้าที่ทำงาน 4 ส่วนหลักชัดเจน</p>
+      <div class="grid grid-2">
+<pre class="code" data-lang="text">
+my-nextjs-app/
 ├── app/
 ├── components/
 │
-├── <span class="folder">e2e/</span>
-│   ├── <span class="folder">pages/</span>          <span class="comment">// 1. ส่วน Page Object (POM)</span>
+├── e2e/
+│   ├── pages/          // 1. ส่วน Page Object (POM)
 │   │   ├── BasePage.ts
 │   │   ├── LoginPage.ts
 │   │   └── DashboardPage.ts
-│   ├── <span class="folder">tests/</span>          <span class="comment">// 2. ส่วน Test Scripts</span>
+│   ├── tests/          // 2. ส่วน Test Scripts
 │   │   ├── auth.spec.ts
 │   │   └── checkout.spec.ts
-│   ├── <span class="folder">fixtures/</span>       <span class="comment">// 3. ตัวช่วย/ข้อมูลทดสอบ</span>
+│   ├── fixtures/       // 3. ตัวช่วย/ข้อมูลทดสอบ
 │   │   ├── custom-test.ts
 │   │   └── mock-data.json
-│   └── <span class="folder">.auth/</span>          <span class="comment">// 4. เก็บ Session (Ignored)</span>
+│   └── .auth/          // 4. เก็บ Session (Ignored)
 │       └── user.json
 │
 ├── playwright.config.ts
-└── package.json</code></pre>
-                </div>
-                <div>
-                    <ul>
-                        <li><strong>e2e/pages/</strong> : คลาสตัวแทนหน้าเว็บ เก็บ Locator และ Actions (เช่น <code>login(user, pass)</code>) แก้โค้ดที่นี่ที่เดียวเวลา UI เปลี่ยน</li>
-                        <li><strong>e2e/tests/</strong> : ไฟล์สคริปต์ทดสอบ (<code>.spec.ts</code>) จะเรียกใช้งานจาก pages/ เท่านั้น ทำให้อ่านง่ายเหมือนภาษาคน</li>
-                        <li><strong>e2e/fixtures/</strong> : เก็บข้อมูลจำลอง (Mock Data) สำหรับเตรียมระบบก่อนเริ่มเทสต์</li>
-                        <li><strong>e2e/.auth/</strong> : แหล่งเก็บสถานะการเข้าสู่ระบบ ช่วยข้ามหน้า Login ไปได้เลย ลดเวลารันเทสต์ได้มหาศาล</li>
-                    </ul>
-                </div>
-            </div>
+└── package.json
+</pre>
+        <div class="grid">
+          <div class="card"><h4>📄 e2e/pages/</h4><p class="small muted">คลาสตัวแทนหน้าเว็บ เก็บ Locator และ Actions (เช่น <code>login(user, pass)</code>) แก้โค้ดที่นี่ที่เดียวเวลา UI เปลี่ยน</p></div>
+          <div class="card gold"><h4>🧪 e2e/tests/</h4><p class="small muted">ไฟล์สคริปต์ทดสอบ (<code>.spec.ts</code>) จะเรียกใช้งานจาก pages/ เท่านั้น ทำให้อ่านง่ายเหมือนภาษาคน</p></div>
+          <div class="card good"><h4>🧰 e2e/fixtures/</h4><p class="small muted">เก็บข้อมูลจำลอง (Mock Data) สำหรับเตรียมระบบก่อนเริ่มเทสต์</p></div>
+          <div class="card violet"><h4>🔐 e2e/.auth/</h4><p class="small muted">แหล่งเก็บสถานะการเข้าสู่ระบบ ช่วยข้ามหน้า Login ไปได้เลย ลดเวลารันเทสต์ได้มหาศาล</p></div>
         </div>
+      </div>
     </div>
+  </section>
 
-    <div class="slide" id="slide5">
-        <div class="content-box">
-            <h2>4. ทำไมต้องแบ่งโครงสร้างแบบนี้? (The "Why")</h2>
-            <p>โครงสร้างนี้อิงจาก Design Pattern ที่เรียกว่า <strong>Page Object Model (POM)</strong></p>
-            <ul>
-                <li><strong>ปัญหาเก่า:</strong> ถ้าเขียนคำสั่งหาปุ่ม <code>('#login-btn')</code> ปนไปในไฟล์เทสต์ทั้ง 100 ไฟล์... วันนึง Front-end เปลี่ยน ID ปุ่ม เราต้องตามไปแก้โค้ดทั้ง 100 ไฟล์!</li>
-                <li><strong>ทางแก้ด้วย POM:</strong> แยกการหาปุ่มไปไว้ที่ <code>e2e/pages/LoginPage.ts</code> แค่ไฟล์เดียว ถ้า UI หรือ <code>data-testid</code> เปลี่ยน เราก็แก้แค่ไฟล์นี้ไฟล์เดียว จบ!</li>
-                <li><strong>รองรับการขยายตัว (Scalable):</strong> แม้ในอนาคตจะมีเทสต์เป็นร้อยข้อ โค้ดก็จะเป็นระเบียบ คนไม่ได้เขียนโค้ด (เช่น QA, PM) ก็อ่านรู้เรื่อง</li>
-            </ul>
-        </div>
+  <!-- 5 -->
+  <section class="slide" data-title="ทำไมต้อง POM">
+    <div class="slide-inner">
+      <div class="eyebrow">The "Why"</div>
+      <h2>4. ทำไมต้องแบ่งโครงสร้างแบบนี้?</h2>
+      <p class="lead">โครงสร้างนี้อิงจาก Design Pattern ที่เรียกว่า <strong class="gold">Page Object Model (POM)</strong><button class="term" data-term="pom"></button></p>
+      <div class="grid grid-3">
+        <div class="card bad"><h3>😫 ปัญหาเก่า</h3><p class="muted">ถ้าเขียนคำสั่งหาปุ่ม <code>('#login-btn')</code> ปนไปในไฟล์เทสต์ทั้ง 100 ไฟล์... วันนึง Front-end เปลี่ยน ID ปุ่ม เราต้องตามไปแก้โค้ดทั้ง 100 ไฟล์!</p></div>
+        <div class="card good"><h3>✅ ทางแก้ด้วย POM</h3><p class="muted">แยกการหาปุ่มไปไว้ที่ <code>e2e/pages/LoginPage.ts</code> แค่ไฟล์เดียว ถ้า UI หรือ <code>data-testid</code> เปลี่ยน เราก็แก้แค่ไฟล์นี้ไฟล์เดียว จบ!</p></div>
+        <div class="card gold"><h3>📈 รองรับการขยายตัว</h3><p class="muted">แม้ในอนาคตจะมีเทสต์เป็นร้อยข้อ โค้ดก็จะเป็นระเบียบ คนไม่ได้เขียนโค้ด (เช่น QA, PM) ก็อ่านรู้เรื่อง</p></div>
+      </div>
     </div>
+  </section>
 
-    <div class="slide" id="slide6">
-        <div class="content-box">
-            <h2>5. ตัวอย่างจริง: ส่วน Page Object (แยกหน้าเว็บ)</h2>
-            <p>ไฟล์: <code>e2e/pages/LoginPage.ts</code> (เก็บแค่หน้าตาเว็บและ Actions)</p>
-            <pre><code><span class="keyword">import</span> { Page, Locator } <span class="keyword">from</span> <span class="string">'@playwright/test'</span>;
+  <!-- 6 -->
+  <section class="slide" data-title="ตัวอย่าง Page Object">
+    <div class="slide-inner">
+      <div class="eyebrow">Example · Page Object</div>
+      <h2>5. ตัวอย่างจริง: ส่วน Page Object (แยกหน้าเว็บ)</h2>
+      <p class="muted">ไฟล์: <code>e2e/pages/LoginPage.ts</code> (เก็บแค่หน้าตาเว็บและ Actions)</p>
+<pre class="code" data-lang="ts">
+import { Page, Locator } from '@playwright/test';
 
-<span class="keyword">export class</span> LoginPage {
-    <span class="keyword">readonly</span> page: Page;
-    <span class="keyword">readonly</span> usernameInput: Locator;
-    <span class="keyword">readonly</span> passwordInput: Locator;
-    <span class="keyword">readonly</span> submitButton: Locator;
+export class LoginPage {
+    readonly page: Page;
+    readonly usernameInput: Locator;
+    readonly passwordInput: Locator;
+    readonly submitButton: Locator;
 
-    <span class="keyword">constructor</span>(page: Page) {
-        <span class="keyword">this</span>.page = page;
-        <span class="comment">// 💡 ใช้ getByTestId ตามมาตรฐานของทีม!</span>
-        <span class="keyword">this</span>.usernameInput = page.<span class="func">getByTestId</span>(<span class="string">'login-username'</span>);
-        <span class="keyword">this</span>.passwordInput = page.<span class="func">getByTestId</span>(<span class="string">'login-password'</span>);
-        <span class="keyword">this</span>.submitButton = page.<span class="func">getByTestId</span>(<span class="string">'login-submit-btn'</span>);
+    constructor(page: Page) {
+        this.page = page;
+        // 💡 ใช้ getByTestId ตามมาตรฐานของทีม!
+        this.usernameInput = page.getByTestId('login-username');
+        this.passwordInput = page.getByTestId('login-password');
+        this.submitButton = page.getByTestId('login-submit-btn');
     }
 
-    <span class="keyword">async</span> <span class="func">login</span>(user: string, pass: string) {
-        <span class="keyword">await</span> <span class="keyword">this</span>.usernameInput.<span class="func">fill</span>(user);
-        <span class="keyword">await</span> <span class="keyword">this</span>.passwordInput.<span class="func">fill</span>(pass);
-        <span class="keyword">await</span> <span class="keyword">this</span>.submitButton.<span class="func">click</span>();
+    async login(user: string, pass: string) {
+        await this.usernameInput.fill(user);
+        await this.passwordInput.fill(pass);
+        await this.submitButton.click();
     }
-}</code></pre>
-        </div>
+}
+</pre>
     </div>
+  </section>
 
-    <div class="slide" id="slide7">
-        <div class="content-box">
-            <h2>6. ตัวอย่างจริง: ส่วน Test Script (สคริปต์ทดสอบ)</h2>
-            <p>ไฟล์: <code>e2e/tests/auth.spec.ts</code> (อ่านง่าย สบายตา)</p>
-            <pre><code><span class="keyword">import</span> { test, expect } <span class="keyword">from</span> <span class="string">'@playwright/test'</span>;
-<span class="keyword">import</span> { LoginPage } <span class="keyword">from</span> <span class="string">'../pages/LoginPage'</span>;
+  <!-- 7 -->
+  <section class="slide" data-title="ตัวอย่าง Test Script">
+    <div class="slide-inner">
+      <div class="eyebrow">Example · Test Script</div>
+      <h2>6. ตัวอย่างจริง: ส่วน Test Script (สคริปต์ทดสอบ)</h2>
+      <p class="muted">ไฟล์: <code>e2e/tests/auth.spec.ts</code> (อ่านง่าย สบายตา)</p>
+<pre class="code" data-lang="ts">
+import { test, expect } from '@playwright/test';
+import { LoginPage } from '../pages/LoginPage';
 
-test.<span class="func">describe</span>(<span class="string">'ทดสอบระบบ Login'</span>, () =&gt; {
-    
-    test(<span class="string">'ล็อกอินสำเร็จด้วย User ที่ถูกต้อง'</span>, <span class="keyword">async</span> ({ page }) =&gt; {
-        <span class="keyword">const</span> loginPage = <span class="keyword">new</span> LoginPage(page);
-        <span class="keyword">await</span> page.<span class="func">goto</span>(<span class="string">'/login'</span>);
+test.describe('ทดสอบระบบ Login', () =&gt; {
 
-        <span class="comment">// 1. Act: สั่งล็อกอิน (เรียกใช้ฟังก์ชันจาก POM)</span>
-        <span class="keyword">await</span> loginPage.<span class="func">login</span>(<span class="string">'admin_demo'</span>, <span class="string">'Password123'</span>);
+    test('ล็อกอินสำเร็จด้วย User ที่ถูกต้อง', async ({ page }) =&gt; {
+        const loginPage = new LoginPage(page);
+        await page.goto('/login');
 
-        <span class="comment">// 2. Assert: ตรวจสอบว่าเข้าหน้า Dashboard ได้ไหม</span>
-        <span class="keyword">await</span> <span class="func">expect</span>(page).<span class="func">toHaveURL</span>(<span class="string">'/dashboard'</span>);
-        <span class="keyword">await</span> <span class="func">expect</span>(page.<span class="func">getByTestId</span>(<span class="string">'welcome-msg'</span>)).<span class="func">toBeVisible</span>();
+        // 1. Act: สั่งล็อกอิน (เรียกใช้ฟังก์ชันจาก POM)
+        await loginPage.login('admin_demo', 'Password123');
+
+        // 2. Assert: ตรวจสอบว่าเข้าหน้า Dashboard ได้ไหม
+        await expect(page).toHaveURL('/dashboard');
+        await expect(page.getByTestId('welcome-msg')).toBeVisible();
     });
-});</code></pre>
-        </div>
+});
+</pre>
     </div>
+  </section>
 
-    <div class="slide" id="slide8">
-        <div class="content-box">
-            <h2>7. ตัวช่วยเขียนโค้ด (Playwright Codegen)</h2>
-            <p>Playwright มีเครื่องมือบันทึกหน้าจอที่ช่วยเขียนโค้ดให้เราแบบ Real-time แค่เปิด Terminal แล้วพิมพ์:</p>
-            <pre><code>npx playwright codegen localhost:3000</code></pre>
-            <ul>
-                <li>เมื่อหน้าเว็บเปิดขึ้นมา ทุกครั้งที่คุณเอาเมาส์ไปคลิก พิมพ์ข้อความ หรือเลือก Dropdown ตัว Playwright จะ <strong>Generate โค้ดดิบ (Raw Script)</strong> ให้ในหน้าต่างข้างๆ ทันที</li>
-                <li><strong>✅ ข้อดี:</strong> เหมาะมากสำหรับหาวิธีเขียน Locator ยากๆ (เช่น ปฏิทิน หรือ Modal) และช่วยให้คนที่เพิ่งหัดเขียน เริ่มต้นได้เร็วขึ้น</li>
-                <li><strong>❌ ข้อควรระวัง:</strong> โค้ดที่ได้จะยังไม่มีการตรวจสอบผลลัพธ์ (Assertion) เราต้องมาเขียนคำสั่ง <code>expect(...)</code> เพิ่มเองภายหลัง</li>
-            </ul>
-        </div>
+  <!-- 8 -->
+  <section class="slide" data-title="Playwright Codegen">
+    <div class="slide-inner">
+      <div class="eyebrow">Tooling</div>
+      <h2>7. ตัวช่วยเขียนโค้ด (Playwright Codegen)</h2>
+      <p class="lead">Playwright มีเครื่องมือบันทึกหน้าจอที่ช่วยเขียนโค้ดให้เราแบบ Real-time แค่เปิด Terminal แล้วพิมพ์:</p>
+<pre class="code" data-lang="bash">
+npx playwright codegen localhost:3000
+</pre>
+      <div class="card mt"><p>เมื่อหน้าเว็บเปิดขึ้นมา ทุกครั้งที่คุณเอาเมาส์ไปคลิก พิมพ์ข้อความ หรือเลือก Dropdown ตัว Playwright จะ <strong class="gold">Generate โค้ดดิบ (Raw Script)</strong> ให้ในหน้าต่างข้างๆ ทันที</p></div>
+      <div class="grid grid-2 mt">
+        <div class="do"><h4>ข้อดี</h4><p class="muted">เหมาะมากสำหรับหาวิธีเขียน Locator ยากๆ (เช่น ปฏิทิน หรือ Modal) และช่วยให้คนที่เพิ่งหัดเขียน เริ่มต้นได้เร็วขึ้น</p></div>
+        <div class="dont"><h4>ข้อควรระวัง</h4><p class="muted">โค้ดที่ได้จะยังไม่มีการตรวจสอบผลลัพธ์ (Assertion) เราต้องมาเขียนคำสั่ง <code>expect(...)</code> เพิ่มเองภายหลัง</p></div>
+      </div>
     </div>
+  </section>
 
-    <div class="slide" id="slide9">
-        <div class="content-box">
-            <h2>8. กฎเหล็ก: การนำโค้ดที่บันทึกมาใช้งาน</h2>
-            <p style="color: #d16969; font-weight: bold;">"ห้าม Copy โค้ดที่ได้ไปแปะในไฟล์เทสต์ <code>.spec.ts</code> ตรงๆ เด็ดขาด!"</p>
-            <p>เพราะจะทำให้โครงสร้าง POM ที่เราอุตส่าห์วางไว้พังทลาย เราต้องทำหน้าที่เป็น "คนคัดแยกโค้ด" ดังนี้:</p>
-            <div class="grid-2">
-                <div>
-                    <h3 style="color: #ce9178; margin-bottom: 10px;">❌ โค้ดดิบ (จากเครื่องมือบันทึก)</h3>
-                    <pre><code><span class="comment">// โค้ดนี้ทำงานได้ แต่มันไม่เป็นระเบียบ</span>
-<span class="keyword">await</span> page.<span class="func">getByTestId</span>(<span class="string">'user'</span>).<span class="func">fill</span>(<span class="string">'admin'</span>);
-<span class="keyword">await</span> page.<span class="func">getByTestId</span>(<span class="string">'pass'</span>).<span class="func">fill</span>(<span class="string">'1234'</span>);
-<span class="keyword">await</span> page.<span class="func">getByTestId</span>(<span class="string">'btn'</span>).<span class="func">click</span>();</code></pre>
-                </div>
-                <div>
-                    <h3 style="color: #569cd6; margin-bottom: 10px;">✅ วิธีที่ถูกต้อง (Refactor เข้า POM)</h3>
-                    <ol>
-                        <li><strong>ดึง Locator:</strong> เอา <code>getByTestId</code> ไปสร้างเป็นตัวแปรใน <code>e2e/pages/LoginPage.ts</code></li>
-                        <li><strong>สร้าง Action:</strong> จับมัดรวมกันสร้างฟังก์ชัน <code>login(user, pass)</code> ไว้ในคลาส</li>
-                        <li><strong>เรียกใช้:</strong> ในไฟล์เทสต์ จะเหลือแค่คำสั่ง <code>await loginPage.login(...)</code></li>
-                    </ol>
-                </div>
-            </div>
+  <!-- 9 -->
+  <section class="slide" data-title="กฎเหล็ก Codegen">
+    <div class="slide-inner">
+      <div class="eyebrow">Golden Rule</div>
+      <h2>8. กฎเหล็ก: การนำโค้ดที่บันทึกมาใช้งาน</h2>
+      <div class="callout bad"><strong>"ห้าม Copy โค้ดที่ได้ไปแปะในไฟล์เทสต์ <code>.spec.ts</code> ตรงๆ เด็ดขาด!"</strong><br>เพราะจะทำให้โครงสร้าง POM ที่เราอุตส่าห์วางไว้พังทลาย เราต้องทำหน้าที่เป็น "คนคัดแยกโค้ด" ดังนี้:</div>
+      <div class="grid grid-2 mt">
+        <div class="dont"><h4>โค้ดดิบ (จากเครื่องมือบันทึก)</h4>
+<pre class="code" data-lang="ts">
+// โค้ดนี้ทำงานได้ แต่มันไม่เป็นระเบียบ
+await page.getByTestId('user').fill('admin');
+await page.getByTestId('pass').fill('1234');
+await page.getByTestId('btn').click();
+</pre></div>
+        <div class="do"><h4>วิธีที่ถูกต้อง (Refactor เข้า POM)</h4>
+          <ol class="steps">
+            <li><strong>ดึง Locator:</strong> เอา <code>getByTestId</code> ไปสร้างเป็นตัวแปรใน <code>e2e/pages/LoginPage.ts</code></li>
+            <li><strong>สร้าง Action:</strong> จับมัดรวมกันสร้างฟังก์ชัน <code>login(user, pass)</code> ไว้ในคลาส</li>
+            <li><strong>เรียกใช้:</strong> ในไฟล์เทสต์ จะเหลือแค่คำสั่ง <code>await loginPage.login(...)</code></li>
+          </ol>
         </div>
+      </div>
     </div>
+  </section>
 
-    <div class="slide" id="slide10">
-        <div class="content-box">
-            <h2>9. ฟีเจอร์ระดับ Pro <span class="pro-badge">Level Up</span></h2>
-            <div class="grid-2-asym">
-                <div>
-                    <h3 style="color: #ce9178; margin-bottom: 10px;">📸 Visual Regression Testing (เช็ก UI ระดับพิกเซล)</h3>
-                    <p style="font-size: 1.3rem; margin-top: 0;">ถ่ายภาพหน้าจอเก็บไว้ และเปรียบเทียบให้ดูว่ามีพิกเซลไหนเพี้ยนไปบ้าง ป้องกันการเผลอทำ CSS/Tailwind พังโดยไม่รู้ตัว</p>
-                    <pre style="padding: 15px;"><code><span class="keyword">await</span> <span class="func">expect</span>(page).<span class="func">toHaveScreenshot</span>(<span class="string">'dashboard.png'</span>);</code></pre>
-                </div>
-                <div>
-                    <h3 style="color: #ce9178; margin-bottom: 10px;">🍿 Trace Viewer (ดูย้อนหลัง)</h3>
-                    <p style="font-size: 1.3rem; margin-top: 0;">เมื่อเทสต์พัง ไม่ต้องเดา! Playwright บันทึกหน้าจอ, API, และ Log ไว้หมดเหมือนดูวิดีโอย้อนหลัง เลื่อน Timeline ดูได้เลยว่าเกิดอะไรขึ้น</p>
-                    <pre style="padding: 15px;"><code>npx playwright show-trace</code></pre>
-                </div>
-            </div>
+  <!-- 10 -->
+  <section class="slide" data-title="ฟีเจอร์ระดับ Pro">
+    <div class="slide-inner">
+      <div class="eyebrow">Level Up</div>
+      <h2>9. ฟีเจอร์ระดับ Pro <span class="tag gold">Level Up</span></h2>
+      <div class="grid grid-2">
+        <div class="card gold"><div class="icon">📸</div><h3>Visual Regression Testing<button class="term" data-term="visual"></button></h3>
+          <p class="muted">ถ่ายภาพหน้าจอเก็บไว้ และเปรียบเทียบให้ดูว่ามีพิกเซลไหนเพี้ยนไปบ้าง ป้องกันการเผลอทำ CSS/Tailwind พังโดยไม่รู้ตัว</p>
+<pre class="code" data-lang="ts">
+await expect(page).toHaveScreenshot('dashboard.png');
+</pre></div>
+        <div class="card violet"><div class="icon">🍿</div><h3>Trace Viewer (ดูย้อนหลัง)</h3>
+          <p class="muted">เมื่อเทสต์พัง ไม่ต้องเดา! Playwright บันทึกหน้าจอ, API, และ Log ไว้หมดเหมือนดูวิดีโอย้อนหลัง เลื่อน Timeline ดูได้เลยว่าเกิดอะไรขึ้น</p>
+<pre class="code" data-lang="bash">
+npx playwright show-trace
+</pre></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide" data-title="Automation CI/CD">
+    <div class="slide-inner">
+      <div class="eyebrow">Automation</div>
+      <h2>10. สู่ระบบอัตโนมัติ <span class="tag blue">CI/CD</span></h2>
+      <div class="grid grid-2">
+        <div class="card"><div class="icon">⏱️</div><h3>ข้ามหน้า Login (Storage State)<button class="term" data-term="storage"></button></h3>
+          <p class="muted">สั่งให้ Chrome ล็อกอินแค่ <strong>ครั้งเดียว</strong> แล้วเซฟ Cookies เก็บไว้ใน <code>.auth/user.json</code> เทสต์ข้ออื่นสามารถดึงไฟล์นี้ไปใช้และข้ามหน้า Login ไปได้เลย</p>
+          <div class="big-number mt">10 → 1 นาที</div><p class="small muted">ลดเวลารันเทสต์</p>
         </div>
-    </div>
+        <div class="card gold"><div class="icon">🤖</div><h3>รันผ่าน GitLab CI Pipeline</h3>
+          <p class="muted">ใช้ Docker Image ของ Playwright รันเทสต์อัตโนมัติทุกครั้งที่มีการอัปเดตโค้ด <strong class="gold">"Code จะไม่มีวันถูก Merge ถ้า Test ไม่ผ่าน"</strong></p>
+<pre class="code" data-lang="yaml">
+image: mcr.microsoft.com/playwright:v1.44.0-jammy
 
-    <div class="slide" id="slide11">
-        <div class="content-box">
-            <h2>10. สู่ระบบอัตโนมัติ (Automation) <span class="pro-badge">CI/CD</span></h2>
-            <div class="grid-2">
-                <div>
-                    <h3 style="color: #569cd6; margin-bottom: 10px;">⏱️ ข้ามหน้า Login (Storage State)</h3>
-                    <p style="font-size: 1.2rem; margin-top: 0;">สั่งให้ Chrome ล็อกอินแค่ <strong>ครั้งเดียว</strong> แล้วเซฟ Cookies เก็บไว้ใน <code>.auth/user.json</code> เทสต์ข้ออื่นสามารถดึงไฟล์นี้ไปใช้และข้ามหน้า Login ไปได้เลย (ลดเวลารันเทสต์จาก 10 นาที เหลือ 1 นาที)</p>
-                </div>
-                <div>
-                    <h3 style="color: #569cd6; margin-bottom: 10px;">🤖 รันผ่าน GitLab CI Pipeline</h3>
-                    <p style="font-size: 1.2rem; margin-top: 0;">ใช้ Docker Image ของ Playwright รันเทสต์อัตโนมัติทุกครั้งที่มีการอัปเดตโค้ด "Code จะไม่มีวันถูก Merge ถ้า Test ไม่ผ่าน"</p>
-<pre style="padding: 15px; font-size: 1rem;"><code><span class="yaml-key">image</span>: mcr.microsoft.com/playwright:v1.44.0-jammy
-
-<span class="yaml-key">e2e-test</span>:
-  <span class="yaml-key">stage</span>: test
-  <span class="yaml-key">script</span>:
+e2e-test:
+  stage: test
+  script:
     - npm ci
     - npx playwright test
-  <span class="yaml-key">artifacts</span>:
-    <span class="yaml-key">when</span>: always
-    <span class="yaml-key">paths</span>:
-      - playwright-report/</code></pre>
-                </div>
-            </div>
-        </div>
+  artifacts:
+    when: always
+    paths:
+      - playwright-report/
+</pre></div>
+      </div>
     </div>
+  </section>
 
-    <div class="slide" id="slide12">
-        <div class="content-box">
-            <h2>11. คำสั่งที่ควรรู้ (CLI Commands)</h2>
-            <p>เปิด Terminal ที่ root ของโปรเจกต์ แล้วลองรันคำสั่งเหล่านี้:</p>
-            <ul>
-                <li><code>npx playwright test</code> : รันเทสต์ทั้งหมดแบบ Headless (ซ่อนเบราว์เซอร์ เหมาะสำหรับ CI/CD)</li>
-                <li><code>npx playwright test --ui</code> : <strong>🔥 แนะนำตอนเขียนโค้ด!</strong> เปิดหน้า UI ขึ้นมาให้เรากดรันทีละข้อและดูเบราว์เซอร์ขยับไปพร้อมๆ กัน</li>
-                <li><code>npx playwright test --debug</code> : เปิดโหมด Debugger เพื่อไล่ดูโค้ดทีละบรรทัด (Step-by-step)</li>
-                <li><code>npx playwright show-report</code> : เปิดดูหน้า Report (HTML) ว่ามีเทสต์ข้อไหนผ่าน หรือพังตรงบรรทัดไหน</li>
-            </ul>
-            <p style="text-align: center; margin-top: 50px; font-size: 2.2rem; color: #45ba4b; font-weight: bold;">🎉 จบการนำเสนอ! ลุยเขียนเทสต์กันเลยครับ 🚀</p>
-        </div>
+  <!-- 12 -->
+  <section class="slide" data-title="คำสั่งที่ควรรู้">
+    <div class="slide-inner">
+      <div class="eyebrow">CLI Commands</div>
+      <h2>11. คำสั่งที่ควรรู้ (CLI Commands)</h2>
+      <p class="muted">เปิด Terminal ที่ root ของโปรเจกต์ แล้วลองรันคำสั่งเหล่านี้:</p>
+      <div class="table-wrap"><table class="table">
+        <tr><th>คำสั่ง</th><th>ใช้ทำอะไร</th></tr>
+        <tr><td><code>npx playwright test</code></td><td>รันเทสต์ทั้งหมดแบบ Headless (ซ่อนเบราว์เซอร์ เหมาะสำหรับ CI/CD)</td></tr>
+        <tr><td><code>npx playwright test --ui</code></td><td><strong class="gold">🔥 แนะนำตอนเขียนโค้ด!</strong> เปิดหน้า UI ขึ้นมาให้เรากดรันทีละข้อและดูเบราว์เซอร์ขยับไปพร้อมๆ กัน</td></tr>
+        <tr><td><code>npx playwright test --debug</code></td><td>เปิดโหมด Debugger เพื่อไล่ดูโค้ดทีละบรรทัด (Step-by-step)</td></tr>
+        <tr><td><code>npx playwright show-report</code></td><td>เปิดดูหน้า Report (HTML) ว่ามีเทสต์ข้อไหนผ่าน หรือพังตรงบรรทัดไหน</td></tr>
+      </table></div>
+      <div class="quote center">🎉 จบการนำเสนอ! ลุยเขียนเทสต์กันเลยครับ 🚀</div>
     </div>
+  </section>
 
+</main>
+<script>
+window.KV_GLOSSARY = {
+  autowait: {
+    title: "Auto-wait",
+    body: "ก่อนคลิกหรือพิมพ์ Playwright จะรอจนกว่า element จะแสดงผล, ไม่ถูกบัง, ไม่ disabled และหยุดเคลื่อนไหวเองอัตโนมัติ จึงไม่ต้องใส่ sleep/timeout ที่ทำให้เทสต์ช้าและไม่เสถียร",
+    example: "ปุ่ม 'บันทึก' ยัง disabled ระหว่างโหลดข้อมูล Playwright จะรอจนกดได้แล้วค่อยคลิกให้เอง"
+  },
+  aaa: {
+    title: "AAA (Arrange-Act-Assert)",
+    body: "รูปแบบการเขียนเทสต์ 3 ช่วง: เตรียมข้อมูล/หาองค์ประกอบ → ลงมือทำ → ตรวจผลลัพธ์ ทำให้ทุกเทสต์อ่านแล้วเข้าใจได้ทันทีว่าทดสอบอะไร",
+    example: "เปิดหน้า login (Arrange) → กรอกและกดเข้าสู่ระบบ (Act) → ตรวจว่าไปหน้า /dashboard (Assert)"
+  },
+  pom: {
+    title: "Page Object Model (POM)",
+    body: "Design Pattern ที่แยก 'หน้าตาเว็บ' (Locator + Action) ออกเป็นคลาส แล้วให้ไฟล์เทสต์เรียกใช้คลาสนั้น เมื่อ UI เปลี่ยนจึงแก้ที่เดียว",
+    example: "LoginPage.login(user, pass) ถูกใช้ใน 30 เทสต์ ถ้าปุ่มเปลี่ยน data-testid ก็แก้แค่ใน LoginPage.ts"
+  },
+  visual: {
+    title: "Visual Regression Testing",
+    body: "การเทียบภาพหน้าจอปัจจุบันกับภาพต้นแบบ (baseline) ทีละพิกเซล ถ้าต่างเกินเกณฑ์เทสต์จะ fail พร้อมภาพเปรียบเทียบ",
+    example: "แก้ Tailwind class ของปุ่มแล้วเผลอทำ layout หน้า Dashboard เลื่อน เทสต์จะจับได้ทันที"
+  },
+  storage: {
+    title: "Storage State",
+    body: "ไฟล์ JSON ที่เก็บ cookies และ localStorage หลังล็อกอิน นำไปใช้ซ้ำในเทสต์อื่นได้ จึงไม่ต้องผ่านหน้า login ทุกครั้ง ต้องใส่ไว้ใน .gitignore",
+    example: "setup project ล็อกอิน 1 ครั้ง → บันทึก e2e/.auth/user.json → เทสต์ทั้งหมดใช้ storageState นี้"
+  }
+};
+</script>
+<script src="../../assets/kv-deck.js"></script>
 </body>
 </html>

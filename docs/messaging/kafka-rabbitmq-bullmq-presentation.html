@@ -2,1234 +2,531 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#07111f">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
   <title>Apache Kafka vs RabbitMQ vs BullMQ</title>
-
-  <style>
-    :root {
-      --bg: #07111f;
-      --panel: #0d1b2e;
-      --text: #f3f7fc;
-      --muted: #aab8cb;
-      --line: rgba(255, 255, 255, 0.12);
-      --kafka: #b6c2d1;
-      --rabbit: #ff7a21;
-      --bull: #e9486d;
-      --accent: #45a3ff;
-      --green: #54d69a;
-      --yellow: #ffd166;
-      --red: #ff6b6b;
-      --shadow: 0 24px 70px rgba(0, 0, 0, 0.36);
-      --radius: 22px;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    html,
-    body {
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      overflow: hidden;
-      background:
-        radial-gradient(circle at 15% 15%, rgba(69, 163, 255, 0.14), transparent 30%),
-        radial-gradient(circle at 85% 80%, rgba(233, 72, 109, 0.10), transparent 32%),
-        var(--bg);
-      color: var(--text);
-      font-family: "Noto Sans Thai", "Leelawadee UI", Tahoma, Arial, sans-serif;
-    }
-
-    button, a { font: inherit; color: inherit; }
-
-    .deck {
-      position: relative;
-      width: 100%;
-      height: 100%;
-    }
-
-    .topbar {
-      position: fixed;
-      inset: 0 0 auto 0;
-      z-index: 50;
-      height: 58px;
-      padding: 0 22px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 18px;
-      background: rgba(7, 17, 31, 0.78);
-      border-bottom: 1px solid var(--line);
-      backdrop-filter: blur(16px);
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 11px;
-      min-width: 0;
-    }
-
-    .brand-mark {
-      width: 30px;
-      height: 30px;
-      display: grid;
-      place-items: center;
-      border-radius: 9px;
-      background: linear-gradient(135deg, var(--accent), #7d65ff);
-      box-shadow: 0 8px 25px rgba(69, 163, 255, 0.3);
-      font-size: 13px;
-      font-weight: 900;
-    }
-
-    .brand-text {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      font-size: 14px;
-      font-weight: 800;
-    }
-
-    .top-actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .counter {
-      min-width: 62px;
-      color: var(--muted);
-      text-align: center;
-      font-size: 13px;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .icon-button {
-      width: 36px;
-      height: 36px;
-      padding: 0;
-      display: grid;
-      place-items: center;
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      background: rgba(255, 255, 255, 0.04);
-      cursor: pointer;
-      transition: 0.2s ease;
-    }
-
-    .icon-button:hover {
-      border-color: rgba(69, 163, 255, 0.65);
-      background: rgba(69, 163, 255, 0.12);
-    }
-
-    .icon-button svg {
-      width: 17px;
-      height: 17px;
-      fill: none;
-      stroke: currentColor;
-      stroke-width: 1.8;
-    }
-
-    .progress-track {
-      position: fixed;
-      top: 57px;
-      left: 0;
-      right: 0;
-      z-index: 60;
-      height: 3px;
-      background: rgba(255, 255, 255, 0.05);
-    }
-
-    .progress-bar {
-      width: 0;
-      height: 100%;
-      background: linear-gradient(90deg, var(--accent), #7d65ff, var(--bull));
-      transition: width 0.3s ease;
-    }
-
-    .slides {
-      position: absolute;
-      inset: 58px 0 0;
-    }
-
-    .slide {
-      position: absolute;
-      inset: 0;
-      display: none;
-      overflow-y: auto;
-      padding: clamp(28px, 4vw, 52px) clamp(34px, 6vw, 90px) 96px;
-      opacity: 0;
-      transform: translateX(28px);
-    }
-
-    .slide.active {
-      display: block;
-      animation: slideIn 0.32s ease forwards;
-    }
-
-    @keyframes slideIn {
-      to { opacity: 1; transform: translateX(0); }
-    }
-
-    .slide-inner {
-      width: min(1440px, 100%);
-      min-height: 100%;
-      margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-    }
-
-    .eyebrow {
-      margin-bottom: 10px;
-      color: var(--accent);
-      font-size: clamp(11px, 1.2vw, 14px);
-      font-weight: 900;
-      letter-spacing: 0.13em;
-      text-transform: uppercase;
-    }
-
-    h1, h2, h3, p { margin-top: 0; }
-    h1 { margin-bottom: 18px; font-size: clamp(38px, 5.8vw, 82px); line-height: 1.05; letter-spacing: -0.045em; }
-    h2 { margin-bottom: 22px; font-size: clamp(28px, 3.8vw, 54px); line-height: 1.12; letter-spacing: -0.035em; }
-    h3 { margin-bottom: 10px; font-size: clamp(17px, 1.8vw, 25px); line-height: 1.25; }
-    p, li, td, th { font-size: clamp(14px, 1.4vw, 19px); line-height: 1.6; }
-
-    .lead {
-      max-width: 1050px;
-      color: var(--muted);
-      font-size: clamp(17px, 2.1vw, 27px);
-      line-height: 1.55;
-    }
-
-    .muted { color: var(--muted); }
-    .small { font-size: clamp(12px, 1.05vw, 15px); }
-
-    .kafka-text { color: var(--kafka); }
-    .rabbit-text { color: var(--rabbit); }
-    .bull-text { color: var(--bull); }
-
-    .tag-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 22px;
-    }
-
-    .tag {
-      padding: 7px 12px;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.04);
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    .grid { display: grid; gap: 16px; }
-    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-
-    .card {
-      position: relative;
-      padding: 20px;
-      overflow: hidden;
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      background: linear-gradient(150deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018)), var(--panel);
-      box-shadow: var(--shadow);
-    }
-
-    .card::before {
-      content: "";
-      position: absolute;
-      inset: 0 auto 0 0;
-      width: 3px;
-      background: var(--accent);
-      opacity: 0.8;
-    }
-
-    .card.kafka::before { background: var(--kafka); }
-    .card.rabbit::before { background: var(--rabbit); }
-    .card.bull::before { background: var(--bull); }
-    .card.good::before { background: var(--green); }
-    .card.warning::before { background: var(--yellow); }
-    .card.danger::before { background: var(--red); }
-
-    .card p:last-child, .card ul:last-child { margin-bottom: 0; }
-
-    .big-number {
-      margin-bottom: 6px;
-      color: var(--accent);
-      font-size: clamp(28px, 3.8vw, 50px);
-      font-weight: 900;
-      line-height: 1;
-    }
-
-    ul, ol { margin: 8px 0 0; padding-left: 1.25em; }
-    li { margin: 4px 0; color: #e5edf8; }
-    li::marker { color: var(--accent); }
-
-    .quote {
-      max-width: 1100px;
-      margin-top: 24px;
-      padding: 18px 22px;
-      border-left: 4px solid var(--accent);
-      border-radius: 0 14px 14px 0;
-      background: rgba(69, 163, 255, 0.09);
-      color: #eaf4ff;
-      font-size: clamp(16px, 1.9vw, 25px);
-      font-weight: 750;
-      line-height: 1.55;
-    }
-
-    .architecture {
-      margin-top: 16px;
-      padding: 18px;
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      background: rgba(4, 11, 20, 0.62);
-    }
-
-    .flow {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .node {
-      min-width: 130px;
-      padding: 12px 15px;
-      border: 1px solid rgba(69, 163, 255, 0.42);
-      border-radius: 12px;
-      background: rgba(69, 163, 255, 0.1);
-      text-align: center;
-      font-size: clamp(12px, 1.2vw, 16px);
-      font-weight: 800;
-    }
-
-    .node.kafka { border-color: rgba(182, 194, 209, 0.6); background: rgba(182, 194, 209, 0.1); }
-    .node.rabbit { border-color: rgba(255, 122, 33, 0.65); background: rgba(255, 122, 33, 0.1); }
-    .node.bull { border-color: rgba(233, 72, 109, 0.65); background: rgba(233, 72, 109, 0.1); }
-    .node.green { border-color: rgba(84, 214, 154, 0.55); background: rgba(84, 214, 154, 0.09); }
-
-    .arrow { color: var(--muted); font-size: 20px; font-weight: 900; }
-
-    .branch-grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(110px, 1fr));
-      gap: 10px;
-      margin-top: 14px;
-    }
-    .branch-grid .node { min-width: 0; }
-
-    .comparison-table {
-      width: 100%;
-      border-collapse: separate;
-      border-spacing: 0;
-      overflow: hidden;
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      background: rgba(7, 17, 31, 0.48);
-      box-shadow: var(--shadow);
-    }
-
-    .comparison-table th, .comparison-table td {
-      padding: 10px 12px;
-      border-right: 1px solid var(--line);
-      border-bottom: 1px solid var(--line);
-      text-align: left;
-      vertical-align: top;
-    }
-
-    .comparison-table th { background: rgba(255, 255, 255, 0.07); color: white; font-weight: 850; }
-    .comparison-table tr:last-child td { border-bottom: 0; }
-    .comparison-table th:last-child, .comparison-table td:last-child { border-right: 0; }
-    .comparison-table td { color: #dbe5f2; }
-
-    .status { display: inline-flex; align-items: center; gap: 6px; font-weight: 750; }
-    .dot { width: 8px; height: 8px; display: inline-block; border-radius: 50%; background: var(--muted); }
-    .dot.good { background: var(--green); }
-    .dot.medium { background: var(--yellow); }
-    .dot.low { background: var(--red); }
-
-    .term {
-      width: 17px;
-      height: 17px;
-      margin-left: 3px;
-      padding: 0;
-      display: inline-grid;
-      place-items: center;
-      vertical-align: super;
-      border: 1px solid rgba(69, 163, 255, 0.55);
-      border-radius: 50%;
-      background: rgba(69, 163, 255, 0.12);
-      color: #92c9ff;
-      font-size: 11px;
-      font-weight: 900;
-      cursor: pointer;
-      transition: 0.2s ease;
-    }
-    .term:hover { background: var(--accent); color: white; transform: scale(1.1); }
-
-    .decision-tree { display: grid; gap: 10px; max-width: 1050px; margin: 0 auto; }
-    .decision-row { display: grid; grid-template-columns: 1.25fr 0.3fr 1.4fr; align-items: center; gap: 10px; }
-    .decision-box { padding: 13px 16px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255, 255, 255, 0.045); }
-    .decision-result { padding: 13px 16px; border-radius: 12px; font-weight: 850; }
-    .decision-result.kafka { background: rgba(182, 194, 209, 0.13); color: var(--kafka); }
-    .decision-result.rabbit { background: rgba(255, 122, 33, 0.13); color: var(--rabbit); }
-    .decision-result.bull { background: rgba(233, 72, 109, 0.13); color: #ff83a0; }
-
-    .score {
-      display: inline-grid;
-      width: 26px;
-      height: 26px;
-      place-items: center;
-      border-radius: 7px;
-      background: rgba(69, 163, 255, 0.12);
-      color: #9fd0ff;
-      font-weight: 900;
-    }
-
-    .recommendation { display: flex; align-items: flex-start; gap: 14px; }
-    .recommendation-label {
-      flex: 0 0 auto;
-      min-width: 105px;
-      padding: 7px 10px;
-      border-radius: 9px;
-      text-align: center;
-      font-weight: 900;
-      font-size: 14px;
-    }
-    .recommendation-label.kafka { background: rgba(182, 194, 209, 0.16); color: var(--kafka); }
-    .recommendation-label.rabbit { background: rgba(255, 122, 33, 0.15); color: var(--rabbit); }
-    .recommendation-label.bull { background: rgba(233, 72, 109, 0.15); color: #ff89a4; }
-
-    /* Desktop & Mobile Navigation Controls */
-    .nav-controls {
-      position: fixed;
-      left: 50%;
-      bottom: 16px;
-      z-index: 70;
-      display: flex;
-      gap: 8px;
-      transform: translateX(-50%);
-    }
-
-    .nav-button {
-      min-width: 44px;
-      height: 38px;
-      padding: 0 14px;
-      border: 1px solid var(--line);
-      border-radius: 11px;
-      background: rgba(7, 17, 31, 0.88);
-      backdrop-filter: blur(14px);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      transition: 0.2s ease;
-    }
-
-    .nav-button:hover:not(:disabled) {
-      border-color: rgba(69, 163, 255, 0.7);
-      background: rgba(69, 163, 255, 0.15);
-    }
-    .nav-button:disabled { cursor: not-allowed; opacity: 0.28; }
-
-    .nav-label { display: none; }
-    .notes-mobile-button { display: none; }
-
-    .notes-trigger {
-      position: fixed;
-      right: 18px;
-      bottom: 17px;
-      z-index: 75;
-      width: 32px;
-      height: 32px;
-      padding: 0;
-      display: grid;
-      place-items: center;
-      border: 1px solid rgba(255, 255, 255, 0.09);
-      border-radius: 9px;
-      background: rgba(7, 17, 31, 0.64);
-      color: rgba(255, 255, 255, 0.42);
-      cursor: pointer;
-      transition: 0.2s ease;
-    }
-    .notes-trigger:hover { border-color: rgba(255, 255, 255, 0.25); color: white; background: rgba(18, 36, 59, 0.94); }
-    .notes-trigger svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.7; }
-
-    .notes-panel {
-      position: fixed;
-      right: 18px;
-      bottom: 58px;
-      z-index: 90;
-      width: min(480px, calc(100vw - 36px));
-      max-height: min(62vh, 580px);
-      display: none;
-      overflow: hidden;
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      background: rgba(13, 27, 46, 0.98);
-      box-shadow: 0 28px 80px rgba(0, 0, 0, 0.58);
-      backdrop-filter: blur(18px);
-    }
-    .notes-panel.open { display: block; animation: panelIn 0.2s ease; }
-    @keyframes panelIn {
-      from { opacity: 0; transform: translateY(8px) scale(0.98); }
-      to { opacity: 1; transform: translateY(0) scale(1); }
-    }
-
-    .notes-header {
-      padding: 14px 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      border-bottom: 1px solid var(--line);
-    }
-    .notes-title { font-size: 14px; font-weight: 850; }
-    .close-button {
-      width: 28px; height: 28px; padding: 0; display: grid; place-items: center;
-      border: 0; border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer;
-    }
-    .close-button:hover { background: rgba(255, 255, 255, 0.08); color: white; }
-
-    .notes-body {
-      max-height: calc(min(62vh, 580px) - 57px);
-      padding: 16px 18px 20px;
-      overflow-y: auto;
-      color: #d9e4f2;
-    }
-    .notes-body p, .notes-body li { font-size: 14px; line-height: 1.65; }
-    .speaker-note { display: none; }
-
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      z-index: 100;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      background: rgba(1, 6, 12, 0.76);
-      backdrop-filter: blur(9px);
-    }
-    .modal-backdrop.open { display: flex; }
-
-    .modal {
-      width: min(640px, 100%);
-      max-height: 84vh;
-      overflow: auto;
-      border: 1px solid var(--line);
-      border-radius: 20px;
-      background: linear-gradient(145deg, rgba(69, 163, 255, 0.08), transparent 38%), var(--panel);
-      box-shadow: 0 38px 100px rgba(0, 0, 0, 0.62);
-      animation: modalIn 0.22s ease;
-    }
-    @keyframes modalIn {
-      from { opacity: 0; transform: translateY(12px) scale(0.98); }
-      to { opacity: 1; transform: translateY(0) scale(1); }
-    }
-
-    .modal-header {
-      padding: 18px 20px 14px;
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 16px;
-      border-bottom: 1px solid var(--line);
-    }
-    .modal-header h3 { margin: 0; color: #9fd0ff; }
-    .modal-body { padding: 18px 20px 22px; }
-    .modal-body p, .modal-body li { font-size: 15px; line-height: 1.7; }
-
-    .easy-example {
-      margin-top: 14px;
-      padding: 13px 15px;
-      border-left: 3px solid var(--yellow);
-      border-radius: 0 10px 10px 0;
-      background: rgba(255, 209, 102, 0.08);
-    }
-
-    .keyboard-help {
-      position: fixed;
-      left: 18px;
-      bottom: 18px;
-      z-index: 60;
-      color: rgba(255, 255, 255, 0.34);
-      font-size: 11px;
-    }
-
-    code {
-      padding: 2px 6px;
-      border-radius: 6px;
-      background: rgba(255, 255, 255, 0.08);
-      color: #b9ddff;
-      font-family: Consolas, Monaco, monospace;
-    }
-    .code-block {
-      margin: 12px 0 0;
-      padding: 13px 15px;
-      overflow-x: auto;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background: #050b14;
-      color: #cde6ff;
-      font-family: Consolas, Monaco, monospace;
-      font-size: clamp(12px, 1.1vw, 14px);
-      line-height: 1.6;
-      white-space: pre;
-    }
-
-    /* Mobile Responsive Enhancements */
-    @media (max-width: 768px) {
-      .keyboard-help { display: none; }
-      .notes-trigger { display: none; }
-      .notes-mobile-button { display: flex; }
-      .nav-label { display: inline; font-size: 13px; font-weight: 800; }
-
-      .nav-controls {
-        left: 12px;
-        right: 12px;
-        bottom: max(10px, env(safe-area-inset-bottom));
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 8px;
-        transform: none;
-      }
-
-      .nav-button {
-        width: 100%;
-        min-width: 0;
-        height: 50px;
-        padding: 0 8px;
-        border-radius: 13px;
-        background: rgba(13, 27, 46, 0.96);
-        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.32);
-        touch-action: manipulation;
-      }
-
-      .slide {
-        padding: 24px 16px 88px;
-      }
-
-      .notes-panel {
-        left: 12px;
-        right: 12px;
-        bottom: calc(72px + env(safe-area-inset-bottom));
-        width: auto;
-        max-height: 58vh;
-      }
-
-      .grid-3, .grid-4, .branch-grid {
-        grid-template-columns: 1fr;
-      }
-      .grid-2 {
-        grid-template-columns: 1fr;
-      }
-      .decision-row {
-        grid-template-columns: 1fr;
-        gap: 6px;
-      }
-      .decision-row .arrow { transform: rotate(90deg); text-align: center; font-size: 16px; margin: -4px 0; }
-    }
-  </style>
+  <link rel="stylesheet" href="../../assets/kv-deck.css">
 </head>
+<body data-title="Apache Kafka vs RabbitMQ vs BullMQ" data-mark="MQ">
+<main class="slides">
 
-<body>
-  <div class="deck">
-    <header class="topbar">
-      <div class="brand">
-        <div class="brand-mark">MQ</div>
-        <div class="brand-text">Apache Kafka vs RabbitMQ vs BullMQ</div>
+  <!-- Slide 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">Technology Decision Presentation</div>
+      <h1>
+        <span class="blue">Kafka</span> vs
+        <span class="gold">RabbitMQ</span> vs
+        <span class="violet-text">BullMQ</span>
+      </h1>
+      <p class="lead">
+        เลือกเครื่องมือรับส่งข้อมูลและจัดการงานให้เหมาะกับธุรกิจ สถาปัตยกรรมระบบ และความสามารถของทีม
+      </p>
+      <div class="tag-row">
+        <span class="tag">Event Streaming</span>
+        <span class="tag">Message Routing</span>
+        <span class="tag">Background Job</span>
+        <span class="tag">Architecture Decision</span>
       </div>
-      <div class="top-actions">
-        <div class="counter" id="counter">1 / 16</div>
-        <button class="icon-button" id="fullscreenButton" type="button" title="เต็มหน้าจอ" aria-label="เต็มหน้าจอ">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M8 3H3v5"></path><path d="M16 3h5v5"></path>
-            <path d="M8 21H3v-5"></path><path d="M16 21h5v-5"></path>
-          </svg>
-        </button>
+      <div class="quote">
+        ไม่มีเครื่องมือใดดีที่สุดสำหรับทุกงาน มีเพียงเครื่องมือที่เหมาะสมที่สุดกับแต่ละ Use Case
       </div>
-    </header>
-
-    <div class="progress-track">
-      <div class="progress-bar" id="progressBar"></div>
     </div>
+    <template class="note">
+      <p><strong>แนวทางเปิดการนำเสนอ:</strong></p>
+      <p>วันนี้เราจะไม่ตัดสินจากคำถามว่าเครื่องมือใดเร็วที่สุด แต่จะพิจารณาว่าแต่ละเครื่องมือถูกออกแบบมาเพื่อแก้ปัญหาอะไร และเมื่อใดควรเลือกใช้แต่ละตัว</p>
+    </template>
+  </section>
 
-    <main class="slides">
-
-      <!-- Slide 1 -->
-      <section class="slide active" data-title="บทนำ">
-        <div class="slide-inner">
-          <div class="eyebrow">Technology Decision Presentation</div>
-          <h1>
-            <span class="kafka-text">Kafka</span> vs
-            <span class="rabbit-text">RabbitMQ</span> vs
-            <span class="bull-text">BullMQ</span>
-          </h1>
-          <p class="lead">
-            เลือกเครื่องมือรับส่งข้อมูลและจัดการงานให้เหมาะกับธุรกิจ สถาปัตยกรรมระบบ และความสามารถของทีม
-          </p>
-          <div class="tag-row">
-            <span class="tag">Event Streaming</span>
-            <span class="tag">Message Routing</span>
-            <span class="tag">Background Job</span>
-            <span class="tag">Architecture Decision</span>
-          </div>
-          <div class="quote">
-            ไม่มีเครื่องมือใดดีที่สุดสำหรับทุกงาน มีเพียงเครื่องมือที่เหมาะสมที่สุดกับแต่ละ Use Case
-          </div>
+  <!-- Slide 2 -->
+  <section class="slide" data-title="ปัญหาทางธุรกิจ">
+    <div class="slide-inner">
+      <div class="eyebrow">Business Problem</div>
+      <h2>ทำไมระบบจึงไม่ควรทำทุกอย่างพร้อมกัน</h2>
+      <div class="grid grid-2">
+        <div class="card bad">
+          <h3>ระบบแบบรอทุกขั้นตอน</h3>
+          <ul>
+            <li>ลูกค้าต้องรอนานขึ้น</li>
+            <li>ระบบหนึ่งล่มอาจทำให้กระบวนการทั้งหมดล้ม</li>
+            <li>รองรับปริมาณงานช่วง Peak ได้ยาก</li>
+            <li>ระบบต่าง ๆ ผูกติดกันมากเกินไป</li>
+          </ul>
         </div>
-        <template class="speaker-note">
-          <p><strong>แนวทางเปิดการนำเสนอ:</strong></p>
-          <p>วันนี้เราจะไม่ตัดสินจากคำถามว่าเครื่องมือใดเร็วที่สุด แต่จะพิจารณาว่าแต่ละเครื่องมือถูกออกแบบมาเพื่อแก้ปัญหาอะไร และเมื่อใดควรเลือกใช้แต่ละตัว</p>
-        </template>
-      </section>
-
-      <!-- Slide 2 -->
-      <section class="slide" data-title="ปัญหาทางธุรกิจ">
-        <div class="slide-inner">
-          <div class="eyebrow">Business Problem</div>
-          <h2>ทำไมระบบจึงไม่ควรทำทุกอย่างพร้อมกัน</h2>
-          <div class="grid grid-2">
-            <div class="card danger">
-              <h3>ระบบแบบรอทุกขั้นตอน</h3>
-              <ul>
-                <li>ลูกค้าต้องรอนานขึ้น</li>
-                <li>ระบบหนึ่งล่มอาจทำให้กระบวนการทั้งหมดล้ม</li>
-                <li>รองรับปริมาณงานช่วง Peak ได้ยาก</li>
-                <li>ระบบต่าง ๆ ผูกติดกันมากเกินไป</li>
-              </ul>
-            </div>
-            <div class="card good">
-              <h3>ระบบแบบ Asynchronous <button class="term" data-term="asynchronous">?</button></h3>
-              <ul>
-                <li>ระบบหลักตอบลูกค้าได้เร็วขึ้น</li>
-                <li>งานที่เหลือสามารถทำต่อเบื้องหลัง</li>
-                <li>เพิ่ม Worker เพื่อรองรับปริมาณงานได้</li>
-                <li>ระบบปลายทางล่มชั่วคราว งานยังรอได้</li>
-              </ul>
-            </div>
-          </div>
-          <div class="architecture">
-            <div class="flow">
-              <div class="node">Customer</div><div class="arrow">→</div>
-              <div class="node">Order API</div><div class="arrow">→</div>
-              <div class="node kafka">Queue / Event Platform</div><div class="arrow">→</div>
-              <div class="node green">ระบบทำงานต่อ</div>
-            </div>
-          </div>
+        <div class="card good">
+          <h3>ระบบแบบ Asynchronous <button class="term" data-term="asynchronous">?</button></h3>
+          <ul>
+            <li>ระบบหลักตอบลูกค้าได้เร็วขึ้น</li>
+            <li>งานที่เหลือสามารถทำต่อเบื้องหลัง</li>
+            <li>เพิ่ม Worker เพื่อรองรับปริมาณงานได้</li>
+            <li>ระบบปลายทางล่มชั่วคราว งานยังรอได้</li>
+          </ul>
         </div>
-        <template class="speaker-note">
-          <p>ยกตัวอย่างเมื่อลูกค้าสั่งซื้อ ระบบต้องทำหลายอย่างพร้อมกัน การมีตัวกลางช่วยรับเรื่องแล้วตอบกลับลูกค้าได้ทันที ส่วนงานหลังบ้านทำต่อแบบ Asynchronous</p>
-        </template>
-      </section>
-
-      <!-- Slide 3 -->
-      <section class="slide" data-title="ภาพจำของแต่ละเครื่องมือ">
-        <div class="slide-inner">
-          <div class="eyebrow">Simple Mental Model</div>
-          <h2>จำง่าย ๆ: สมุดบันทึก ศูนย์คัดแยก และกระดานงาน</h2>
-          <div class="grid grid-3">
-            <div class="card kafka">
-              <h3 class="kafka-text">Apache Kafka</h3>
-              <p class="big-number">01</p>
-              <p><strong>เปรียบเหมือน:</strong> สมุดบันทึกเหตุการณ์</p>
-              <p><strong>ตอบคำถาม:</strong> “มีอะไรเกิดขึ้นแล้ว?”</p>
-            </div>
-            <div class="card rabbit">
-              <h3 class="rabbit-text">RabbitMQ</h3>
-              <p class="big-number" style="color: var(--rabbit)">02</p>
-              <p><strong>เปรียบเหมือน:</strong> ศูนย์คัดแยกพัสดุ</p>
-              <p><strong>ตอบคำถาม:</strong> “ข้อความนี้ควรส่งไปที่ไหน?”</p>
-            </div>
-            <div class="card bull">
-              <h3 class="bull-text">BullMQ</h3>
-              <p class="big-number" style="color: var(--bull)">03</p>
-              <p><strong>เปรียบเหมือน:</strong> กระดานมอบหมายงาน</p>
-              <p><strong>ตอบคำถาม:</strong> “มีงานอะไรที่ Worker ต้องทำ?”</p>
-            </div>
-          </div>
-          <div class="quote">
-            Kafka เน้น “เหตุการณ์” — RabbitMQ เน้น “การส่งข้อความ” — BullMQ เน้น “การทำงานให้เสร็จ”
-          </div>
+      </div>
+      <div class="diagram">
+        <div class="flow">
+          <div class="node">Customer</div><div class="arrow">→</div>
+          <div class="node">Order API</div><div class="arrow">→</div>
+          <div class="node">Queue / Event Platform</div><div class="arrow">→</div>
+          <div class="node green">ระบบทำงานต่อ</div>
         </div>
-        <template class="speaker-note">
-          <p>ภาพจำ 3 ประโยคนี้ช่วยให้ผู้ฟังเข้าใจบทบาทของแต่ละเครื่องมือได้ทันทีโดยไม่ต้องลงรายละเอียดลึกในตอนแรก</p>
-        </template>
-      </section>
+      </div>
+    </div>
+    <template class="note">
+      <p>ยกตัวอย่างเมื่อลูกค้าสั่งซื้อ ระบบต้องทำหลายอย่างพร้อมกัน การมีตัวกลางช่วยรับเรื่องแล้วตอบกลับลูกค้าได้ทันที ส่วนงานหลังบ้านทำต่อแบบ Asynchronous</p>
+    </template>
+  </section>
 
-      <!-- Slide 4 -->
-      <section class="slide" data-title="Event Message Command Job">
-        <div class="slide-inner">
-          <div class="eyebrow">Workload Classification</div>
-          <h2>แยกสิ่งที่กำลังส่งให้ชัดเจนก่อนเลือกเครื่องมือ</h2>
-          <div class="grid grid-4">
-            <div class="card">
-              <h3>Event <button class="term" data-term="event">?</button></h3>
-              <p><strong>ความหมาย:</strong> สิ่งที่เกิดขึ้นแล้ว</p>
-              <div class="code-block">OrderCreated</div>
-            </div>
-            <div class="card">
-              <h3>Message <button class="term" data-term="message">?</button></h3>
-              <p><strong>ความหมาย:</strong> ข้อมูลระหว่างระบบ</p>
-              <div class="code-block">CustomerData</div>
-            </div>
-            <div class="card">
-              <h3>Command <button class="term" data-term="command">?</button></h3>
-              <p><strong>ความหมาย:</strong> คำสั่งให้ผู้รับทำ</p>
-              <div class="code-block">ReserveInventory</div>
-            </div>
-            <div class="card">
-              <h3>Job <button class="term" data-term="job">?</button></h3>
-              <p><strong>ความหมาย:</strong> งานที่ต้องทำ</p>
-              <div class="code-block">GeneratePDF</div>
-            </div>
-          </div>
+  <!-- Slide 3 -->
+  <section class="slide" data-title="ภาพจำของแต่ละเครื่องมือ">
+    <div class="slide-inner">
+      <div class="eyebrow">Simple Mental Model</div>
+      <h2>จำง่าย ๆ: สมุดบันทึก ศูนย์คัดแยก และกระดานงาน</h2>
+      <div class="grid grid-3">
+        <div class="card">
+          <h3 class="blue">Apache Kafka</h3>
+          <p class="big-number">01</p>
+          <p><strong>เปรียบเหมือน:</strong> สมุดบันทึกเหตุการณ์</p>
+          <p><strong>ตอบคำถาม:</strong> “มีอะไรเกิดขึ้นแล้ว?”</p>
         </div>
-        <template class="speaker-note">
-          <p>การจำแนกประเภทข้อมูลช่วยป้องกันการเลือกใช้เครื่องมือผิดประเภท เช่น นำ Job ไปไว้ในระบบ Event Streaming ขนาดใหญ่โดยไม่จำเป็น</p>
-        </template>
-      </section>
-
-      <!-- Slide 5 -->
-      <section class="slide" data-title="ตัวอย่าง E-commerce">
-        <div class="slide-inner">
-          <div class="eyebrow">E-commerce Example</div>
-          <h2>เหตุการณ์เดียวกัน แต่ละเครื่องมือมองต่างกัน</h2>
-          <div class="grid grid-3">
-            <div class="card kafka">
-              <h3 class="kafka-text">Kafka: กระจาย Event</h3>
-              <div class="architecture">
-                <div class="node kafka">OrderCreated</div>
-                <div class="branch-grid">
-                  <div class="node">Payment</div><div class="node">Inventory</div>
-                  <div class="node">Analytics</div><div class="node">Fraud</div>
-                </div>
-              </div>
-            </div>
-            <div class="card rabbit">
-              <h3 class="rabbit-text">RabbitMQ: Route Message</h3>
-              <div class="architecture">
-                <div class="node rabbit">Exchange</div>
-                <div class="branch-grid">
-                  <div class="node">Payment Q</div><div class="node">Stock Q</div>
-                  <div class="node">TH WH Q</div><div class="node">Notify Q</div>
-                </div>
-              </div>
-            </div>
-            <div class="card bull">
-              <h3 class="bull-text">BullMQ: Execute Job</h3>
-              <div class="architecture">
-                <div class="node bull">Background Jobs</div>
-                <div class="branch-grid">
-                  <div class="node">Send Email</div><div class="node">Create PDF</div>
-                  <div class="node">Export File</div><div class="node">Call API</div>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div class="card gold">
+          <h3 class="gold">RabbitMQ</h3>
+          <p class="big-number" style="color: var(--gold-2)">02</p>
+          <p><strong>เปรียบเหมือน:</strong> ศูนย์คัดแยกพัสดุ</p>
+          <p><strong>ตอบคำถาม:</strong> “ข้อความนี้ควรส่งไปที่ไหน?”</p>
         </div>
-        <template class="speaker-note">
-          <p>เปรียบเทียบการทำงานจริงในระบบ E-commerce ว่าแต่ละตัวรับส่งและจัดการข้อมูลอย่างไร</p>
-        </template>
-      </section>
-
-      <!-- Slide 6 -->
-      <section class="slide" data-title="เปรียบเทียบภาพรวม">
-        <div class="slide-inner">
-          <div class="eyebrow">Executive Comparison</div>
-          <h2>เปรียบเทียบภาพรวมสำหรับผู้ตัดสินใจ</h2>
-          <div class="table-wrap">
-            <table class="comparison-table">
-              <thead>
-                <tr>
-                  <th>หัวข้อ</th>
-                  <th class="kafka-text">Apache Kafka</th>
-                  <th class="rabbit-text">RabbitMQ</th>
-                  <th class="bull-text">BullMQ</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>ประเภทหลัก</td>
-                  <td>Event Streaming Platform</td>
-                  <td>Message Broker</td>
-                  <td>Job Queue</td>
-                </tr>
-                <tr>
-                  <td>อ่านย้อนหลัง <button class="term" data-term="replay">?</button></td>
-                  <td><span class="status"><span class="dot good"></span>เด่นมาก</span></td>
-                  <td><span class="status"><span class="dot medium"></span>ไม่ใช่จุดเด่น</span></td>
-                  <td><span class="status"><span class="dot low"></span>ไม่ใช่เป้าหมาย</span></td>
-                </tr>
-                <tr>
-                  <td>Routing ซับซ้อน</td>
-                  <td>ระดับ Topic/Key</td>
-                  <td><span class="status"><span class="dot good"></span>เด่นมาก</span></td>
-                  <td>ระดับ Queue/Job</td>
-                </tr>
-                <tr>
-                  <td>Retry และ State</td>
-                  <td>ต้องออกแบบเพิ่ม</td>
-                  <td>Ack / Dead Letter</td>
-                  <td>มี Attempts/Backoff</td>
-                </tr>
-                <tr>
-                  <td>Technology Fit</td>
-                  <td>หลายภาษา / หลายระบบ</td>
-                  <td>หลายภาษา / หลาย Protocol</td>
-                  <td>Node.js & Redis</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+        <div class="card violet">
+          <h3 class="violet-text">BullMQ</h3>
+          <p class="big-number" style="color: var(--violet)">03</p>
+          <p><strong>เปรียบเหมือน:</strong> กระดานมอบหมายงาน</p>
+          <p><strong>ตอบคำถาม:</strong> “มีงานอะไรที่ Worker ต้องทำ?”</p>
         </div>
-        <template class="speaker-note">
-          <p>สรุปจุดเด่นในรูปแบบตารางเพื่อให้ผู้บริหารเปรียบเทียบได้รวดเร็ว</p>
-        </template>
-      </section>
+      </div>
+      <div class="quote">
+        Kafka เน้น “เหตุการณ์” — RabbitMQ เน้น “การส่งข้อความ” — BullMQ เน้น “การทำงานให้เสร็จ”
+      </div>
+    </div>
+    <template class="note">
+      <p>ภาพจำ 3 ประโยคนี้ช่วยให้ผู้ฟังเข้าใจบทบาทของแต่ละเครื่องมือได้ทันทีโดยไม่ต้องลงรายละเอียดลึกในตอนแรก</p>
+    </template>
+  </section>
 
-      <!-- Slide 7 -->
-      <section class="slide" data-title="Apache Kafka">
-        <div class="slide-inner">
-          <div class="eyebrow kafka-text">Apache Kafka</div>
-          <h2>เหมาะเมื่อ Event คือสินทรัพย์ข้อมูลขององค์กร</h2>
-          <div class="grid grid-2">
-            <div class="card kafka">
-              <h3>แนวคิดสำคัญ</h3>
-              <ul>
-                <li>Topic <button class="term" data-term="topic">?</button> และ Partition <button class="term" data-term="partition">?</button></li>
-                <li>Offset <button class="term" data-term="offset">?</button> ติดตามการอ่าน</li>
-                <li>Consumer Group <button class="term" data-term="consumerGroup">?</button></li>
-                <li>Retention Policy <button class="term" data-term="retention">?</button></li>
-              </ul>
-            </div>
-            <div class="card good">
-              <h3>Use Case ที่เหมาะ</h3>
-              <ul>
-                <li>Enterprise Event Backbone</li>
-                <li>Customer Activity Stream</li>
-                <li>Change Data Capture (CDC)</li>
-                <li>Data Lake & Analytics Pipeline</li>
-              </ul>
-            </div>
-          </div>
+  <!-- Slide 4 -->
+  <section class="slide" data-title="Event Message Command Job">
+    <div class="slide-inner">
+      <div class="eyebrow">Workload Classification</div>
+      <h2>แยกสิ่งที่กำลังส่งให้ชัดเจนก่อนเลือกเครื่องมือ</h2>
+      <div class="grid grid-4">
+        <div class="card">
+          <h3>Event <button class="term" data-term="event">?</button></h3>
+          <p><strong>ความหมาย:</strong> สิ่งที่เกิดขึ้นแล้ว</p>
+          <p><code>OrderCreated</code></p>
         </div>
-        <template class="speaker-note">
-          <p>Kafka เหมาะกับงานสตรีมมิ่งและเหตุการณ์ที่ต้องการเก็บประวัติไว้อ่านซ้ำ แต่มีความซับซ้อนในการดูแลสูง</p>
-        </template>
-      </section>
-
-      <!-- Slide 8 -->
-      <section class="slide" data-title="RabbitMQ">
-        <div class="slide-inner">
-          <div class="eyebrow rabbit-text">RabbitMQ</div>
-          <h2>เหมาะเมื่อหัวใจคือการส่งและคัดแยกข้อความ</h2>
-          <div class="grid grid-2">
-            <div class="card rabbit">
-              <h3>วิธีทำงาน</h3>
-              <p>Producer → Exchange <button class="term" data-term="exchange">?</button> → Queue → Consumer</p>
-              <ul>
-                <li>รองรับ Acknowledgement <button class="term" data-term="ack">?</button></li>
-                <li>รองรับ Dead Letter <button class="term" data-term="deadLetter">?</button></li>
-              </ul>
-            </div>
-            <div class="card good">
-              <h3>Use Case ที่เหมาะ</h3>
-              <ul>
-                <li>Payment และ Order Processing</li>
-                <li>Routing ตามประเภทหรือภูมิภาค</li>
-                <li>Command ระหว่าง Microservices</li>
-              </ul>
-            </div>
-          </div>
+        <div class="card">
+          <h3>Message <button class="term" data-term="message">?</button></h3>
+          <p><strong>ความหมาย:</strong> ข้อมูลระหว่างระบบ</p>
+          <p><code>CustomerData</code></p>
         </div>
-        <template class="speaker-note">
-          <p>RabbitMQ โดดเด่นด้านการทำ Message Routing และ Work Queue เหมาะกับการสื่อสารระหว่าง Service</p>
-        </template>
-      </section>
-
-      <!-- Slide 9 -->
-      <section class="slide" data-title="BullMQ">
-        <div class="slide-inner">
-          <div class="eyebrow bull-text">BullMQ</div>
-          <h2>เหมาะกับ Background Job ของ Node.js Application</h2>
-          <div class="grid grid-2">
-            <div class="card bull">
-              <h3>สถานะของ Job</h3>
-              <p>Waiting → Active → Completed / Failed</p>
-              <ul>
-                <li>Retry & Backoff <button class="term" data-term="backoff">?</button></li>
-                <li>Rate Limiting <button class="term" data-term="rateLimit">?</button></li>
-              </ul>
-            </div>
-            <div class="card good">
-              <h3>Use Case ที่เหมาะ</h3>
-              <ul>
-                <li>ส่ง Email หรือ Notification</li>
-                <li>สร้าง PDF / Report</li>
-                <li>Import / Export ไฟล์</li>
-                <li>เรียก External API ที่จำกัด Rate</li>
-              </ul>
-            </div>
-          </div>
+        <div class="card">
+          <h3>Command <button class="term" data-term="command">?</button></h3>
+          <p><strong>ความหมาย:</strong> คำสั่งให้ผู้รับทำ</p>
+          <p><code>ReserveInventory</code></p>
         </div>
-        <template class="speaker-note">
-          <p>BullMQ ใช้ Redis เบื้องหลัง ช่วยให้ Developer ทำงานกับ Background Job ใน Node.js ได้รวดเร็วและครบถ้วน</p>
-        </template>
-      </section>
-
-      <!-- Slide 10 -->
-      <section class="slide" data-title="กรณีมีเครื่องมือเดิม">
-        <div class="slide-inner">
-          <div class="eyebrow">Existing Platform Strategy</div>
-          <h2>ถ้าลูกค้ามีเครื่องมืออยู่แล้ว ควรตัดสินใจอย่างไร</h2>
-          <div class="grid grid-3">
-            <div class="card kafka">
-              <h3 class="kafka-text">มี Kafka อยู่แล้ว</h3>
-              <p>ใช้ต่อเมื่อเป็น Event, ต้อง Replay หรือทำ Data Pipeline</p>
-            </div>
-            <div class="card rabbit">
-              <h3 class="rabbit-text">มี RabbitMQ อยู่แล้ว</h3>
-              <p>ใช้ต่อเมื่อเป็น Message/Command และ Routing ตอบโจทย์</p>
-            </div>
-            <div class="card bull">
-              <h3 class="bull-text">มี BullMQ / Redis</h3>
-              <p>ใช้ต่อเมื่อเป็นงาน Node.js ที่เน้น Retry, Delay และ Rate Limit</p>
-            </div>
-          </div>
+        <div class="card">
+          <h3>Job <button class="term" data-term="job">?</button></h3>
+          <p><strong>ความหมาย:</strong> งานที่ต้องทำ</p>
+          <p><code>GeneratePDF</code></p>
         </div>
-        <template class="speaker-note">
-          <p>ประเมินความคุ้มค่าของการใช้ของเดิมเทียบกับการเพิ่มเครื่องมือใหม่ เพื่อไม่ให้เกิดภาระดูแลระบบเกินจำเป็น</p>
-        </template>
-      </section>
+      </div>
+    </div>
+    <template class="note">
+      <p>การจำแนกประเภทข้อมูลช่วยป้องกันการเลือกใช้เครื่องมือผิดประเภท เช่น นำ Job ไปไว้ในระบบ Event Streaming ขนาดใหญ่โดยไม่จำเป็น</p>
+    </template>
+  </section>
 
-      <!-- Slide 11 -->
-      <section class="slide" data-title="กรณียังไม่มีเครื่องมือ">
-        <div class="slide-inner">
-          <div class="eyebrow">Greenfield Decision</div>
-          <h2>ถ้ายังไม่มีเครื่องมือ ให้เริ่มจาก Decision Tree</h2>
-          <div class="decision-tree">
-            <div class="decision-row">
-              <div class="decision-box">ต้องเก็บ Event, อ่านย้อนหลัง หรือให้หลายระบบอ่านข้อมูลเดิม?</div>
-              <div class="arrow">→</div>
-              <div class="decision-result kafka">ใช่: Apache Kafka</div>
-            </div>
-            <div class="decision-row">
-              <div class="decision-box">ต้อง Routing ข้อความตามเงื่อนไขหรือภูมิภาค?</div>
-              <div class="arrow">→</div>
-              <div class="decision-result rabbit">ใช่: RabbitMQ</div>
-            </div>
-            <div class="decision-row">
-              <div class="decision-box">เป็น Background Job ที่ต้อง Retry, Delay หรือ Progress?</div>
-              <div class="arrow">→</div>
-              <div class="decision-result bull">ใช่: BullMQ</div>
-            </div>
-          </div>
-        </div>
-        <template class="speaker-note">
-          <p>ใช้เกณฑ์คำถามเหล่านี้ในการพิจารณาเลือกเครื่องมือให้ตรงกับ Use Case จริงของลูกค้า</p>
-        </template>
-      </section>
-
-      <!-- Slide 12 -->
-      <section class="slide" data-title="Architecture แบบผสม">
-        <div class="slide-inner">
-          <div class="eyebrow">Hybrid Architecture</div>
-          <h2>ไม่จำเป็นต้องเลือกเพียงตัวเดียว</h2>
-          <div class="architecture">
-            <div class="flow">
-              <div class="node">Order Service</div><div class="arrow">→</div>
-              <div class="node kafka">Kafka: OrderCreated</div>
-            </div>
+  <!-- Slide 5 -->
+  <section class="slide" data-title="ตัวอย่าง E-commerce">
+    <div class="slide-inner">
+      <div class="eyebrow">E-commerce Example</div>
+      <h2>เหตุการณ์เดียวกัน แต่ละเครื่องมือมองต่างกัน</h2>
+      <div class="grid grid-3">
+        <div class="card">
+          <h3 class="blue">Kafka: กระจาย Event</h3>
+          <div class="diagram">
+            <div class="node">OrderCreated</div>
             <div class="branch-grid">
-              <div class="node">Inventory</div><div class="node">Analytics</div>
-              <div class="node">Fraud</div><div class="node bull">Notification</div>
-            </div>
-            <div class="flow" style="margin-top: 14px;">
-              <div class="node bull">BullMQ</div><div class="arrow">→</div>
-              <div class="node">Email Worker</div><div class="node">SMS Worker</div>
+              <div class="node">Payment</div><div class="node">Inventory</div>
+              <div class="node">Analytics</div><div class="node">Fraud</div>
             </div>
           </div>
         </div>
-        <template class="speaker-note">
-          <p>การผสมผสาน Kafka และ BullMQ ช่วยให้แยก Event ระดับองค์กรออกจากงานเบื้องหลังเฉพาะ Service ได้อย่างลงตัว</p>
-        </template>
-      </section>
-
-      <!-- Slide 13 -->
-      <section class="slide" data-title="หลักออกแบบระบบ">
-        <div class="slide-inner">
-          <div class="eyebrow">Production Readiness</div>
-          <h2>ไม่ว่าจะเลือกตัวไหน สิ่งเหล่านี้ต้องออกแบบเสมอ</h2>
-          <div class="grid grid-3">
-            <div class="card">
-              <h3>Idempotency <button class="term" data-term="idempotency">?</button></h3>
-              <p>ข้อความเข้าซ้ำได้ แต่ห้ามเกิดผลซ้ำ (เช่น ห้ามตัดเงินซ้ำ)</p>
-            </div>
-            <div class="card">
-              <h3>Retry Policy <button class="term" data-term="retry">?</button></h3>
-              <p>กำหนดจำนวนครั้ง ระยะห่าง และเงื่อนไข Error</p>
-            </div>
-            <div class="card">
-              <h3>Observability <button class="term" data-term="observability">?</button></h3>
-              <p>ติดตาม Queue Depth, Error Rate และ Consumer Lag</p>
+        <div class="card gold">
+          <h3 class="gold">RabbitMQ: Route Message</h3>
+          <div class="diagram">
+            <div class="node gold">Exchange</div>
+            <div class="branch-grid">
+              <div class="node">Payment Q</div><div class="node">Stock Q</div>
+              <div class="node">TH WH Q</div><div class="node">Notify Q</div>
             </div>
           </div>
         </div>
-        <template class="speaker-note">
-          <p>เน้นย้ำเรื่องความพร้อมในการขึ้นระบบจริง เช่น การป้องกันข้อความซ้ำ และการมีระบบ Monitoring ที่ดี</p>
-        </template>
-      </section>
-
-      <!-- Slide 14 -->
-      <section class="slide" data-title="Scoring Matrix">
-        <div class="slide-inner">
-          <div class="eyebrow">Weighted Decision</div>
-          <h2>ตัดสินใจแบบมืออาชีพด้วย Weighted Scoring</h2>
-          <div class="table-wrap">
-            <table class="comparison-table">
-              <thead>
-                <tr>
-                  <th>เกณฑ์การประเมิน</th>
-                  <th>น้ำหนัก</th>
-                  <th class="kafka-text">Kafka</th>
-                  <th class="rabbit-text">RabbitMQ</th>
-                  <th class="bull-text">BullMQ</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr><td>เก็บและ Replay Event</td><td><span class="score">5</span></td><td>5</td><td>2</td><td>1</td></tr>
-                <tr><td>Routing ซับซ้อน</td><td><span class="score">4</span></td><td>2</td><td>5</td><td>2</td></tr>
-                <tr><td>Background Job</td><td><span class="score">4</span></td><td>2</td><td>4</td><td>5</td></tr>
-                <tr><td>ทีมดูแลได้ / ใช้ของเดิม</td><td><span class="score">5</span></td><td>ประเมิน</td><td>ประเมิน</td><td>ประเมิน</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <template class="speaker-note">
-          <p>ใช้วิธีให้คะแนนร่วมกับลูกค้าเพื่อหาข้อสรุปที่เป็นกลางและเหมาะสมกับโจทย์มากที่สุด</p>
-        </template>
-      </section>
-
-      <!-- Slide 15 -->
-      <section class="slide" data-title="Proof of Concept">
-        <div class="slide-inner">
-          <div class="eyebrow">Validation & Delivery</div>
-          <h2>อย่าตัดสินใจจาก Benchmark บนกระดาษ</h2>
-          <div class="grid grid-2">
-            <div class="card good">
-              <h3>PoC ควรทดสอบอะไรบ้าง</h3>
-              <ul>
-                <li>Normal Load และ Peak Load</li>
-                <li>กรณี Broker / Redis / Consumer ล่ม</li>
-                <li>Message ซ้ำ, ผิดรูปแบบ หรือ Poison Message</li>
-                <li>Consumer Lag <button class="term" data-term="consumerLag">?</button> และ Queue Backlog</li>
-              </ul>
-            </div>
-            <div class="card">
-              <h3>ผลลัพธ์ที่ควรได้รับ</h3>
-              <ul>
-                <li>Architecture Diagram และ Capacity Estimate</li>
-                <li>Failure Test Result และ Recovery Procedure</li>
-                <li>Monitoring Dashboard และ Runbook</li>
-              </ul>
+        <div class="card violet">
+          <h3 class="violet-text">BullMQ: Execute Job</h3>
+          <div class="diagram">
+            <div class="node violet">Background Jobs</div>
+            <div class="branch-grid">
+              <div class="node">Send Email</div><div class="node">Create PDF</div>
+              <div class="node">Export File</div><div class="node">Call API</div>
             </div>
           </div>
         </div>
-        <template class="speaker-note">
-          <p>การทำ PoC ช่วยลดความเสี่ยงก่อนนำระบบไปใช้งานจริงในระดับ Production</p>
-        </template>
-      </section>
-
-      <!-- Slide 16 -->
-      <section class="slide" data-title="ข้อเสนอแนะสุดท้าย">
-        <div class="slide-inner">
-          <div class="eyebrow">Final Recommendation</div>
-          <h2>เลือกเครื่องมือที่ง่ายที่สุด ซึ่งตอบโจทย์ได้ครบ</h2>
-          <div class="grid">
-            <div class="card kafka recommendation">
-              <div class="recommendation-label kafka">Kafka</div>
-              <div><h3>เลือกเมื่อ Event เป็นสินทรัพย์ข้อมูล</h3><p>เก็บย้อนหลัง, มีหลาย Consumer, ทำ Data Pipeline</p></div>
-            </div>
-            <div class="card rabbit recommendation">
-              <div class="recommendation-label rabbit">RabbitMQ</div>
-              <div><h3>เลือกเมื่อหัวใจคือ Message และ Routing</h3><p>ส่ง Command ไปปลายทาง, มี Acknowledgement</p></div>
-            </div>
-            <div class="card bull recommendation">
-              <div class="recommendation-label bull">BullMQ</div>
-              <div><h3>เลือกเมื่อหัวใจคือ Background Job</h3><p>Node.js/TypeScript, ต้องการ Retry, Delay และ Rate Limit</p></div>
-            </div>
-          </div>
-        </div>
-        <template class="speaker-note">
-          <p><strong>บทพูดสรุป:</strong> เลือกเครื่องมือตาม Use Case จริง สมดุลระหว่างความต้องการ ความเชี่ยวชาญของทีม และต้นทุนรวมระยะยาว</p>
-        </template>
-      </section>
-
-    </main>
-
-    <!-- Navigation Controls (Desktop & Mobile) -->
-    <nav class="nav-controls" aria-label="ควบคุมสไลด์">
-      <button class="nav-button" id="prevButton" type="button" aria-label="สไลด์ก่อนหน้า">
-        <span>←</span><span class="nav-label">ก่อนหน้า</span>
-      </button>
-      <button class="nav-button notes-mobile-button" id="mobileNotesButton" type="button" aria-label="เปิด Speaker Notes">
-        <span>☰</span><span class="nav-label">โน้ต</span>
-      </button>
-      <button class="nav-button" id="nextButton" type="button" aria-label="สไลด์ถัดไป">
-        <span class="nav-label">ถัดไป</span><span>→</span>
-      </button>
-    </nav>
-
-    <!-- Desktop Notes Trigger -->
-    <button class="notes-trigger" id="notesTrigger" type="button" title="Speaker Notes" aria-label="เปิด Speaker Notes">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M5 4h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-1-1.73V6a2 2 0 0 1 2-2z"></path>
-        <path d="M8 8h8M8 12h6"></path>
-      </svg>
-    </button>
-
-    <!-- Notes Panel -->
-    <aside class="notes-panel" id="notesPanel" aria-live="polite">
-      <div class="notes-header">
-        <div class="notes-title" id="notesTitle">Speaker Notes</div>
-        <button class="close-button" id="closeNotes" type="button" aria-label="ปิด Notes">✕</button>
-      </div>
-      <div class="notes-body" id="notesBody"></div>
-    </aside>
-
-    <!-- Glossary Modal Backdrop -->
-    <div class="modal-backdrop" id="glossaryBackdrop" role="dialog" aria-modal="true" aria-labelledby="glossaryTitle">
-      <div class="modal">
-        <div class="modal-header">
-          <div>
-            <div class="eyebrow">คำอธิบายศัพท์</div>
-            <h3 id="glossaryTitle">ศัพท์เฉพาะ</h3>
-          </div>
-          <button class="close-button" id="closeGlossary" type="button" aria-label="ปิดคำอธิบาย">✕</button>
-        </div>
-        <div class="modal-body" id="glossaryBody"></div>
       </div>
     </div>
-  </div>
+    <template class="note">
+      <p>เปรียบเทียบการทำงานจริงในระบบ E-commerce ว่าแต่ละตัวรับส่งและจัดการข้อมูลอย่างไร</p>
+    </template>
+  </section>
 
-  <script>
-    const glossary = {
+  <!-- Slide 6 -->
+  <section class="slide" data-title="เปรียบเทียบภาพรวม">
+    <div class="slide-inner">
+      <div class="eyebrow">Executive Comparison</div>
+      <h2>เปรียบเทียบภาพรวมสำหรับผู้ตัดสินใจ</h2>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>หัวข้อ</th>
+              <th class="blue">Apache Kafka</th>
+              <th class="gold">RabbitMQ</th>
+              <th class="violet-text">BullMQ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>ประเภทหลัก</td>
+              <td>Event Streaming Platform</td>
+              <td>Message Broker</td>
+              <td>Job Queue</td>
+            </tr>
+            <tr>
+              <td>อ่านย้อนหลัง <button class="term" data-term="replay">?</button></td>
+              <td><span class="status"><span class="dot good"></span>เด่นมาก</span></td>
+              <td><span class="status"><span class="dot medium"></span>ไม่ใช่จุดเด่น</span></td>
+              <td><span class="status"><span class="dot low"></span>ไม่ใช่เป้าหมาย</span></td>
+            </tr>
+            <tr>
+              <td>Routing ซับซ้อน</td>
+              <td>ระดับ Topic/Key</td>
+              <td><span class="status"><span class="dot good"></span>เด่นมาก</span></td>
+              <td>ระดับ Queue/Job</td>
+            </tr>
+            <tr>
+              <td>Retry และ State</td>
+              <td>ต้องออกแบบเพิ่ม</td>
+              <td>Ack / Dead Letter</td>
+              <td>มี Attempts/Backoff</td>
+            </tr>
+            <tr>
+              <td>Technology Fit</td>
+              <td>หลายภาษา / หลายระบบ</td>
+              <td>หลายภาษา / หลาย Protocol</td>
+              <td>Node.js & Redis</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <template class="note">
+      <p>สรุปจุดเด่นในรูปแบบตารางเพื่อให้ผู้บริหารเปรียบเทียบได้รวดเร็ว</p>
+    </template>
+  </section>
+
+  <!-- Slide 7 -->
+  <section class="slide" data-title="Apache Kafka">
+    <div class="slide-inner">
+      <div class="eyebrow blue">Apache Kafka</div>
+      <h2>เหมาะเมื่อ Event คือสินทรัพย์ข้อมูลขององค์กร</h2>
+      <div class="grid grid-2">
+        <div class="card">
+          <h3>แนวคิดสำคัญ</h3>
+          <ul>
+            <li>Topic <button class="term" data-term="topic">?</button> และ Partition <button class="term" data-term="partition">?</button></li>
+            <li>Offset <button class="term" data-term="offset">?</button> ติดตามการอ่าน</li>
+            <li>Consumer Group <button class="term" data-term="consumerGroup">?</button></li>
+            <li>Retention Policy <button class="term" data-term="retention">?</button></li>
+          </ul>
+        </div>
+        <div class="card good">
+          <h3>Use Case ที่เหมาะ</h3>
+          <ul>
+            <li>Enterprise Event Backbone</li>
+            <li>Customer Activity Stream</li>
+            <li>Change Data Capture (CDC)</li>
+            <li>Data Lake & Analytics Pipeline</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <template class="note">
+      <p>Kafka เหมาะกับงานสตรีมมิ่งและเหตุการณ์ที่ต้องการเก็บประวัติไว้อ่านซ้ำ แต่มีความซับซ้อนในการดูแลสูง</p>
+    </template>
+  </section>
+
+  <!-- Slide 8 -->
+  <section class="slide" data-title="RabbitMQ">
+    <div class="slide-inner">
+      <div class="eyebrow gold">RabbitMQ</div>
+      <h2>เหมาะเมื่อหัวใจคือการส่งและคัดแยกข้อความ</h2>
+      <div class="grid grid-2">
+        <div class="card gold">
+          <h3>วิธีทำงาน</h3>
+          <p>Producer → Exchange <button class="term" data-term="exchange">?</button> → Queue → Consumer</p>
+          <ul>
+            <li>รองรับ Acknowledgement <button class="term" data-term="ack">?</button></li>
+            <li>รองรับ Dead Letter <button class="term" data-term="deadLetter">?</button></li>
+          </ul>
+        </div>
+        <div class="card good">
+          <h3>Use Case ที่เหมาะ</h3>
+          <ul>
+            <li>Payment และ Order Processing</li>
+            <li>Routing ตามประเภทหรือภูมิภาค</li>
+            <li>Command ระหว่าง Microservices</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <template class="note">
+      <p>RabbitMQ โดดเด่นด้านการทำ Message Routing และ Work Queue เหมาะกับการสื่อสารระหว่าง Service</p>
+    </template>
+  </section>
+
+  <!-- Slide 9 -->
+  <section class="slide" data-title="BullMQ">
+    <div class="slide-inner">
+      <div class="eyebrow violet-text">BullMQ</div>
+      <h2>เหมาะกับ Background Job ของ Node.js Application</h2>
+      <div class="grid grid-2">
+        <div class="card violet">
+          <h3>สถานะของ Job</h3>
+          <p>Waiting → Active → Completed / Failed</p>
+          <ul>
+            <li>Retry & Backoff <button class="term" data-term="backoff">?</button></li>
+            <li>Rate Limiting <button class="term" data-term="rateLimit">?</button></li>
+          </ul>
+        </div>
+        <div class="card good">
+          <h3>Use Case ที่เหมาะ</h3>
+          <ul>
+            <li>ส่ง Email หรือ Notification</li>
+            <li>สร้าง PDF / Report</li>
+            <li>Import / Export ไฟล์</li>
+            <li>เรียก External API ที่จำกัด Rate</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <template class="note">
+      <p>BullMQ ใช้ Redis เบื้องหลัง ช่วยให้ Developer ทำงานกับ Background Job ใน Node.js ได้รวดเร็วและครบถ้วน</p>
+    </template>
+  </section>
+
+  <!-- Slide 10 -->
+  <section class="slide" data-title="กรณีมีเครื่องมือเดิม">
+    <div class="slide-inner">
+      <div class="eyebrow">Existing Platform Strategy</div>
+      <h2>ถ้าลูกค้ามีเครื่องมืออยู่แล้ว ควรตัดสินใจอย่างไร</h2>
+      <div class="grid grid-3">
+        <div class="card">
+          <h3 class="blue">มี Kafka อยู่แล้ว</h3>
+          <p>ใช้ต่อเมื่อเป็น Event, ต้อง Replay หรือทำ Data Pipeline</p>
+        </div>
+        <div class="card gold">
+          <h3 class="gold">มี RabbitMQ อยู่แล้ว</h3>
+          <p>ใช้ต่อเมื่อเป็น Message/Command และ Routing ตอบโจทย์</p>
+        </div>
+        <div class="card violet">
+          <h3 class="violet-text">มี BullMQ / Redis</h3>
+          <p>ใช้ต่อเมื่อเป็นงาน Node.js ที่เน้น Retry, Delay และ Rate Limit</p>
+        </div>
+      </div>
+    </div>
+    <template class="note">
+      <p>ประเมินความคุ้มค่าของการใช้ของเดิมเทียบกับการเพิ่มเครื่องมือใหม่ เพื่อไม่ให้เกิดภาระดูแลระบบเกินจำเป็น</p>
+    </template>
+  </section>
+
+  <!-- Slide 11 -->
+  <section class="slide" data-title="กรณียังไม่มีเครื่องมือ">
+    <div class="slide-inner">
+      <div class="eyebrow">Greenfield Decision</div>
+      <h2>ถ้ายังไม่มีเครื่องมือ ให้เริ่มจาก Decision Tree</h2>
+      <div class="decision-tree">
+        <div class="decision-row">
+          <div class="decision-box">ต้องเก็บ Event, อ่านย้อนหลัง หรือให้หลายระบบอ่านข้อมูลเดิม?</div>
+          <div class="arrow">→</div>
+          <div class="decision-result">ใช่: Apache Kafka</div>
+        </div>
+        <div class="decision-row">
+          <div class="decision-box">ต้อง Routing ข้อความตามเงื่อนไขหรือภูมิภาค?</div>
+          <div class="arrow">→</div>
+          <div class="decision-result gold">ใช่: RabbitMQ</div>
+        </div>
+        <div class="decision-row">
+          <div class="decision-box">เป็น Background Job ที่ต้อง Retry, Delay หรือ Progress?</div>
+          <div class="arrow">→</div>
+          <div class="decision-result violet">ใช่: BullMQ</div>
+        </div>
+      </div>
+    </div>
+    <template class="note">
+      <p>ใช้เกณฑ์คำถามเหล่านี้ในการพิจารณาเลือกเครื่องมือให้ตรงกับ Use Case จริงของลูกค้า</p>
+    </template>
+  </section>
+
+  <!-- Slide 12 -->
+  <section class="slide" data-title="Architecture แบบผสม">
+    <div class="slide-inner">
+      <div class="eyebrow">Hybrid Architecture</div>
+      <h2>ไม่จำเป็นต้องเลือกเพียงตัวเดียว</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="node">Order Service</div><div class="arrow">→</div>
+          <div class="node">Kafka: OrderCreated</div>
+        </div>
+        <div class="branch-grid">
+          <div class="node">Inventory</div><div class="node">Analytics</div>
+          <div class="node">Fraud</div><div class="node violet">Notification</div>
+        </div>
+        <div class="flow" style="margin-top: 14px;">
+          <div class="node violet">BullMQ</div><div class="arrow">→</div>
+          <div class="node">Email Worker</div><div class="node">SMS Worker</div>
+        </div>
+      </div>
+    </div>
+    <template class="note">
+      <p>การผสมผสาน Kafka และ BullMQ ช่วยให้แยก Event ระดับองค์กรออกจากงานเบื้องหลังเฉพาะ Service ได้อย่างลงตัว</p>
+    </template>
+  </section>
+
+  <!-- Slide 13 -->
+  <section class="slide" data-title="หลักออกแบบระบบ">
+    <div class="slide-inner">
+      <div class="eyebrow">Production Readiness</div>
+      <h2>ไม่ว่าจะเลือกตัวไหน สิ่งเหล่านี้ต้องออกแบบเสมอ</h2>
+      <div class="grid grid-3">
+        <div class="card">
+          <h3>Idempotency <button class="term" data-term="idempotency">?</button></h3>
+          <p>ข้อความเข้าซ้ำได้ แต่ห้ามเกิดผลซ้ำ (เช่น ห้ามตัดเงินซ้ำ)</p>
+        </div>
+        <div class="card">
+          <h3>Retry Policy <button class="term" data-term="retry">?</button></h3>
+          <p>กำหนดจำนวนครั้ง ระยะห่าง และเงื่อนไข Error</p>
+        </div>
+        <div class="card">
+          <h3>Observability <button class="term" data-term="observability">?</button></h3>
+          <p>ติดตาม Queue Depth, Error Rate และ Consumer Lag</p>
+        </div>
+      </div>
+    </div>
+    <template class="note">
+      <p>เน้นย้ำเรื่องความพร้อมในการขึ้นระบบจริง เช่น การป้องกันข้อความซ้ำ และการมีระบบ Monitoring ที่ดี</p>
+    </template>
+  </section>
+
+  <!-- Slide 14 -->
+  <section class="slide" data-title="Scoring Matrix">
+    <div class="slide-inner">
+      <div class="eyebrow">Weighted Decision</div>
+      <h2>ตัดสินใจแบบมืออาชีพด้วย Weighted Scoring</h2>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>เกณฑ์การประเมิน</th>
+              <th>น้ำหนัก</th>
+              <th class="blue">Kafka</th>
+              <th class="gold">RabbitMQ</th>
+              <th class="violet-text">BullMQ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>เก็บและ Replay Event</td><td><span class="score">5</span></td><td>5</td><td>2</td><td>1</td></tr>
+            <tr><td>Routing ซับซ้อน</td><td><span class="score">4</span></td><td>2</td><td>5</td><td>2</td></tr>
+            <tr><td>Background Job</td><td><span class="score">4</span></td><td>2</td><td>4</td><td>5</td></tr>
+            <tr><td>ทีมดูแลได้ / ใช้ของเดิม</td><td><span class="score">5</span></td><td>ประเมิน</td><td>ประเมิน</td><td>ประเมิน</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <template class="note">
+      <p>ใช้วิธีให้คะแนนร่วมกับลูกค้าเพื่อหาข้อสรุปที่เป็นกลางและเหมาะสมกับโจทย์มากที่สุด</p>
+    </template>
+  </section>
+
+  <!-- Slide 15 -->
+  <section class="slide" data-title="Proof of Concept">
+    <div class="slide-inner">
+      <div class="eyebrow">Validation & Delivery</div>
+      <h2>อย่าตัดสินใจจาก Benchmark บนกระดาษ</h2>
+      <div class="grid grid-2">
+        <div class="card good">
+          <h3>PoC ควรทดสอบอะไรบ้าง</h3>
+          <ul>
+            <li>Normal Load และ Peak Load</li>
+            <li>กรณี Broker / Redis / Consumer ล่ม</li>
+            <li>Message ซ้ำ, ผิดรูปแบบ หรือ Poison Message</li>
+            <li>Consumer Lag <button class="term" data-term="consumerLag">?</button> และ Queue Backlog</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>ผลลัพธ์ที่ควรได้รับ</h3>
+          <ul>
+            <li>Architecture Diagram และ Capacity Estimate</li>
+            <li>Failure Test Result และ Recovery Procedure</li>
+            <li>Monitoring Dashboard และ Runbook</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <template class="note">
+      <p>การทำ PoC ช่วยลดความเสี่ยงก่อนนำระบบไปใช้งานจริงในระดับ Production</p>
+    </template>
+  </section>
+
+  <!-- Slide 16 -->
+  <section class="slide" data-title="ข้อเสนอแนะสุดท้าย">
+    <div class="slide-inner">
+      <div class="eyebrow">Final Recommendation</div>
+      <h2>เลือกเครื่องมือที่ง่ายที่สุด ซึ่งตอบโจทย์ได้ครบ</h2>
+      <div class="grid">
+        <div class="card recommendation">
+          <div class="rec-label">Kafka</div>
+          <div><h3>เลือกเมื่อ Event เป็นสินทรัพย์ข้อมูล</h3><p>เก็บย้อนหลัง, มีหลาย Consumer, ทำ Data Pipeline</p></div>
+        </div>
+        <div class="card gold recommendation">
+          <div class="rec-label gold">RabbitMQ</div>
+          <div><h3>เลือกเมื่อหัวใจคือ Message และ Routing</h3><p>ส่ง Command ไปปลายทาง, มี Acknowledgement</p></div>
+        </div>
+        <div class="card violet recommendation">
+          <div class="rec-label violet">BullMQ</div>
+          <div><h3>เลือกเมื่อหัวใจคือ Background Job</h3><p>Node.js/TypeScript, ต้องการ Retry, Delay และ Rate Limit</p></div>
+        </div>
+      </div>
+    </div>
+    <template class="note">
+      <p><strong>บทพูดสรุป:</strong> เลือกเครื่องมือตาม Use Case จริง สมดุลระหว่างความต้องการ ความเชี่ยวชาญของทีม และต้นทุนรวมระยะยาว</p>
+    </template>
+  </section>
+
+
+
+</main>
+
+<script>
+// ศัพท์เฉพาะ (คงเนื้อหาเดิม แปลง description -> body ให้ตรงกับ kv-deck.js)
+const glossary = {
       asynchronous: {
         title: "Asynchronous",
         description: "การทำงานที่ระบบต้นทางไม่จำเป็นต้องรอให้ทุกขั้นตอนเสร็จทันที ผู้รับสามารถนำงานไปทำเบื้องหลังต่อได้",
@@ -1331,132 +628,8 @@
         example: "มีข้อความเข้ามา 10,000 รายการ แต่เพิ่งอ่านไป 2,000 รายการ ยังค้างอยู่อีก 8,000"
       }
     };
-
-    const slides = Array.from(document.querySelectorAll(".slide"));
-    const counter = document.getElementById("counter");
-    const progressBar = document.getElementById("progressBar");
-    const prevButton = document.getElementById("prevButton");
-    const nextButton = document.getElementById("nextButton");
-    const fullscreenButton = document.getElementById("fullscreenButton");
-
-    const notesTrigger = document.getElementById("notesTrigger");
-    const mobileNotesButton = document.getElementById("mobileNotesButton");
-    const notesPanel = document.getElementById("notesPanel");
-    const notesTitle = document.getElementById("notesTitle");
-    const notesBody = document.getElementById("notesBody");
-    const closeNotes = document.getElementById("closeNotes");
-
-    const glossaryBackdrop = document.getElementById("glossaryBackdrop");
-    const glossaryTitle = document.getElementById("glossaryTitle");
-    const glossaryBody = document.getElementById("glossaryBody");
-    const closeGlossary = document.getElementById("closeGlossary");
-
-    let currentSlide = 0;
-    let touchStartX = null;
-    let touchStartY = null;
-    let touchOnInteractive = false;
-
-    function showSlide(index) {
-      currentSlide = Math.max(0, Math.min(index, slides.length - 1));
-      slides.forEach((slide, i) => {
-        slide.classList.toggle("active", i === currentSlide);
-        slide.scrollTop = 0;
-      });
-      counter.textContent = `${currentSlide + 1} / ${slides.length}`;
-      progressBar.style.width = `${((currentSlide + 1) / slides.length) * 100}%`;
-      prevButton.disabled = currentSlide === 0;
-      nextButton.disabled = currentSlide === slides.length - 1;
-      notesPanel.classList.remove("open");
-    }
-
-    function nextSlide() { showSlide(currentSlide + 1); }
-    function previousSlide() { showSlide(currentSlide - 1); }
-
-    function openNotes() {
-      const current = slides[currentSlide];
-      const template = current.querySelector(".speaker-note");
-      notesTitle.textContent = `Speaker Notes — สไลด์ ${currentSlide + 1}`;
-      notesBody.innerHTML = template ? template.innerHTML : "<p>ไม่มี Speaker Notes สำหรับสไลด์นี้</p>";
-      notesPanel.classList.toggle("open");
-    }
-
-    function openGlossary(key) {
-      const item = glossary[key];
-      if (!item) return;
-      glossaryTitle.textContent = item.title;
-      glossaryBody.innerHTML = `
-        <p>${item.description}</p>
-        <div class="easy-example">
-          <strong>ตัวอย่างที่เข้าใจง่าย:</strong>
-          <p style="margin: 6px 0 0">${item.example}</p>
-        </div>
-      `;
-      glossaryBackdrop.classList.add("open");
-    }
-
-    prevButton.addEventListener("click", previousSlide);
-    nextButton.addEventListener("click", nextSlide);
-    mobileNotesButton.addEventListener("click", openNotes);
-    notesTrigger.addEventListener("click", openNotes);
-    closeNotes.addEventListener("click", () => notesPanel.classList.remove("open"));
-
-    fullscreenButton.addEventListener("click", async () => {
-      try {
-        if (!document.fullscreenElement) {
-          await document.documentElement.requestFullscreen();
-        } else {
-          await document.exitFullscreen();
-        }
-      } catch (err) { console.warn(err); }
-    });
-
-    document.querySelectorAll(".term").forEach(btn => {
-      btn.addEventListener("click", e => {
-        e.stopPropagation();
-        openGlossary(btn.dataset.term);
-      });
-    });
-
-    closeGlossary.addEventListener("click", () => glossaryBackdrop.classList.remove("open"));
-    glossaryBackdrop.addEventListener("click", e => {
-      if (e.target === glossaryBackdrop) glossaryBackdrop.classList.remove("open");
-    });
-
-    // Touch & Swipe handlers
-    document.addEventListener("touchstart", e => {
-      const t = e.target;
-      touchOnInteractive = Boolean(t.closest("button, a, input, .modal, .notes-panel, .comparison-table"));
-      touchStartX = e.changedTouches[0].clientX;
-      touchStartY = e.changedTouches[0].clientY;
-    }, { passive: true });
-
-    document.addEventListener("touchend", e => {
-      if (touchStartX === null || touchStartY === null || touchOnInteractive) return;
-      const dx = e.changedTouches[0].clientX - touchStartX;
-      const dy = e.changedTouches[0].clientY - touchStartY;
-      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.3) {
-        if (dx < 0) nextSlide();
-        else previousSlide();
-      }
-      touchStartX = null;
-      touchStartY = null;
-    }, { passive: true });
-
-    // Keyboard controls
-    document.addEventListener("keydown", e => {
-      if (glossaryBackdrop.classList.contains("open") || notesPanel.classList.contains("open")) {
-        if (e.key === "Escape") {
-          glossaryBackdrop.classList.remove("open");
-          notesPanel.classList.remove("open");
-        }
-        return;
-      }
-      if (["ArrowRight", "PageDown", " "].includes(e.key)) { e.preventDefault(); nextSlide(); }
-      if (["ArrowLeft", "PageUp"].includes(e.key)) { e.preventDefault(); previousSlide(); }
-      if (e.key === "n" || e.key === "N") openNotes();
-    });
-
-    showSlide(0);
-  </script>
+window.KV_GLOSSARY = Object.fromEntries(Object.entries(glossary).map(([k, v]) => [k, { title: v.title, body: v.description, example: v.example }]));
+</script>
+<script src="../../assets/kv-deck.js"></script>
 </body>
 </html>
