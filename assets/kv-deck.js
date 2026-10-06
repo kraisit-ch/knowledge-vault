@@ -85,6 +85,13 @@
   const closeAll = () => [menu, notes, gloss].forEach((e) => e.classList.remove("open"));
   const anyOpen = () => [menu, notes, gloss].some((e) => e.classList.contains("open"));
 
+  // ---------- ลิงก์ในเนื้อหาสไลด์ → เปิดแท็บใหม่เสมอ (ยกเว้นลิงก์ #สไลด์ในหน้าเดียวกัน) ----------
+  document.querySelectorAll(".slides a[href]").forEach((a) => {
+    if (a.getAttribute("href").startsWith("#")) return;
+    a.target = "_blank";
+    a.rel = "noopener";
+  });
+
   // ---------- Glossary ----------
   const G = window.KV_GLOSSARY || {};
   document.querySelectorAll(".term").forEach((b) => {
