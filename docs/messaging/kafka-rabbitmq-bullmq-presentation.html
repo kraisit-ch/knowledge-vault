@@ -7,511 +7,256 @@
   <title>Apache Kafka vs RabbitMQ vs BullMQ</title>
   <link rel="stylesheet" href="../../assets/kv-deck.css">
 </head>
-<body data-title="Apache Kafka vs RabbitMQ vs BullMQ" data-mark="MQ">
+<body data-title="Kafka vs RabbitMQ vs BullMQ" data-mark="MQ">
 <main class="slides">
 
-  <!-- Slide 1 -->
+  <!-- 1 -->
   <section class="slide active" data-title="บทนำ">
     <div class="slide-inner">
-      <div class="eyebrow">Technology Decision Presentation</div>
-      <h1>
-        <span class="blue">Kafka</span> vs
-        <span class="gold">RabbitMQ</span> vs
-        <span class="violet-text">BullMQ</span>
-      </h1>
-      <p class="lead">
-        เลือกเครื่องมือรับส่งข้อมูลและจัดการงานให้เหมาะกับธุรกิจ สถาปัตยกรรมระบบ และความสามารถของทีม
-      </p>
-      <div class="tag-row">
-        <span class="tag">Event Streaming</span>
-        <span class="tag">Message Routing</span>
-        <span class="tag">Background Job</span>
-        <span class="tag">Architecture Decision</span>
-      </div>
-      <div class="quote">
-        ไม่มีเครื่องมือใดดีที่สุดสำหรับทุกงาน มีเพียงเครื่องมือที่เหมาะสมที่สุดกับแต่ละ Use Case
+      <div class="eyebrow">Messaging · เลือกเครื่องมือให้ถูกงาน</div>
+      <h1><span class="blue">Kafka</span> vs <span class="gold">RabbitMQ</span> vs <span class="violet-text">BullMQ</span></h1>
+      <p class="lead">ทั้ง 3 ตัวช่วยให้ระบบ “ส่งงานต่อให้ทำทีหลัง” ได้เหมือนกัน แต่ถูกสร้างมาแก้ปัญหาคนละแบบ เรื่องนี้จะช่วยให้เลือกได้ภายใน 1 นาที</p>
+      <div class="grid grid-3 mt">
+        <div class="card"><div class="icon">📜</div><h3 class="blue">Kafka</h3><p class="muted">บันทึก <strong>“เกิดอะไรขึ้นแล้ว”</strong> ให้หลายระบบอ่าน</p></div>
+        <div class="card gold"><div class="icon">📮</div><h3 class="gold">RabbitMQ</h3><p class="muted">ส่ง <strong>“ข้อความ/คำสั่ง”</strong> ไปถูกปลายทาง</p></div>
+        <div class="card violet"><div class="icon">📋</div><h3 class="violet-text">BullMQ</h3><p class="muted">จัดการ <strong>“งานเบื้องหลัง”</strong> ในแอป Node.js</p></div>
       </div>
     </div>
-    <template class="note">
-      <p><strong>แนวทางเปิดการนำเสนอ:</strong></p>
-      <p>วันนี้เราจะไม่ตัดสินจากคำถามว่าเครื่องมือใดเร็วที่สุด แต่จะพิจารณาว่าแต่ละเครื่องมือถูกออกแบบมาเพื่อแก้ปัญหาอะไร และเมื่อใดควรเลือกใช้แต่ละตัว</p>
-    </template>
+    <template class="note"><p>เปิดด้วยการบอกว่าไม่มีตัวไหนดีที่สุด แต่ละตัวเก่งคนละงาน เป้าหมายคือทุกคนตอบได้ว่า “งานนี้ควรใช้ตัวไหน เพราะอะไร”</p></template>
   </section>
 
-  <!-- Slide 2 -->
-  <section class="slide" data-title="ปัญหาทางธุรกิจ">
+  <!-- 2 -->
+  <section class="slide" data-title="ทำไมต้องมีตัวกลาง">
     <div class="slide-inner">
-      <div class="eyebrow">Business Problem</div>
-      <h2>ทำไมระบบจึงไม่ควรทำทุกอย่างพร้อมกัน</h2>
+      <div class="eyebrow">ปัญหาที่ต้องแก้</div>
+      <h2>ลูกค้ากด “สั่งซื้อ” แล้วระบบต้องทำ 5 อย่าง</h2>
       <div class="grid grid-2">
-        <div class="card bad">
-          <h3>ระบบแบบรอทุกขั้นตอน</h3>
+        <div class="dont"><h4>แบบเดิม: ทำทุกอย่างให้เสร็จก่อนตอบลูกค้า</h4>
+          <div class="diagram"><div class="flow">
+            <div class="node">สั่งซื้อ</div><div class="arrow">→</div>
+            <div class="node">ตัดเงิน</div><div class="arrow">→</div>
+            <div class="node">ตัดสต็อก</div><div class="arrow">→</div>
+            <div class="node">ส่งอีเมล</div><div class="arrow">→</div>
+            <div class="node">ออกใบกำกับ</div>
+          </div></div>
           <ul>
-            <li>ลูกค้าต้องรอนานขึ้น</li>
-            <li>ระบบหนึ่งล่มอาจทำให้กระบวนการทั้งหมดล้ม</li>
-            <li>รองรับปริมาณงานช่วง Peak ได้ยาก</li>
-            <li>ระบบต่าง ๆ ผูกติดกันมากเกินไป</li>
+            <li>ลูกค้ารอนาน (รอครบทุกขั้น)</li>
+            <li>ระบบอีเมลล่ม → <strong class="red">สั่งซื้อไม่สำเร็จทั้งหมด</strong></li>
           </ul>
         </div>
-        <div class="card good">
-          <h3>ระบบแบบ Asynchronous <button class="term" data-term="asynchronous">?</button></h3>
+        <div class="do"><h4>แบบใหม่: ตอบลูกค้าทันที งานที่เหลือส่งต่อให้ทำทีหลัง</h4>
+          <div class="diagram"><div class="flow">
+            <div class="node">สั่งซื้อ</div><div class="arrow">→</div>
+            <div class="node gold">ตัวกลาง<small>Kafka / RabbitMQ / BullMQ</small></div><div class="arrow">→</div>
+            <div class="node green">ระบบอื่นทำต่อเอง</div>
+          </div></div>
           <ul>
-            <li>ระบบหลักตอบลูกค้าได้เร็วขึ้น</li>
-            <li>งานที่เหลือสามารถทำต่อเบื้องหลัง</li>
-            <li>เพิ่ม Worker เพื่อรองรับปริมาณงานได้</li>
-            <li>ระบบปลายทางล่มชั่วคราว งานยังรอได้</li>
+            <li>ลูกค้าได้ผลทันที ✅</li>
+            <li>ระบบอีเมลล่ม → งานรอในคิว กลับมาค่อยส่ง ✅</li>
           </ul>
         </div>
       </div>
-      <div class="diagram">
-        <div class="flow">
-          <div class="node">Customer</div><div class="arrow">→</div>
-          <div class="node">Order API</div><div class="arrow">→</div>
-          <div class="node">Queue / Event Platform</div><div class="arrow">→</div>
-          <div class="node green">ระบบทำงานต่อ</div>
-        </div>
-      </div>
+      <div class="quote">“ตัวกลาง” ทำให้ระบบไม่ต้องรอกัน และไม่ล่มตามกัน เรียกว่าการทำงานแบบ Asynchronous<button class="term" data-term="asynchronous"></button></div>
     </div>
-    <template class="note">
-      <p>ยกตัวอย่างเมื่อลูกค้าสั่งซื้อ ระบบต้องทำหลายอย่างพร้อมกัน การมีตัวกลางช่วยรับเรื่องแล้วตอบกลับลูกค้าได้ทันที ส่วนงานหลังบ้านทำต่อแบบ Asynchronous</p>
-    </template>
   </section>
 
-  <!-- Slide 3 -->
-  <section class="slide" data-title="ภาพจำของแต่ละเครื่องมือ">
+  <!-- 3 -->
+  <section class="slide" data-title="สิ่งที่ส่งมี 3 แบบ">
     <div class="slide-inner">
-      <div class="eyebrow">Simple Mental Model</div>
-      <h2>จำง่าย ๆ: สมุดบันทึก ศูนย์คัดแยก และกระดานงาน</h2>
+      <div class="eyebrow">ก่อนเลือกเครื่องมือ</div>
+      <h2>ถามก่อนว่า “สิ่งที่จะส่ง” คืออะไร</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>ประเภท</th><th>ความหมาย</th><th>ตัวอย่างชื่อ</th><th>ใครรับ</th><th>เครื่องมือที่ถนัด</th></tr>
+        <tr><td><strong>Event</strong><button class="term" data-term="event"></button></td><td>บอกว่า “เกิดแล้ว”</td><td><code>OrderCreated</code></td><td>ใครสนใจก็มาอ่าน (หลายระบบ)</td><td><strong class="blue">Kafka</strong></td></tr>
+        <tr><td><strong>Command</strong><button class="term" data-term="command"></button></td><td>สั่งให้ “ไปทำ”</td><td><code>ReserveStock</code></td><td>ผู้รับที่ถูกต้อง 1 ระบบ</td><td><strong class="gold">RabbitMQ</strong></td></tr>
+        <tr><td><strong>Job</strong><button class="term" data-term="job"></button></td><td>งานที่ต้องทำให้เสร็จ</td><td><code>SendEmail</code></td><td>worker ในแอปเดียวกัน</td><td><strong class="violet-text">BullMQ</strong></td></tr>
+      </table></div>
+      <div class="callout">แค่แยก 3 แบบนี้ออก ก็ตัดสินใจได้เกินครึ่งแล้ว</div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="ทำงานต่างกันอย่างไร">
+    <div class="slide-inner">
+      <div class="eyebrow">กลไกการทำงาน</div>
+      <h2>หัวใจที่ต่างกัน: <span class="gold">ข้อมูลหายไปเมื่อไร?</span></h2>
       <div class="grid grid-3">
-        <div class="card">
-          <h3 class="blue">Apache Kafka</h3>
-          <p class="big-number">01</p>
-          <p><strong>เปรียบเหมือน:</strong> สมุดบันทึกเหตุการณ์</p>
-          <p><strong>ตอบคำถาม:</strong> “มีอะไรเกิดขึ้นแล้ว?”</p>
+        <div class="card"><h3 class="blue">📜 Kafka</h3>
+          <div class="diagram"><div class="node">OrderCreated</div><div class="branch-grid"><div class="node green">Payment<small>อ่านแล้ว</small></div><div class="node green">Analytics<small>อ่านแล้ว</small></div></div></div>
+          <p class="small mt"><strong>อ่านแล้วไม่หาย</strong> เก็บตามเวลาที่กำหนด (เช่น 7 วัน) ระบบใหม่มาอ่านย้อนหลังได้<button class="term" data-term="replay"></button></p>
         </div>
-        <div class="card gold">
-          <h3 class="gold">RabbitMQ</h3>
-          <p class="big-number" style="color: var(--gold-2)">02</p>
-          <p><strong>เปรียบเหมือน:</strong> ศูนย์คัดแยกพัสดุ</p>
-          <p><strong>ตอบคำถาม:</strong> “ข้อความนี้ควรส่งไปที่ไหน?”</p>
+        <div class="card gold"><h3 class="gold">📮 RabbitMQ</h3>
+          <div class="diagram"><div class="node gold">Exchange<small>คัดแยก</small></div><div class="branch-grid"><div class="node">payment.q</div><div class="node">stock.q</div></div></div>
+          <p class="small mt"><strong>รับแล้ว (ack<button class="term" data-term="ack"></button>) จึงลบ</strong> แต่ละข้อความถูกคัดแยก<button class="term" data-term="routing"></button>ไปคิวที่ถูกต้อง</p>
         </div>
-        <div class="card violet">
-          <h3 class="violet-text">BullMQ</h3>
-          <p class="big-number" style="color: var(--violet)">03</p>
-          <p><strong>เปรียบเหมือน:</strong> กระดานมอบหมายงาน</p>
-          <p><strong>ตอบคำถาม:</strong> “มีงานอะไรที่ Worker ต้องทำ?”</p>
-        </div>
-      </div>
-      <div class="quote">
-        Kafka เน้น “เหตุการณ์” — RabbitMQ เน้น “การส่งข้อความ” — BullMQ เน้น “การทำงานให้เสร็จ”
-      </div>
-    </div>
-    <template class="note">
-      <p>ภาพจำ 3 ประโยคนี้ช่วยให้ผู้ฟังเข้าใจบทบาทของแต่ละเครื่องมือได้ทันทีโดยไม่ต้องลงรายละเอียดลึกในตอนแรก</p>
-    </template>
-  </section>
-
-  <!-- Slide 4 -->
-  <section class="slide" data-title="Event Message Command Job">
-    <div class="slide-inner">
-      <div class="eyebrow">Workload Classification</div>
-      <h2>แยกสิ่งที่กำลังส่งให้ชัดเจนก่อนเลือกเครื่องมือ</h2>
-      <div class="grid grid-4">
-        <div class="card">
-          <h3>Event <button class="term" data-term="event">?</button></h3>
-          <p><strong>ความหมาย:</strong> สิ่งที่เกิดขึ้นแล้ว</p>
-          <p><code>OrderCreated</code></p>
-        </div>
-        <div class="card">
-          <h3>Message <button class="term" data-term="message">?</button></h3>
-          <p><strong>ความหมาย:</strong> ข้อมูลระหว่างระบบ</p>
-          <p><code>CustomerData</code></p>
-        </div>
-        <div class="card">
-          <h3>Command <button class="term" data-term="command">?</button></h3>
-          <p><strong>ความหมาย:</strong> คำสั่งให้ผู้รับทำ</p>
-          <p><code>ReserveInventory</code></p>
-        </div>
-        <div class="card">
-          <h3>Job <button class="term" data-term="job">?</button></h3>
-          <p><strong>ความหมาย:</strong> งานที่ต้องทำ</p>
-          <p><code>GeneratePDF</code></p>
+        <div class="card violet"><h3 class="violet-text">📋 BullMQ</h3>
+          <div class="diagram"><div class="node violet">Job: SendEmail</div><div class="branch-grid"><div class="node">รอ → ทำ</div><div class="node green">สำเร็จ / ลองใหม่</div></div></div>
+          <p class="small mt"><strong>ติดตามสถานะงาน</strong> รอ, กำลังทำ, สำเร็จ, ล้มเหลว พร้อมลองใหม่<button class="term" data-term="backoff"></button>และตั้งเวลาได้ในตัว</p>
         </div>
       </div>
     </div>
-    <template class="note">
-      <p>การจำแนกประเภทข้อมูลช่วยป้องกันการเลือกใช้เครื่องมือผิดประเภท เช่น นำ Job ไปไว้ในระบบ Event Streaming ขนาดใหญ่โดยไม่จำเป็น</p>
-    </template>
   </section>
 
-  <!-- Slide 5 -->
-  <section class="slide" data-title="ตัวอย่าง E-commerce">
+  <!-- 5 -->
+  <section class="slide" data-title="ตารางเปรียบเทียบ">
     <div class="slide-inner">
-      <div class="eyebrow">E-commerce Example</div>
-      <h2>เหตุการณ์เดียวกัน แต่ละเครื่องมือมองต่างกัน</h2>
-      <div class="grid grid-3">
-        <div class="card">
-          <h3 class="blue">Kafka: กระจาย Event</h3>
-          <div class="diagram">
-            <div class="node">OrderCreated</div>
-            <div class="branch-grid">
-              <div class="node">Payment</div><div class="node">Inventory</div>
-              <div class="node">Analytics</div><div class="node">Fraud</div>
-            </div>
-          </div>
-        </div>
-        <div class="card gold">
-          <h3 class="gold">RabbitMQ: Route Message</h3>
-          <div class="diagram">
-            <div class="node gold">Exchange</div>
-            <div class="branch-grid">
-              <div class="node">Payment Q</div><div class="node">Stock Q</div>
-              <div class="node">TH WH Q</div><div class="node">Notify Q</div>
-            </div>
-          </div>
-        </div>
-        <div class="card violet">
-          <h3 class="violet-text">BullMQ: Execute Job</h3>
-          <div class="diagram">
-            <div class="node violet">Background Jobs</div>
-            <div class="branch-grid">
-              <div class="node">Send Email</div><div class="node">Create PDF</div>
-              <div class="node">Export File</div><div class="node">Call API</div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <div class="eyebrow">เปรียบเทียบครบในหน้าเดียว</div>
+      <h2>ตารางเปรียบเทียบ</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>หัวข้อ</th><th class="blue">Kafka</th><th class="gold">RabbitMQ</th><th class="violet-text">BullMQ</th></tr>
+        <tr><td>เป็นอะไร</td><td>Event Streaming</td><td>Message Broker</td><td>Job Queue (บน Redis)</td></tr>
+        <tr><td>หลายระบบอ่านข้อมูลเดียวกัน</td><td><span class="status"><span class="dot good"></span>ถนัดมาก</span></td><td><span class="status"><span class="dot medium"></span>ได้ (copy ไปหลายคิว)</span></td><td><span class="status"><span class="dot low"></span>ไม่ใช่จุดประสงค์</span></td></tr>
+        <tr><td>อ่านย้อนหลัง (Replay)</td><td><span class="status"><span class="dot good"></span>ได้</span></td><td><span class="status"><span class="dot low"></span>ไม่ได้ (ยกเว้น Streams)</span></td><td><span class="status"><span class="dot low"></span>ไม่ได้</span></td></tr>
+        <tr><td>คัดแยกตามเงื่อนไข (Routing)</td><td><span class="status"><span class="dot medium"></span>แค่ระดับ topic</span></td><td><span class="status"><span class="dot good"></span>ถนัดมาก</span></td><td><span class="status"><span class="dot medium"></span>แค่ระดับคิว</span></td></tr>
+        <tr><td>Retry / Delay / ตั้งเวลา</td><td><span class="status"><span class="dot low"></span>ต้องทำเอง</span></td><td><span class="status"><span class="dot medium"></span>ทำได้ (DLQ + TTL)</span></td><td><span class="status"><span class="dot good"></span>มีในตัวครบ</span></td></tr>
+        <tr><td>ปริมาณข้อมูลที่รับได้</td><td><span class="status"><span class="dot good"></span>สูงมาก (ล้าน/วินาที)</span></td><td><span class="status"><span class="dot medium"></span>สูง</span></td><td><span class="status"><span class="dot medium"></span>ปานกลาง–สูง</span></td></tr>
+        <tr><td>ภาษาที่ใช้ได้</td><td>ทุกภาษา (.NET, Node, …)</td><td>ทุกภาษา (.NET, Node, …)</td><td><strong>Node.js</strong> เป็นหลัก</td></tr>
+        <tr><td>ความยากในการดูแล</td><td><span class="status"><span class="dot low"></span>สูง</span></td><td><span class="status"><span class="dot medium"></span>ปานกลาง</span></td><td><span class="status"><span class="dot good"></span>ต่ำ (มี Redis ก็พอ)</span></td></tr>
+      </table></div>
     </div>
-    <template class="note">
-      <p>เปรียบเทียบการทำงานจริงในระบบ E-commerce ว่าแต่ละตัวรับส่งและจัดการข้อมูลอย่างไร</p>
-    </template>
   </section>
 
-  <!-- Slide 6 -->
-  <section class="slide" data-title="เปรียบเทียบภาพรวม">
+  <!-- 6 -->
+  <section class="slide" data-title="Kafka เหมาะ / ไม่เหมาะ">
     <div class="slide-inner">
-      <div class="eyebrow">Executive Comparison</div>
-      <h2>เปรียบเทียบภาพรวมสำหรับผู้ตัดสินใจ</h2>
-      <div class="table-wrap">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>หัวข้อ</th>
-              <th class="blue">Apache Kafka</th>
-              <th class="gold">RabbitMQ</th>
-              <th class="violet-text">BullMQ</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>ประเภทหลัก</td>
-              <td>Event Streaming Platform</td>
-              <td>Message Broker</td>
-              <td>Job Queue</td>
-            </tr>
-            <tr>
-              <td>อ่านย้อนหลัง <button class="term" data-term="replay">?</button></td>
-              <td><span class="status"><span class="dot good"></span>เด่นมาก</span></td>
-              <td><span class="status"><span class="dot medium"></span>ไม่ใช่จุดเด่น</span></td>
-              <td><span class="status"><span class="dot low"></span>ไม่ใช่เป้าหมาย</span></td>
-            </tr>
-            <tr>
-              <td>Routing ซับซ้อน</td>
-              <td>ระดับ Topic/Key</td>
-              <td><span class="status"><span class="dot good"></span>เด่นมาก</span></td>
-              <td>ระดับ Queue/Job</td>
-            </tr>
-            <tr>
-              <td>Retry และ State</td>
-              <td>ต้องออกแบบเพิ่ม</td>
-              <td>Ack / Dead Letter</td>
-              <td>มี Attempts/Backoff</td>
-            </tr>
-            <tr>
-              <td>Technology Fit</td>
-              <td>หลายภาษา / หลายระบบ</td>
-              <td>หลายภาษา / หลาย Protocol</td>
-              <td>Node.js & Redis</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-    <template class="note">
-      <p>สรุปจุดเด่นในรูปแบบตารางเพื่อให้ผู้บริหารเปรียบเทียบได้รวดเร็ว</p>
-    </template>
-  </section>
-
-  <!-- Slide 7 -->
-  <section class="slide" data-title="Apache Kafka">
-    <div class="slide-inner">
-      <div class="eyebrow blue">Apache Kafka</div>
-      <h2>เหมาะเมื่อ Event คือสินทรัพย์ข้อมูลขององค์กร</h2>
+      <div class="eyebrow blue">📜 Apache Kafka</div>
+      <h2>Kafka: “สมุดบันทึกเหตุการณ์” ขององค์กร</h2>
       <div class="grid grid-2">
-        <div class="card">
-          <h3>แนวคิดสำคัญ</h3>
-          <ul>
-            <li>Topic <button class="term" data-term="topic">?</button> และ Partition <button class="term" data-term="partition">?</button></li>
-            <li>Offset <button class="term" data-term="offset">?</button> ติดตามการอ่าน</li>
-            <li>Consumer Group <button class="term" data-term="consumerGroup">?</button></li>
-            <li>Retention Policy <button class="term" data-term="retention">?</button></li>
-          </ul>
-        </div>
-        <div class="card good">
-          <h3>Use Case ที่เหมาะ</h3>
-          <ul>
-            <li>Enterprise Event Backbone</li>
-            <li>Customer Activity Stream</li>
-            <li>Change Data Capture (CDC)</li>
-            <li>Data Lake & Analytics Pipeline</li>
-          </ul>
-        </div>
+        <div class="do"><h4>เหมาะเมื่อ</h4><ul>
+          <li>หลายทีม/หลายระบบต้องอ่าน event เดียวกัน</li>
+          <li>ต้องเก็บประวัติไว้อ่านซ้ำ เช่น คำนวณรายงานย้อนหลัง</li>
+          <li>ข้อมูลไหลเข้าปริมาณมหาศาล เช่น click, log, IoT</li>
+          <li>ส่งข้อมูลเข้า Data warehouse / Analytics</li>
+        </ul></div>
+        <div class="dont"><h4>ไม่เหมาะเมื่อ</h4><ul>
+          <li>แค่อยากส่งอีเมล / สร้าง PDF เบื้องหลัง</li>
+          <li>ต้องการ delay, priority หรือ retry ทีละงาน</li>
+          <li>ทีมเล็กและไม่มีคนดูแล cluster</li>
+        </ul></div>
       </div>
+      <div class="callout">ศัพท์ที่จะเจอ: Topic<button class="term" data-term="topic"></button> · Partition<button class="term" data-term="partition"></button> · Consumer Group<button class="term" data-term="consumerGroup"></button> · <a href="kafka-deep-dive.html">อ่านเจาะลึก Kafka →</a></div>
     </div>
-    <template class="note">
-      <p>Kafka เหมาะกับงานสตรีมมิ่งและเหตุการณ์ที่ต้องการเก็บประวัติไว้อ่านซ้ำ แต่มีความซับซ้อนในการดูแลสูง</p>
-    </template>
   </section>
 
-  <!-- Slide 8 -->
-  <section class="slide" data-title="RabbitMQ">
+  <!-- 7 -->
+  <section class="slide" data-title="RabbitMQ เหมาะ / ไม่เหมาะ">
     <div class="slide-inner">
-      <div class="eyebrow gold">RabbitMQ</div>
-      <h2>เหมาะเมื่อหัวใจคือการส่งและคัดแยกข้อความ</h2>
+      <div class="eyebrow gold">📮 RabbitMQ</div>
+      <h2>RabbitMQ: “ศูนย์คัดแยกพัสดุ”</h2>
       <div class="grid grid-2">
-        <div class="card gold">
-          <h3>วิธีทำงาน</h3>
-          <p>Producer → Exchange <button class="term" data-term="exchange">?</button> → Queue → Consumer</p>
-          <ul>
-            <li>รองรับ Acknowledgement <button class="term" data-term="ack">?</button></li>
-            <li>รองรับ Dead Letter <button class="term" data-term="deadLetter">?</button></li>
-          </ul>
-        </div>
-        <div class="card good">
-          <h3>Use Case ที่เหมาะ</h3>
-          <ul>
-            <li>Payment และ Order Processing</li>
-            <li>Routing ตามประเภทหรือภูมิภาค</li>
-            <li>Command ระหว่าง Microservices</li>
-          </ul>
-        </div>
+        <div class="do"><h4>เหมาะเมื่อ</h4><ul>
+          <li>ส่งคำสั่งระหว่าง service เช่น .NET ↔ Node.js</li>
+          <li>ต้องคัดแยกตามเงื่อนไข เช่น ประเภทงาน, ภูมิภาค</li>
+          <li>ต้องการยืนยันว่าประมวลผลสำเร็จ (ack) ก่อนลบ</li>
+          <li>กระจายงานให้ worker หลายตัวช่วยกันทำ</li>
+        </ul></div>
+        <div class="dont"><h4>ไม่เหมาะเมื่อ</h4><ul>
+          <li>ต้องอ่านข้อมูลย้อนหลังหลายวัน</li>
+          <li>ข้อมูลไหลเข้าปริมาณมหาศาลต่อเนื่องแบบ stream</li>
+          <li>ใช้เป็นที่เก็บข้อมูลระยะยาว (คิวบวม = ช้า)</li>
+        </ul></div>
       </div>
+      <div class="callout">ศัพท์ที่จะเจอ: Exchange<button class="term" data-term="exchange"></button> · Ack<button class="term" data-term="ack"></button> · Dead Letter<button class="term" data-term="deadLetter"></button> · <a href="rabbitmq-deep-dive.html">อ่านเจาะลึก RabbitMQ →</a></div>
     </div>
-    <template class="note">
-      <p>RabbitMQ โดดเด่นด้านการทำ Message Routing และ Work Queue เหมาะกับการสื่อสารระหว่าง Service</p>
-    </template>
   </section>
 
-  <!-- Slide 9 -->
-  <section class="slide" data-title="BullMQ">
+  <!-- 8 -->
+  <section class="slide" data-title="BullMQ เหมาะ / ไม่เหมาะ">
     <div class="slide-inner">
-      <div class="eyebrow violet-text">BullMQ</div>
-      <h2>เหมาะกับ Background Job ของ Node.js Application</h2>
+      <div class="eyebrow violet-text">📋 BullMQ</div>
+      <h2>BullMQ: “กระดานมอบหมายงาน”</h2>
       <div class="grid grid-2">
-        <div class="card violet">
-          <h3>สถานะของ Job</h3>
-          <p>Waiting → Active → Completed / Failed</p>
-          <ul>
-            <li>Retry & Backoff <button class="term" data-term="backoff">?</button></li>
-            <li>Rate Limiting <button class="term" data-term="rateLimit">?</button></li>
-          </ul>
-        </div>
-        <div class="card good">
-          <h3>Use Case ที่เหมาะ</h3>
-          <ul>
-            <li>ส่ง Email หรือ Notification</li>
-            <li>สร้าง PDF / Report</li>
-            <li>Import / Export ไฟล์</li>
-            <li>เรียก External API ที่จำกัด Rate</li>
-          </ul>
-        </div>
+        <div class="do"><h4>เหมาะเมื่อ</h4><ul>
+          <li>งานเบื้องหลังในแอป Node.js / Next.js</li>
+          <li>ส่งอีเมล, สร้าง PDF, import/export ไฟล์</li>
+          <li>ต้องการ retry อัตโนมัติ, หน่วงเวลา, ตั้งเวลา (cron)</li>
+          <li>เรียก API ภายนอกที่จำกัดจำนวนครั้ง (rate limit<button class="term" data-term="rateLimit"></button>)</li>
+        </ul></div>
+        <div class="dont"><h4>ไม่เหมาะเมื่อ</h4><ul>
+          <li>ระบบฝั่ง .NET ต้องรับงาน (ไม่มี client .NET ทางการ)</li>
+          <li>หลายระบบต้องอ่าน event เดียวกัน</li>
+          <li>ต้องเก็บประวัติไว้อ่านซ้ำ</li>
+        </ul></div>
       </div>
+      <div class="callout">งานเบื้องหลังฝั่ง <strong>.NET</strong> ที่ไม่ต้องข้ามระบบ ใช้ Hangfire / Hosted Service ได้ ไม่จำเป็นต้องใช้ BullMQ · <a href="bullmq-deep-dive.html">อ่านเจาะลึก BullMQ →</a></div>
     </div>
-    <template class="note">
-      <p>BullMQ ใช้ Redis เบื้องหลัง ช่วยให้ Developer ทำงานกับ Background Job ใน Node.js ได้รวดเร็วและครบถ้วน</p>
-    </template>
   </section>
 
-  <!-- Slide 10 -->
-  <section class="slide" data-title="กรณีมีเครื่องมือเดิม">
+  <!-- 9 -->
+  <section class="slide" data-title="ตัวอย่างระบบจริง">
     <div class="slide-inner">
-      <div class="eyebrow">Existing Platform Strategy</div>
-      <h2>ถ้าลูกค้ามีเครื่องมืออยู่แล้ว ควรตัดสินใจอย่างไร</h2>
-      <div class="grid grid-3">
-        <div class="card">
-          <h3 class="blue">มี Kafka อยู่แล้ว</h3>
-          <p>ใช้ต่อเมื่อเป็น Event, ต้อง Replay หรือทำ Data Pipeline</p>
-        </div>
-        <div class="card gold">
-          <h3 class="gold">มี RabbitMQ อยู่แล้ว</h3>
-          <p>ใช้ต่อเมื่อเป็น Message/Command และ Routing ตอบโจทย์</p>
-        </div>
-        <div class="card violet">
-          <h3 class="violet-text">มี BullMQ / Redis</h3>
-          <p>ใช้ต่อเมื่อเป็นงาน Node.js ที่เน้น Retry, Delay และ Rate Limit</p>
-        </div>
-      </div>
+      <div class="eyebrow">ตัวอย่าง E-commerce</div>
+      <h2>ระบบจริงใช้ร่วมกันได้ แต่ละตัวทำหน้าที่ของตัวเอง</h2>
+      <ol class="steps">
+        <li><strong>.NET Order API</strong> บันทึกออเดอร์ แล้วประกาศ <code>OrderCreated</code> ลง <strong class="blue">Kafka</strong> → Payment, Stock, Analytics อ่านไปทำงานของตัวเอง</li>
+        <li><strong>Stock service</strong> ส่งคำสั่ง <code>ShipOrder</code> ผ่าน <strong class="gold">RabbitMQ</strong> → คัดแยกไปคลังสินค้าตามภูมิภาค (TH / VN)</li>
+        <li><strong>Next.js</strong> เพิ่มงาน <code>SendOrderEmail</code> ลง <strong class="violet-text">BullMQ</strong> → worker ส่งอีเมล ถ้าล้มเหลวลองใหม่อัตโนมัติ</li>
+      </ol>
+      <div class="callout warn"><strong>เริ่มต้นไม่ต้องใช้ครบ 3 ตัว</strong> ระบบส่วนใหญ่เริ่มด้วยตัวเดียวก็พอ เพิ่มตัวที่ 2 เมื่อมีปัญหาที่ตัวแรกแก้ไม่ได้จริง ๆ เท่านั้น เพราะทุกตัวที่เพิ่มคือภาระดูแล</div>
     </div>
-    <template class="note">
-      <p>ประเมินความคุ้มค่าของการใช้ของเดิมเทียบกับการเพิ่มเครื่องมือใหม่ เพื่อไม่ให้เกิดภาระดูแลระบบเกินจำเป็น</p>
-    </template>
   </section>
 
-  <!-- Slide 11 -->
-  <section class="slide" data-title="กรณียังไม่มีเครื่องมือ">
+  <!-- 10 -->
+  <section class="slide" data-title="เลือกอย่างไร">
     <div class="slide-inner">
-      <div class="eyebrow">Greenfield Decision</div>
-      <h2>ถ้ายังไม่มีเครื่องมือ ให้เริ่มจาก Decision Tree</h2>
+      <div class="eyebrow">Decision Guide</div>
+      <h2>ตอบคำถามตามลำดับ ใช่ข้อแรกที่เจอ = ตัวที่ควรใช้</h2>
       <div class="decision-tree">
         <div class="decision-row">
-          <div class="decision-box">ต้องเก็บ Event, อ่านย้อนหลัง หรือให้หลายระบบอ่านข้อมูลเดิม?</div>
+          <div class="decision-box"><strong>1.</strong> เป็นงานเบื้องหลังในแอป Node.js/Next.js (อีเมล, PDF, ตั้งเวลา)?</div>
           <div class="arrow">→</div>
-          <div class="decision-result">ใช่: Apache Kafka</div>
+          <div class="decision-result violet">ใช่: BullMQ</div>
         </div>
         <div class="decision-row">
-          <div class="decision-box">ต้อง Routing ข้อความตามเงื่อนไขหรือภูมิภาค?</div>
+          <div class="decision-box"><strong>2.</strong> หลายระบบต้องอ่าน event เดียวกัน / ต้องอ่านย้อนหลัง / ข้อมูลปริมาณมหาศาล?</div>
+          <div class="arrow">→</div>
+          <div class="decision-result">ใช่: Kafka</div>
+        </div>
+        <div class="decision-row">
+          <div class="decision-box"><strong>3.</strong> ส่งคำสั่ง/งานข้าม service หรือข้ามภาษา และต้องคัดแยกปลายทาง?</div>
           <div class="arrow">→</div>
           <div class="decision-result gold">ใช่: RabbitMQ</div>
         </div>
         <div class="decision-row">
-          <div class="decision-box">เป็น Background Job ที่ต้อง Retry, Delay หรือ Progress?</div>
+          <div class="decision-box"><strong>4.</strong> ไม่ใช่ทั้งหมด?</div>
           <div class="arrow">→</div>
-          <div class="decision-result violet">ใช่: BullMQ</div>
+          <div class="decision-result" style="background:rgba(79,214,156,.12);color:var(--green)">ยังไม่ต้องใช้ — เรียก API ตรงก็พอ</div>
         </div>
       </div>
+      <p class="muted small center mt">ถ้าองค์กรมีตัวใดอยู่แล้วและพอตอบโจทย์ ให้ใช้ของเดิมก่อน ลดภาระดูแลระบบ</p>
     </div>
-    <template class="note">
-      <p>ใช้เกณฑ์คำถามเหล่านี้ในการพิจารณาเลือกเครื่องมือให้ตรงกับ Use Case จริงของลูกค้า</p>
-    </template>
   </section>
 
-  <!-- Slide 12 -->
-  <section class="slide" data-title="Architecture แบบผสม">
+  <!-- 11 -->
+  <section class="slide" data-title="สิ่งที่ต้องทำเสมอ">
     <div class="slide-inner">
-      <div class="eyebrow">Hybrid Architecture</div>
-      <h2>ไม่จำเป็นต้องเลือกเพียงตัวเดียว</h2>
-      <div class="diagram">
-        <div class="flow">
-          <div class="node">Order Service</div><div class="arrow">→</div>
-          <div class="node">Kafka: OrderCreated</div>
-        </div>
-        <div class="branch-grid">
-          <div class="node">Inventory</div><div class="node">Analytics</div>
-          <div class="node">Fraud</div><div class="node violet">Notification</div>
-        </div>
-        <div class="flow" style="margin-top: 14px;">
-          <div class="node violet">BullMQ</div><div class="arrow">→</div>
-          <div class="node">Email Worker</div><div class="node">SMS Worker</div>
-        </div>
-      </div>
-    </div>
-    <template class="note">
-      <p>การผสมผสาน Kafka และ BullMQ ช่วยให้แยก Event ระดับองค์กรออกจากงานเบื้องหลังเฉพาะ Service ได้อย่างลงตัว</p>
-    </template>
-  </section>
-
-  <!-- Slide 13 -->
-  <section class="slide" data-title="หลักออกแบบระบบ">
-    <div class="slide-inner">
-      <div class="eyebrow">Production Readiness</div>
-      <h2>ไม่ว่าจะเลือกตัวไหน สิ่งเหล่านี้ต้องออกแบบเสมอ</h2>
+      <div class="eyebrow">ไม่ว่าเลือกตัวไหน</div>
+      <h2>3 เรื่องที่ต้องออกแบบเสมอ</h2>
       <div class="grid grid-3">
-        <div class="card">
-          <h3>Idempotency <button class="term" data-term="idempotency">?</button></h3>
-          <p>ข้อความเข้าซ้ำได้ แต่ห้ามเกิดผลซ้ำ (เช่น ห้ามตัดเงินซ้ำ)</p>
-        </div>
-        <div class="card">
-          <h3>Retry Policy <button class="term" data-term="retry">?</button></h3>
-          <p>กำหนดจำนวนครั้ง ระยะห่าง และเงื่อนไข Error</p>
-        </div>
-        <div class="card">
-          <h3>Observability <button class="term" data-term="observability">?</button></h3>
-          <p>ติดตาม Queue Depth, Error Rate และ Consumer Lag</p>
-        </div>
+        <div class="card gold"><div class="big-number">1</div><h3>รับซ้ำได้ ไม่พัง</h3><p class="muted">ทุกตัวอาจส่งข้อความซ้ำ ระบบปลายทางต้องทำให้ผลไม่ซ้ำ (Idempotency<button class="term" data-term="idempotency"></button>)</p><p class="small">เช่น เช็คเลขออเดอร์ก่อนตัดเงิน</p></div>
+        <div class="card"><div class="big-number">2</div><h3>พังแล้วมีที่ไป</h3><p class="muted">กำหนดการลองใหม่ (Retry<button class="term" data-term="retry"></button>) และที่พักงานที่ล้มเหลว (DLQ<button class="term" data-term="deadLetter"></button>)</p><p class="small">ห้ามวนลองใหม่ไม่สิ้นสุด</p></div>
+        <div class="card violet"><div class="big-number">3</div><h3>มองเห็นงานค้าง</h3><p class="muted">มี Dashboard และแจ้งเตือนเมื่องานค้างเพิ่ม (Consumer Lag<button class="term" data-term="consumerLag"></button>) หรือ error สูง</p><p class="small">รู้ก่อนลูกค้าโทรมา</p></div>
       </div>
     </div>
-    <template class="note">
-      <p>เน้นย้ำเรื่องความพร้อมในการขึ้นระบบจริง เช่น การป้องกันข้อความซ้ำ และการมีระบบ Monitoring ที่ดี</p>
-    </template>
   </section>
 
-  <!-- Slide 14 -->
-  <section class="slide" data-title="Scoring Matrix">
+  <!-- 12 -->
+  <section class="slide" data-title="สรุป">
     <div class="slide-inner">
-      <div class="eyebrow">Weighted Decision</div>
-      <h2>ตัดสินใจแบบมืออาชีพด้วย Weighted Scoring</h2>
-      <div class="table-wrap">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>เกณฑ์การประเมิน</th>
-              <th>น้ำหนัก</th>
-              <th class="blue">Kafka</th>
-              <th class="gold">RabbitMQ</th>
-              <th class="violet-text">BullMQ</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td>เก็บและ Replay Event</td><td><span class="score">5</span></td><td>5</td><td>2</td><td>1</td></tr>
-            <tr><td>Routing ซับซ้อน</td><td><span class="score">4</span></td><td>2</td><td>5</td><td>2</td></tr>
-            <tr><td>Background Job</td><td><span class="score">4</span></td><td>2</td><td>4</td><td>5</td></tr>
-            <tr><td>ทีมดูแลได้ / ใช้ของเดิม</td><td><span class="score">5</span></td><td>ประเมิน</td><td>ประเมิน</td><td>ประเมิน</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-    <template class="note">
-      <p>ใช้วิธีให้คะแนนร่วมกับลูกค้าเพื่อหาข้อสรุปที่เป็นกลางและเหมาะสมกับโจทย์มากที่สุด</p>
-    </template>
-  </section>
-
-  <!-- Slide 15 -->
-  <section class="slide" data-title="Proof of Concept">
-    <div class="slide-inner">
-      <div class="eyebrow">Validation & Delivery</div>
-      <h2>อย่าตัดสินใจจาก Benchmark บนกระดาษ</h2>
-      <div class="grid grid-2">
-        <div class="card good">
-          <h3>PoC ควรทดสอบอะไรบ้าง</h3>
-          <ul>
-            <li>Normal Load และ Peak Load</li>
-            <li>กรณี Broker / Redis / Consumer ล่ม</li>
-            <li>Message ซ้ำ, ผิดรูปแบบ หรือ Poison Message</li>
-            <li>Consumer Lag <button class="term" data-term="consumerLag">?</button> และ Queue Backlog</li>
-          </ul>
-        </div>
-        <div class="card">
-          <h3>ผลลัพธ์ที่ควรได้รับ</h3>
-          <ul>
-            <li>Architecture Diagram และ Capacity Estimate</li>
-            <li>Failure Test Result และ Recovery Procedure</li>
-            <li>Monitoring Dashboard และ Runbook</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-    <template class="note">
-      <p>การทำ PoC ช่วยลดความเสี่ยงก่อนนำระบบไปใช้งานจริงในระดับ Production</p>
-    </template>
-  </section>
-
-  <!-- Slide 16 -->
-  <section class="slide" data-title="ข้อเสนอแนะสุดท้าย">
-    <div class="slide-inner">
-      <div class="eyebrow">Final Recommendation</div>
-      <h2>เลือกเครื่องมือที่ง่ายที่สุด ซึ่งตอบโจทย์ได้ครบ</h2>
+      <div class="eyebrow">สรุป</div>
+      <h2>จำ 3 บรรทัดนี้</h2>
       <div class="grid">
         <div class="card recommendation">
           <div class="rec-label">Kafka</div>
-          <div><h3>เลือกเมื่อ Event เป็นสินทรัพย์ข้อมูล</h3><p>เก็บย้อนหลัง, มีหลาย Consumer, ทำ Data Pipeline</p></div>
+          <div><h3>“เกิดอะไรขึ้นแล้ว” ให้หลายระบบอ่าน และอ่านย้อนหลังได้</h3><p>Event ระดับองค์กร, Analytics, ข้อมูลปริมาณมาก</p></div>
         </div>
         <div class="card gold recommendation">
           <div class="rec-label gold">RabbitMQ</div>
-          <div><h3>เลือกเมื่อหัวใจคือ Message และ Routing</h3><p>ส่ง Command ไปปลายทาง, มี Acknowledgement</p></div>
+          <div><h3>“ส่งคำสั่งไปให้ถูกที่” และยืนยันว่าทำสำเร็จ</h3><p>สื่อสารระหว่าง service, คัดแยกตามเงื่อนไข, ข้ามภาษา</p></div>
         </div>
         <div class="card violet recommendation">
           <div class="rec-label violet">BullMQ</div>
-          <div><h3>เลือกเมื่อหัวใจคือ Background Job</h3><p>Node.js/TypeScript, ต้องการ Retry, Delay และ Rate Limit</p></div>
+          <div><h3>“งานเบื้องหลัง” ของแอป Node.js ให้ทำจนเสร็จ</h3><p>อีเมล, PDF, ตั้งเวลา, retry อัตโนมัติ</p></div>
         </div>
       </div>
       <div class="tag-row">
@@ -521,120 +266,31 @@
         <a class="tag" href="bullmq-deep-dive.html">BullMQ Deep Dive</a>
       </div>
     </div>
-    <template class="note">
-      <p><strong>บทพูดสรุป:</strong> เลือกเครื่องมือตาม Use Case จริง สมดุลระหว่างความต้องการ ความเชี่ยวชาญของทีม และต้นทุนรวมระยะยาว</p>
-    </template>
+    <template class="note"><p>ปิดด้วยหลัก “เลือกเครื่องมือที่ง่ายที่สุดที่ตอบโจทย์ครบ” และใช้ของที่องค์กรมีอยู่ก่อนถ้าพอใช้ได้</p></template>
   </section>
-
-
 
 </main>
 
 <script>
-// ศัพท์เฉพาะ (คงเนื้อหาเดิม แปลง description -> body ให้ตรงกับ kv-deck.js)
-const glossary = {
-      asynchronous: {
-        title: "Asynchronous",
-        description: "การทำงานที่ระบบต้นทางไม่จำเป็นต้องรอให้ทุกขั้นตอนเสร็จทันที ผู้รับสามารถนำงานไปทำเบื้องหลังต่อได้",
-        example: "สั่งอาหารแล้วได้คิว ไม่ต้องยืนรอหน้าเตาจนกว่าอาหารจะเสร็จ"
-      },
-      event: {
-        title: "Event",
-        description: "ข้อมูลที่บอกว่าเหตุการณ์หนึ่งได้เกิดขึ้นแล้ว มักตั้งชื่อเป็นอดีตกาล เช่น OrderCreated",
-        example: "ใบเสร็จบอกว่ามีการชำระเงินเกิดขึ้นแล้ว ใครจะนำไปทำบัญชีต่อก็ได้"
-      },
-      message: {
-        title: "Message",
-        description: "หน่วยข้อมูลทั่วไปที่ถูกส่งจากระบบหนึ่งไปยังอีกระบบหนึ่ง",
-        example: "เปรียบเหมือนซองจดหมายที่บรรจุข้อมูลข้างใน"
-      },
-      command: {
-        title: "Command",
-        description: "ข้อความหรือคำสั่งที่บอกให้ผู้รับทำบางอย่าง",
-        example: "คำสั่ง 'จองสินค้าในคลัง' ให้ระบบปลายทางไปจัดการ"
-      },
-      job: {
-        title: "Job",
-        description: "งานที่ต้องประมวลผล มีสถานะติดตามได้ เช่น รอทำ กำลังทำ สำเร็จ หรือล้มเหลว",
-        example: "งานสร้างรายงาน PDF หรือส่งอีเมล"
-      },
-      replay: {
-        title: "Replay",
-        description: "การนำ Event ในอดีตกลับมาประมวลผลใหม่อีกครั้ง",
-        example: "ต้องการคำนวณคะแนนสะสมย้อนหลัง 30 วันจาก Event เดิมที่บันทึกไว้"
-      },
-      topic: {
-        title: "Kafka Topic",
-        description: "ช่องทางจัดเก็บ Event ประเภทเดียวกันใน Kafka",
-        example: "เหมือนโฟลเดอร์รวบรวมเหตุการณ์เกี่ยวกับคำสั่งซื้อทั้งหมด"
-      },
-      partition: {
-        title: "Kafka Partition",
-        description: "การแบ่งย่อย Topic เพื่อช่วยกระจายข้อมูลและประมวลผลพร้อมกัน",
-        example: "เพิ่มช่องชำระเงินในซูเปอร์มาร์เก็ตเพื่อให้ระบายลูกค้าได้เร็วขึ้น"
-      },
-      offset: {
-        title: "Kafka Offset",
-        description: "หมายเลขลำดับตำแหน่งข้อมูลภายใน Partition ของ Kafka",
-        example: "ที่คั่นหนังสือ บอกให้รู้ว่าอ่านถึงหน้าไหนแล้ว"
-      },
-      consumerGroup: {
-        title: "Consumer Group",
-        description: "กลุ่มของระบบที่ร่วมกันอ่านข้อมูลจาก Kafka Topic โดยไม่แย่งกันข้ามกลุ่ม",
-        example: "ทีมงานช่วยกันตรวจเอกสารคนละชุดเพื่อให้งานเสร็จไวขึ้น"
-      },
-      retention: {
-        title: "Retention Policy",
-        description: "นโยบายกำหนดระยะเวลาหรือขนาดการเก็บข้อมูลใน Kafka",
-        example: "ตั้งค่าให้เก็บบันทึกย้อนหลังไว้ 30 วันแล้วค่อยลบอัตโนมัติ"
-      },
-      exchange: {
-        title: "RabbitMQ Exchange",
-        description: "จุดรับข้อความแล้วคัดแยกส่งไปยัง Queue ตามกฎ Routing",
-        example: "ศูนย์คัดแยกพัสดุที่คอยส่งจดหมายไปตามเส้นทางที่ถูกต้อง"
-      },
-      ack: {
-        title: "Acknowledgement (Ack)",
-        description: "การส่งสัญญาณยืนยันว่าระบบปลายทางรับและประมวลผลข้อความสำเร็จแล้ว",
-        example: "เซ็นรับพัสดุเพื่อให้ระบบรู้ว่าส่งของเรียบร้อย"
-      },
-      deadLetter: {
-        title: "Dead Letter Queue",
-        description: "พื้นที่พักข้อความหรือคิวงานที่ประมวลผลไม่สำเร็จหรือล้มเหลวเกินกำหนด",
-        example: "กล่องพัสดุตีกลับสำหรับตรวจสอบข้อผิดพลาด"
-      },
-      backoff: {
-        title: "Backoff",
-        description: "การหน่วงเวลาก่อนลองทำซ้ำ (Retry) เพื่อไม่ให้ระบบปลายทางรับภาระหนักเกินไป",
-        example: "ลองใหม่ในอีก 3 วินาที หากยังพลาดให้รอ 6 วินาที และ 12 วินาที"
-      },
-      rateLimit: {
-        title: "Rate Limiting",
-        description: "การจำกัดปริมาณคำขอหรือการส่งงานในช่วงเวลาหนึ่ง",
-        example: "จำกัดการส่งอีเมลไม่ให้เกิน 100 ฉบับต่อนาทีตามโควตาผู้ให้บริการ"
-      },
-      idempotency: {
-        title: "Idempotency",
-        description: "คุณสมบัติที่ทำให้การประมวลผลคำสั่งเดิมซ้ำ ให้ผลลัพธ์เท่าเดิมโดยไม่เกิดผลกระทบซ้ำซ้อน",
-        example: "กดปุ่มจ่ายเงินซ้ำ ระบบตัดเงินเพียงรอบเดียว ไม่ตัดเบิ้ล"
-      },
-      retry: {
-        title: "Retry Policy",
-        description: "กฎในการลองประมวลผลงานใหม่อัตโนมัติเมื่อเกิดความผิดพลาด",
-        example: "หากเชื่อมต่อเครือข่ายหลุด ให้ลองเชื่อมต่อใหม่อัตโนมัติ 3 ครั้ง"
-      },
-      observability: {
-        title: "Observability",
-        description: "ความสามารถในการตรวจสอบและทำความเข้าใจสถานะการทำงานภายในระบบ",
-        example: "หน้าจอ Dashboard แสดงอัตรา Error และปริมาณคิวที่ค้างอยู่"
-      },
-      consumerLag: {
-        title: "Consumer Lag",
-        description: "ปริมาณงานหรือข้อความที่ค้างอยู่ในระบบและยังรอให้ Consumer อ่าน",
-        example: "มีข้อความเข้ามา 10,000 รายการ แต่เพิ่งอ่านไป 2,000 รายการ ยังค้างอยู่อีก 8,000"
-      }
-    };
-window.KV_GLOSSARY = Object.fromEntries(Object.entries(glossary).map(([k, v]) => [k, { title: v.title, body: v.description, example: v.example }]));
+window.KV_GLOSSARY = {
+  asynchronous: { title: "Asynchronous (ทำงานแบบไม่รอกัน)", body: "ระบบต้นทางส่งงานต่อแล้วตอบกลับได้ทันที ไม่ต้องรอให้ทุกขั้นตอนเสร็จ งานที่เหลือทำต่อเบื้องหลัง", example: "สั่งอาหารแล้วได้บัตรคิว ไม่ต้องยืนรอหน้าเตา" },
+  event: { title: "Event", body: "ข้อความที่บอกว่าเหตุการณ์หนึ่ง “เกิดขึ้นแล้ว” ตั้งชื่อเป็นอดีต ผู้ส่งไม่สนว่าใครจะนำไปใช้", example: "OrderCreated — ใบเสร็จที่ฝ่ายบัญชี คลัง และการตลาดต่างนำไปใช้" },
+  command: { title: "Command", body: "ข้อความที่ “สั่ง” ให้ระบบหนึ่งไปทำบางอย่าง มีผู้รับที่ชัดเจนและคาดหวังว่าจะทำสำเร็จ", example: "ReserveStock — สั่งคลังสินค้าให้กันสินค้าไว้ให้ออเดอร์นี้" },
+  job: { title: "Job", body: "งานชิ้นหนึ่งที่ต้องประมวลผลให้เสร็จ มีสถานะติดตามได้ (รอ, กำลังทำ, สำเร็จ, ล้มเหลว)", example: "SendEmail, GeneratePdf, ImportExcel" },
+  replay: { title: "Replay (อ่านย้อนหลัง)", body: "การนำ event ในอดีตกลับมาประมวลผลใหม่ เพราะ Kafka ไม่ลบข้อมูลหลังอ่าน", example: "ระบบสะสมแต้มเปิดใหม่ อ่าน OrderCreated ย้อนหลัง 30 วันเพื่อคำนวณแต้มให้ลูกค้าเดิม" },
+  ack: { title: "Ack (ยืนยันการรับ)", body: "สัญญาณจากผู้รับว่าประมวลผลข้อความสำเร็จแล้ว RabbitMQ จึงลบข้อความออกจากคิว ถ้าผู้รับตายก่อน ack ข้อความจะถูกส่งใหม่", example: "เซ็นรับพัสดุ — ไม่เซ็น บริษัทขนส่งจะนำมาส่งใหม่" },
+  routing: { title: "Routing (คัดแยกปลายทาง)", body: "การเลือกว่าข้อความควรไปคิวไหนตามกฎที่ตั้งไว้ เช่น ตามประเภทหรือภูมิภาค", example: "ship.th ไปคลังไทย, ship.vn ไปคลังเวียดนาม" },
+  backoff: { title: "Retry + Backoff", body: "เมื่องานล้มเหลวให้ลองใหม่อัตโนมัติ โดยเว้นระยะห่างขึ้นเรื่อย ๆ เพื่อไม่ให้ระบบปลายทางรับภาระหนัก", example: "ลองใหม่หลัง 2, 4, 8, 16 วินาที แล้วจึงถือว่าล้มเหลว" },
+  topic: { title: "Topic (Kafka)", body: "หมวดของ event ประเภทเดียวกันใน Kafka", example: "orders.created เก็บทุกเหตุการณ์สร้างออเดอร์" },
+  partition: { title: "Partition (Kafka)", body: "การแบ่ง topic เป็นหลายส่วนเพื่อให้อ่าน/เขียนขนานกันได้ ลำดับข้อมูลถูกต้องภายใน partition เดียวกัน", example: "เปิดช่องจ่ายเงินหลายช่องในซูเปอร์มาร์เก็ต" },
+  consumerGroup: { title: "Consumer Group (Kafka)", body: "กลุ่มของ instance ในระบบเดียวกันที่ช่วยกันอ่าน topic แต่ละกลุ่มอ่านได้ครบทุกข้อความแยกจากกลุ่มอื่น", example: "Payment 3 pod อยู่กลุ่มเดียวกันแบ่งกันอ่าน ส่วน Analytics เป็นอีกกลุ่มอ่านครบของตัวเอง" },
+  exchange: { title: "Exchange (RabbitMQ)", body: "จุดรับข้อความใน RabbitMQ ที่คัดแยกส่งต่อไปยังคิวตามกฎ ผู้ส่งไม่ต้องรู้จักคิวปลายทาง", example: "ศูนย์คัดแยกพัสดุ ดูรหัสไปรษณีย์แล้วส่งไปรถแต่ละสาย" },
+  deadLetter: { title: "Dead Letter Queue (DLQ)", body: "คิวพักข้อความหรืองานที่ล้มเหลวเกินจำนวนครั้งที่กำหนด เพื่อให้คนตรวจสอบและสั่งทำใหม่ได้ ไม่ให้วนพังไม่สิ้นสุด", example: "กล่องพัสดุตีกลับ รอเจ้าหน้าที่ตรวจที่อยู่" },
+  rateLimit: { title: "Rate Limit", body: "การจำกัดจำนวนงานต่อช่วงเวลา เพื่อไม่ให้เกินโควตาของระบบปลายทาง", example: "ส่ง SMS ไม่เกิน 100 ข้อความต่อวินาทีตามที่ผู้ให้บริการกำหนด" },
+  idempotency: { title: "Idempotency (รับซ้ำได้ผลเท่าเดิม)", body: "การออกแบบให้ประมวลผลข้อความเดิมซ้ำกี่ครั้งก็ได้ผลเหมือนทำครั้งเดียว จำเป็นเพราะทุกระบบคิวอาจส่งซ้ำได้", example: "ก่อนตัดเงินเช็คว่าออเดอร์นี้ตัดไปแล้วหรือยัง ถ้าตัดแล้วก็ข้าม" },
+  retry: { title: "Retry Policy", body: "กฎการลองใหม่เมื่อเกิดข้อผิดพลาดชั่วคราว: ลองกี่ครั้ง, เว้นนานเท่าไร, error แบบไหนไม่ต้องลอง", example: "API ตอบ 503 ลองใหม่ 5 ครั้ง แต่ถ้าข้อมูลผิดรูปแบบส่งเข้า DLQ ทันที" },
+  consumerLag: { title: "Consumer Lag / งานค้าง", body: "จำนวนข้อความหรืองานที่เข้ามาแล้วแต่ยังไม่ถูกประมวลผล ถ้าเพิ่มต่อเนื่องแปลว่าทำไม่ทัน", example: "ช่วงแคมเปญอีเมลค้าง 50,000 ฉบับ → เพิ่ม worker" }
+};
 </script>
 <script src="../../assets/kv-deck.js"></script>
 </body>

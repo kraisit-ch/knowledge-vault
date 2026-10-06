@@ -285,7 +285,7 @@ function render() {
   $("resultCount").textContent = `${docs.length} เรื่อง`;
   $("list").innerHTML = docs.map((d) => {
     const c = cats[d.category] || { icon: "📄", name: d.category };
-    return `<a class="doc" href="${encodeURI(d.path)}" target="_blank" rel="noopener">
+    return `<a class="doc" href="${encodeURI(d.path)}">
       <div class="doc-top"><span class="badge">${c.icon} ${esc(c.name)}</span>${isNew(d.date) ? '<span class="new">NEW</span>' : ""}</div>
       <h3>${hl(d.title, q)}</h3>
       <p>${hl(d.desc || "", q)}</p>
