@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>Git Workflow & Code Review</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css">
+</head>
+<body data-title="Git Workflow &amp; Code Review" data-mark="GIT">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">Team Process</div>
+      <h1><span class="grad">Git Workflow</span><br>&amp; Code Review</h1>
+      <p class="lead">ข้อตกลงการใช้ Git, การตั้งชื่อ branch, การเขียน commit, การเปิด Pull Request และการรีวิวโค้ด เพื่อให้ทีมส่งงานได้เร็วและปลอดภัย</p>
+      <div class="tag-row">
+        <span class="tag gold">Trunk-based</span><span class="tag blue">Conventional Commits</span>
+        <span class="tag">Pull Request</span><span class="tag">Code Review</span><span class="tag">CI/CD</span>
+      </div>
+      <div class="quote">PR เล็ก รีวิวไว merge บ่อย ดีกว่า PR ใหญ่ที่รอกันเป็นอาทิตย์</div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="Branch Strategy">
+    <div class="slide-inner">
+      <div class="eyebrow">Branching</div>
+      <h2>Trunk-based Development แบบเบา ๆ</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="node gold">main<small>deploy ได้ตลอดเวลา</small></div><div class="arrow">←</div>
+          <div class="node">feature/ORD-123-cancel-order<small>อายุ 1–3 วัน</small></div><div class="arrow">←</div>
+          <div class="node green">commit เล็ก ๆ</div>
+        </div>
+        <div class="flow mt">
+          <div class="node violet">main</div><div class="arrow">→ tag v1.4.0 →</div>
+          <div class="node violet">Production</div>
+          <div class="arrow">·</div>
+          <div class="node bad" style="border-color:rgba(255,107,107,.5);background:rgba(255,107,107,.08)">hotfix/…<small>แก้ด่วน → PR เข้า main</small></div>
+        </div>
+      </div>
+      <div class="grid grid-3 mt">
+        <div class="card gold"><h4>main ต้องเขียวเสมอ</h4><p class="small muted">ห้าม push ตรง ต้องผ่าน PR + CI</p></div>
+        <div class="card"><h4>branch อายุสั้น</h4><p class="small muted">ยิ่งค้างนาน conflict ยิ่งเยอะ</p></div>
+        <div class="card good"><h4>งานยังไม่เสร็จ?</h4><p class="small muted">merge ได้ถ้าซ่อนไว้หลัง feature flag</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="ตั้งชื่อ Branch">
+    <div class="slide-inner">
+      <div class="eyebrow">Naming</div>
+      <h2>การตั้งชื่อ Branch</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>Prefix</th><th>ใช้เมื่อ</th><th>ตัวอย่าง</th></tr>
+        <tr><td><code>feature/</code></td><td>ฟีเจอร์ใหม่</td><td><code>feature/ORD-123-cancel-order</code></td></tr>
+        <tr><td><code>fix/</code></td><td>แก้ bug</td><td><code>fix/ORD-140-total-rounding</code></td></tr>
+        <tr><td><code>hotfix/</code></td><td>แก้ด่วนบน production</td><td><code>hotfix/login-500</code></td></tr>
+        <tr><td><code>chore/</code></td><td>อัปเดต package, config, CI</td><td><code>chore/upgrade-next-16</code></td></tr>
+        <tr><td><code>docs/</code></td><td>เอกสาร</td><td><code>docs/api-contract</code></td></tr>
+      </table></div>
+      <p class="muted small mt">รูปแบบ: <code>&lt;type&gt;/&lt;ticket-id&gt;-&lt;คำอธิบายสั้น-kebab-case&gt;</code> ภาษาอังกฤษตัวเล็ก ไม่มีเว้นวรรค</p>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="Conventional Commits">
+    <div class="slide-inner">
+      <div class="eyebrow">Commit Message</div>
+      <h2>Conventional Commits<button class="term" data-term="conv"></button></h2>
+<pre class="code" data-lang="text">
+&lt;type&gt;(&lt;scope&gt;): &lt;สรุปสั้น ๆ ไม่เกิน 72 ตัวอักษร&gt;
+
+&lt;รายละเอียด: ทำไมต้องแก้ แก้อย่างไร (ถ้าจำเป็น)&gt;
+
+Refs: ORD-123
+</pre>
+      <div class="grid grid-2 mt">
+        <div class="do"><h4>ตัวอย่างที่ดี</h4><ul>
+          <li><code>feat(order): add cancel order endpoint</code></li>
+          <li><code>fix(cart): round total to 2 decimals</code></li>
+          <li><code>refactor(api): extract ProblemDetails mapper</code></li>
+          <li><code>chore(deps): bump next to 16.0.3</code></li>
+        </ul></div>
+        <div class="dont"><h4>ตัวอย่างที่ไม่ดี</h4><ul>
+          <li><code>update</code></li>
+          <li><code>fix bug</code></li>
+          <li><code>wip wip wip</code></li>
+          <li><code>แก้ตามที่คุยกัน</code></li>
+        </ul></div>
+      </div>
+      <p class="muted small">type ที่ใช้: <code>feat</code> <code>fix</code> <code>refactor</code> <code>perf</code> <code>test</code> <code>docs</code> <code>chore</code> <code>ci</code> · breaking change ใส่ <code>!</code> เช่น <code>feat(api)!:</code></p>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="วงจรของ Pull Request">
+    <div class="slide-inner">
+      <div class="eyebrow">Pull Request</div>
+      <h2>วงจรของ Pull Request</h2>
+      <ol class="steps">
+        <li><strong>Sync main</strong> → สร้าง branch ใหม่ (<code>git switch -c feature/ORD-123-…</code>)</li>
+        <li><strong>Commit เล็ก ๆ</strong> แต่ละ commit build ผ่าน</li>
+        <li><strong>Self-review</strong> ดู diff ของตัวเองก่อนทุกครั้ง ลบ debug / โค้ดที่ comment ทิ้ง</li>
+        <li><strong>เปิด PR</strong> ตาม template + แนบภาพหน้าจอถ้าเป็นงาน UI</li>
+        <li><strong>CI ต้องเขียว</strong>: lint, type-check, test, build</li>
+        <li><strong>Reviewer อย่างน้อย 1 คน</strong> approve → <strong>Squash merge</strong> → ลบ branch</li>
+      </ol>
+      <div class="grid grid-3 mt">
+        <div class="card gold"><div class="big-number">&lt; 400</div><p class="small muted">บรรทัดที่เปลี่ยนต่อ PR</p></div>
+        <div class="card"><div class="big-number">&lt; 24h</div><p class="small muted">เวลารีวิวรอบแรก</p></div>
+        <div class="card good"><div class="big-number">1</div><p class="small muted">เรื่องต่อ PR</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="PR Template">
+    <div class="slide-inner">
+      <div class="eyebrow">Template</div>
+      <h2>PR Template (<code>.github/pull_request_template.md</code>)</h2>
+<pre class="code" data-lang="text">
+## ทำอะไร
+- เพิ่ม endpoint POST /api/orders/{id}/cancel
+- เพิ่มปุ่ม "ยกเลิกออเดอร์" ในหน้า Order detail
+
+## ทำไม
+ลูกค้าต้องการยกเลิกออเดอร์เองได้ก่อนจัดส่ง (ORD-123)
+
+## ทดสอบอย่างไร
+- [x] Unit test: Order.Cancel() กรณีจัดส่งแล้ว → 409
+- [x] ทดสอบมือบน localhost: ยกเลิกได้, ปุ่มหายเมื่อจัดส่งแล้ว
+
+## Screenshot
+(ก่อน / หลัง)
+
+## Checklist
+- [ ] ไม่มี breaking change กับ API (หรือแจ้งทีมแล้ว)
+- [ ] มี migration? → review SQL แล้ว
+- [ ] อัปเดตเอกสาร / .env.example
+</pre>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="Reviewer ดูอะไร">
+    <div class="slide-inner">
+      <div class="eyebrow">Code Review</div>
+      <h2>Reviewer ดูอะไร (เรียงตามความสำคัญ)</h2>
+      <div class="grid grid-3">
+        <div class="card bad"><div class="icon">🎯</div><h3>1. ถูกต้อง</h3><p class="small muted">ทำตาม requirement ไหม edge case (null, ว่าง, ซ้ำ, พร้อมกัน) ครบไหม</p></div>
+        <div class="card bad"><div class="icon">🔒</div><h3>2. ปลอดภัย</h3><p class="small muted">ตรวจสิทธิ์, validate input, SQL injection, secret หลุด, ข้อมูลส่วนบุคคล</p></div>
+        <div class="card gold"><div class="icon">🧩</div><h3>3. ออกแบบ</h3><p class="small muted">อยู่ถูกชั้นไหม (Clean Architecture), ซ้ำกับของที่มีแล้วไหม</p></div>
+        <div class="card"><div class="icon">📖</div><h3>4. อ่านง่าย</h3><p class="small muted">ชื่อสื่อความหมาย ฟังก์ชันไม่ยาวเกิน logic ซับซ้อนมีคำอธิบาย</p></div>
+        <div class="card"><div class="icon">⚡</div><h3>5. Performance</h3><p class="small muted">N+1 query, re-render เกินจำเป็น, โหลดข้อมูลเกิน</p></div>
+        <div class="card good"><div class="icon">🧪</div><h3>6. Test</h3><p class="small muted">มี test สำหรับ logic ใหม่ / bug ที่แก้ (กันกลับมาเกิดซ้ำ)</p></div>
+      </div>
+      <div class="callout">เรื่อง format / ลำดับ import / ช่องว่าง ให้ <strong>เครื่องมือ</strong> (Prettier, ESLint, dotnet format) จัดการ ไม่ต้องเสียเวลาคอมเมนต์</div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="เขียน Comment ให้ดี">
+    <div class="slide-inner">
+      <div class="eyebrow">Communication</div>
+      <h2>เขียนคอมเมนต์รีวิวอย่างมืออาชีพ</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>Label</th><th>ความหมาย</th><th>ตัวอย่าง</th></tr>
+        <tr><td><strong class="red">blocker:</strong></td><td>ต้องแก้ก่อน merge</td><td>endpoint นี้ยังไม่เช็คว่าเป็นเจ้าของออเดอร์ ใครก็ยกเลิกได้</td></tr>
+        <tr><td><strong class="gold">suggestion:</strong></td><td>แนะนำ ผู้เขียนตัดสินใจเอง</td><td>ลองใช้ <code>Promise.all</code> ตรงนี้ จะลดเวลาโหลดได้</td></tr>
+        <tr><td><strong class="blue">question:</strong></td><td>ถามเพื่อเข้าใจ</td><td>ทำไมเลือก cache 5 นาที มี requirement ไหม?</td></tr>
+        <tr><td><strong class="muted">nit:</strong></td><td>เล็กน้อย ไม่แก้ก็ได้</td><td>ชื่อตัวแปร <code>data2</code> อาจเปลี่ยนเป็น <code>shippedOrders</code></td></tr>
+        <tr><td><strong class="green">praise:</strong></td><td>ชื่นชม</td><td>แยก validator ออกมาแบบนี้อ่านง่ายมาก 👍</td></tr>
+      </table></div>
+      <div class="quote">วิจารณ์ “โค้ด” ไม่ใช่ “คน” และอธิบาย “ทำไม” ทุกครั้งที่ขอให้แก้</div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="CI Pipeline">
+    <div class="slide-inner">
+      <div class="eyebrow">Automation</div>
+      <h2>CI ที่ทุก PR ต้องผ่าน</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="yaml">
+# .github/workflows/ci.yml (ย่อ)
+on: [pull_request]
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run lint &amp;&amp; npx tsc --noEmit
+      - run: npm test -- --run
+      - run: npm run build
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: "10.0.x" }
+      - run: dotnet format --verify-no-changes
+      - run: dotnet build -warnaserror
+      - run: dotnet test --no-build
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4>Branch protection บน main</h4><ul><li>Require PR + 1 approval</li><li>Require status checks ผ่าน</li><li>ห้าม force push</li></ul></div>
+          <div class="card"><h4>Pre-commit (local)</h4><p class="small muted">Husky + lint-staged รัน Prettier/ESLint เฉพาะไฟล์ที่แก้ ให้เจอปัญหาก่อน push</p></div>
+          <div class="card good"><h4>Dependabot / Renovate</h4><p class="small muted">อัปเดต package อัตโนมัติเป็น PR เล็ก ๆ</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title="คำสั่ง Git ที่ใช้บ่อย">
+    <div class="slide-inner">
+      <div class="eyebrow">Cheat Sheet</div>
+      <h2>คำสั่ง Git ที่ใช้บ่อย</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="bash">
+# เริ่มงานใหม่
+git switch main &amp;&amp; git pull --rebase
+git switch -c feature/ORD-123-cancel-order
+
+# อัปเดต branch ให้ทัน main
+git fetch origin
+git rebase origin/main
+
+# แก้ commit ล่าสุด (ยังไม่ push)
+git commit --amend
+
+# push branch ครั้งแรก
+git push -u origin HEAD
+</pre>
+<pre class="code" data-lang="bash">
+# เก็บงานชั่วคราว
+git stash push -m "wip: filter"
+git stash pop
+
+# ย้อน commit ที่ push ไปแล้ว (ปลอดภัย)
+git revert &lt;sha&gt;
+
+# ดูว่าใครแก้บรรทัดนี้
+git blame -L 40,60 src/Order.cs
+
+# หา commit ที่ทำให้เกิด bug
+git bisect start
+</pre>
+      </div>
+      <div class="callout bad">ห้าม <code>git push --force</code> บน branch ที่คนอื่นใช้ร่วม ถ้าจำเป็นบน branch ตัวเองให้ใช้ <code>--force-with-lease</code></div>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide" data-title="Definition of Done">
+    <div class="slide-inner">
+      <div class="eyebrow">Definition of Done</div>
+      <h2>งานจะนับว่า “เสร็จ” เมื่อ…</h2>
+      <div class="grid grid-2">
+        <div class="card good"><ul>
+          <li>☐ ทำครบตาม acceptance criteria ใน ticket</li>
+          <li>☐ PR ได้รับ approve และ CI เขียว</li>
+          <li>☐ มี test สำหรับ logic ใหม่</li>
+          <li>☐ merge เข้า main แล้ว</li>
+        </ul></div>
+        <div class="card gold"><ul>
+          <li>☐ deploy ขึ้น staging และทดสอบผ่าน</li>
+          <li>☐ อัปเดตเอกสาร / API contract / .env.example</li>
+          <li>☐ ไม่มี error ใหม่ใน log / monitoring</li>
+          <li>☐ แจ้ง QA / PO พร้อมลิงก์ทดสอบ</li>
+        </ul></div>
+      </div>
+      <div class="quote">“เสร็จบนเครื่องผม” ยังไม่นับว่าเสร็จ 🙂</div>
+    </div>
+  </section>
+
+</main>
+<script>
+window.KV_GLOSSARY = {
+  conv: {
+    title: "Conventional Commits",
+    body: "รูปแบบ commit message มาตรฐาน type(scope): description ทำให้อ่านประวัติง่าย สร้าง CHANGELOG และกำหนดเลขเวอร์ชัน (SemVer) อัตโนมัติได้",
+    example: "feat → เพิ่มเลข minor (1.3.0 → 1.4.0), fix → เพิ่ม patch (1.4.0 → 1.4.1), มี ! → เพิ่ม major (2.0.0)"
+  }
+};
+</script>
+<script src="../../assets/kv-deck.js"></script>
+</body>
+</html>

@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>React Essentials สำหรับทีม</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css">
+</head>
+<body data-title="React Essentials สำหรับทีม" data-mark="RX">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">Frontend · Team Standard</div>
+      <h1><span class="grad">React Essentials</span><br>เขียนให้ทีมอ่านง่าย ดูแลง่าย</h1>
+      <p class="lead">หลักคิดและมาตรฐานการเขียน React ที่ทีมใช้ร่วมกัน ตั้งแต่ Component, Hooks, State ไปจนถึง Performance และโครงสร้างโปรเจกต์</p>
+      <div class="tag-row">
+        <span class="tag gold">React 19</span><span class="tag blue">TypeScript</span>
+        <span class="tag">Hooks</span><span class="tag">TanStack Query</span><span class="tag">React Hook Form + Zod</span>
+      </div>
+      <div class="quote">โค้ดที่ดี คือโค้ดที่เพื่อนร่วมทีมอ่านแล้วเข้าใจภายใน 30 วินาที ไม่ใช่โค้ดที่ฉลาดที่สุด</div>
+    </div>
+    <template class="note"><p>เปิดด้วยเป้าหมาย: ไม่ได้สอน React ตั้งแต่ศูนย์ แต่ทำให้ทุกคนในทีมเขียนไปในทิศทางเดียวกัน ลดเวลา Code Review และลด Bug ที่เกิดซ้ำ</p></template>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="React คิดแบบไหน">
+    <div class="slide-inner">
+      <div class="eyebrow">Mental Model</div>
+      <h2>UI = f(state)</h2>
+      <p class="lead">React ไม่ได้ให้เราสั่ง “แก้ปุ่มนี้ เปลี่ยนสีนั้น” แต่ให้เราบอกว่า “ถ้าข้อมูลเป็นแบบนี้ หน้าจอควรหน้าตาแบบไหน”</p>
+      <div class="diagram">
+        <div class="flow">
+          <div class="node">Event<small>คลิก / พิมพ์ / โหลดข้อมูล</small></div><div class="arrow">→</div>
+          <div class="node gold">setState<small>เปลี่ยนข้อมูล</small></div><div class="arrow">→</div>
+          <div class="node">Re-render<small>React เรียก component ใหม่</small></div><div class="arrow">→</div>
+          <div class="node green">DOM Update<small>อัปเดตเฉพาะส่วนที่ต่าง</small></div>
+        </div>
+      </div>
+      <div class="grid grid-3 mt">
+        <div class="card"><h3>Declarative</h3><p class="muted">บอก “ผลลัพธ์” ไม่ใช่ “ขั้นตอน”</p></div>
+        <div class="card gold"><h3>One-way data flow</h3><p class="muted">ข้อมูลไหลจากบนลงล่างผ่าน props เสมอ</p></div>
+        <div class="card good"><h3>Pure render</h3><p class="muted">render ซ้ำกี่รอบก็ต้องได้ผลเหมือนเดิม ห้ามมี side effect</p></div>
+      </div>
+    </div>
+    <template class="note"><p>ถ้าทีมเข้าใจข้อนี้ข้อเดียว ปัญหา useEffect วนลูปและ state ไม่ sync จะหายไปครึ่งหนึ่ง</p></template>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="Component ที่ดี">
+    <div class="slide-inner">
+      <div class="eyebrow">Components</div>
+      <h2>Component ที่ดีหน้าตาเป็นอย่างไร</h2>
+      <div class="grid grid-2">
+        <div>
+<pre class="code" data-lang="tsx">
+type UserCardProps = {
+  user: User;
+  onSelect?: (id: string) =&gt; void;
+};
+
+export function UserCard({ user, onSelect }: UserCardProps) {
+  return (
+    &lt;button className="card" onClick={() =&gt; onSelect?.(user.id)}&gt;
+      &lt;Avatar src={user.avatarUrl} /&gt;
+      &lt;span&gt;{user.fullName}&lt;/span&gt;
+    &lt;/button&gt;
+  );
+}
+</pre>
+        </div>
+        <div class="grid">
+          <div class="do"><h4>ควรทำ</h4><ul>
+            <li>ทำหน้าที่เดียว (Single Responsibility)</li>
+            <li>Props มี type ชัดเจน ตั้งชื่อ event เป็น <code>onXxx</code></li>
+            <li>ไฟล์ละ 1 component หลัก ยาวไม่เกิน ~200 บรรทัด</li>
+            <li>ใช้ named export เพื่อให้ refactor และค้นหาง่าย</li>
+          </ul></div>
+          <div class="dont"><h4>ไม่ควรทำ</h4><ul>
+            <li>Component เดียวทั้ง fetch + จัดการ form + render ตาราง</li>
+            <li>ส่ง props ทะลุหลายชั้น (prop drilling) เกิน 3 ชั้น</li>
+            <li>ใช้ <code>any</code> กับ props</li>
+          </ul></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="State อยู่ที่ไหนดี">
+    <div class="slide-inner">
+      <div class="eyebrow">State Management</div>
+      <h2>เลือกที่เก็บ State ให้ถูกประเภท</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>ประเภท State</th><th>ตัวอย่าง</th><th>เครื่องมือที่แนะนำ</th></tr>
+        <tr><td><strong class="gold">Local UI</strong></td><td>เปิด/ปิด modal, ค่าใน input</td><td><code>useState</code>, <code>useReducer</code></td></tr>
+        <tr><td><strong class="gold">Server State</strong><button class="term" data-term="serverstate"></button></td><td>รายการสินค้า, ข้อมูลผู้ใช้จาก API</td><td>TanStack Query / Server Components</td></tr>
+        <tr><td><strong class="gold">URL State</strong></td><td>หน้า, filter, search, tab</td><td>search params (<code>useSearchParams</code>)</td></tr>
+        <tr><td><strong class="gold">Form State</strong></td><td>ฟอร์มสมัคร, ฟอร์มแก้ไข</td><td>React Hook Form + Zod</td></tr>
+        <tr><td><strong class="gold">Global Client</strong></td><td>ธีม, ตะกร้าสินค้า, user session</td><td>Context (เปลี่ยนไม่บ่อย) / Zustand</td></tr>
+      </table></div>
+      <div class="callout warn"><strong>กฎทอง:</strong> อย่าเอาข้อมูลจาก API ไปเก็บใน Redux/Zustand เอง ให้ TanStack Query จัดการ cache, loading, retry ให้</div>
+    </div>
+    <template class="note"><p>Bug ส่วนใหญ่ในโปรเจกต์ React มาจากการเก็บ state ซ้ำหลายที่ แล้วไม่ sync กัน หลักคือ “Single source of truth”</p></template>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="Hooks หลักที่ต้องรู้">
+    <div class="slide-inner">
+      <div class="eyebrow">Hooks</div>
+      <h2>Hooks ที่ใช้บ่อย และใช้เมื่อไร</h2>
+      <div class="grid grid-3">
+        <div class="card"><h3><code>useState</code></h3><p class="muted">ค่าที่เปลี่ยนแล้วหน้าจอต้องเปลี่ยนตาม</p></div>
+        <div class="card"><h3><code>useReducer</code></h3><p class="muted">state ซับซ้อน มีหลาย action เช่น wizard หลายขั้น</p></div>
+        <div class="card gold"><h3><code>useEffect</code></h3><p class="muted">sync กับ “ระบบภายนอก” เท่านั้น เช่น WebSocket, timer, DOM API</p></div>
+        <div class="card"><h3><code>useRef</code></h3><p class="muted">เก็บค่าที่ไม่ต้อง re-render หรืออ้างถึง DOM</p></div>
+        <div class="card"><h3><code>useMemo</code> / <code>useCallback</code></h3><p class="muted">ใช้เมื่อวัดแล้วช้าจริง (React Compiler ช่วยให้แทบไม่ต้องเขียนเอง)</p></div>
+        <div class="card violet"><h3><code>useActionState</code> / <code>useOptimistic</code></h3><p class="muted">React 19: จัดการ form action, pending และ optimistic UI</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="useEffect กับดักยอดฮิต">
+    <div class="slide-inner">
+      <div class="eyebrow">Pitfall</div>
+      <h2>คุณอาจไม่ต้องใช้ <span class="gold">useEffect</span></h2>
+      <div class="grid grid-2">
+        <div class="dont"><h4>คำนวณค่าด้วย effect</h4>
+<pre class="code" data-lang="tsx">
+const [items, setItems] = useState&lt;Item[]&gt;([]);
+const [total, setTotal] = useState(0);
+
+useEffect(() =&gt; {
+  setTotal(items.reduce((s, i) =&gt; s + i.price, 0));
+}, [items]); // render 2 รอบ + เสี่ยงไม่ sync
+</pre></div>
+        <div class="do"><h4>คำนวณระหว่าง render</h4>
+<pre class="code" data-lang="tsx">
+const [items, setItems] = useState&lt;Item[]&gt;([]);
+
+// derived state: คำนวณตรง ๆ ได้เลย
+const total = items.reduce((s, i) =&gt; s + i.price, 0);
+</pre></div>
+      </div>
+      <div class="grid grid-3 mt">
+        <div class="card bad"><h4>❌ fetch ข้อมูลใน effect</h4><p class="small muted">ใช้ TanStack Query หรือ Server Component แทน</p></div>
+        <div class="card bad"><h4>❌ reset state เมื่อ props เปลี่ยน</h4><p class="small muted">ใช้ <code>key</code> แทน เช่น <code>&lt;Form key={userId} /&gt;</code></p></div>
+        <div class="card bad"><h4>❌ ส่ง event ให้ parent ใน effect</h4><p class="small muted">เรียก callback ตรงใน event handler</p></div>
+      </div>
+    </div>
+    <template class="note"><p>อ้างอิงบทความ “You Might Not Need an Effect” ใน react.dev ซึ่งแนะนำให้ทีมอ่านทุกคน</p></template>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="Custom Hook">
+    <div class="slide-inner">
+      <div class="eyebrow">Reuse Logic</div>
+      <h2>แยก Logic ออกมาเป็น Custom Hook</h2>
+      <p class="lead">เมื่อ logic เดียวกันถูกใช้มากกว่า 1 ที่ หรือ component เริ่มยาว ให้แยกเป็น hook ที่ขึ้นต้นด้วย <code>use</code></p>
+<pre class="code" data-lang="tsx">
+// hooks/useDebounce.ts
+export function useDebounce&lt;T&gt;(value: T, delay = 400) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() =&gt; {
+    const t = setTimeout(() =&gt; setDebounced(value), delay);
+    return () =&gt; clearTimeout(t); // cleanup ทุกครั้ง
+  }, [value, delay]);
+  return debounced;
+}
+
+// ใช้งาน
+const [keyword, setKeyword] = useState("");
+const q = useDebounce(keyword);
+const { data } = useProducts({ q });
+</pre>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="Data Fetching">
+    <div class="slide-inner">
+      <div class="eyebrow">Server State</div>
+      <h2>ดึงข้อมูลด้วย <span class="gold">TanStack Query</span></h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="tsx">
+// features/products/api.ts
+export const productKeys = {
+  all: ["products"] as const,
+  list: (f: ProductFilter) =&gt; [...productKeys.all, "list", f] as const,
+};
+
+export function useProducts(filter: ProductFilter) {
+  return useQuery({
+    queryKey: productKeys.list(filter),
+    queryFn: () =&gt; api.get&lt;Product[]&gt;("/products", { params: filter }),
+    staleTime: 60_000,
+  });
+}
+
+export function useCreateProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: CreateProductDto) =&gt; api.post("/products", dto),
+    onSuccess: () =&gt; qc.invalidateQueries({ queryKey: productKeys.all }),
+  });
+}
+</pre>
+        <div class="grid">
+          <div class="card good"><h3>ได้อะไรฟรี</h3><ul><li>Cache + dedupe request</li><li>loading / error state</li><li>retry, refetch เมื่อกลับมาที่แท็บ</li><li>invalidate หลัง mutation</li></ul></div>
+          <div class="card gold"><h3>มาตรฐานทีม</h3><ul><li>รวม query key ไว้ที่ไฟล์เดียวต่อ feature</li><li>ห้ามเรียก <code>fetch</code> ตรงใน component</li><li>ใช้ API client กลางที่แนบ token / จัดการ error</li></ul></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="Forms">
+    <div class="slide-inner">
+      <div class="eyebrow">Forms &amp; Validation</div>
+      <h2>Form = React Hook Form + Zod</h2>
+<pre class="code" data-lang="tsx">
+const schema = z.object({
+  email: z.string().email("อีเมลไม่ถูกต้อง"),
+  password: z.string().min(8, "อย่างน้อย 8 ตัวอักษร"),
+});
+type LoginForm = z.infer&lt;typeof schema&gt;; // type มาจาก schema เดียว
+
+export function LoginForm() {
+  const { register, handleSubmit, formState: { errors, isSubmitting } } =
+    useForm&lt;LoginForm&gt;({ resolver: zodResolver(schema) });
+
+  return (
+    &lt;form onSubmit={handleSubmit(login)}&gt;
+      &lt;input {...register("email")} /&gt;
+      {errors.email &amp;&amp; &lt;p&gt;{errors.email.message}&lt;/p&gt;}
+      &lt;button disabled={isSubmitting}&gt;เข้าสู่ระบบ&lt;/button&gt;
+    &lt;/form&gt;
+  );
+}
+</pre>
+      <div class="callout">Validate ที่ฝั่ง client เพื่อ UX แต่ <strong>ต้อง validate ซ้ำที่ .NET API เสมอ</strong> (FluentValidation) เพราะ client ถูก bypass ได้</div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title="Performance">
+    <div class="slide-inner">
+      <div class="eyebrow">Performance</div>
+      <h2>ทำให้เร็ว โดยไม่ optimize ก่อนเวลา</h2>
+      <ol class="steps">
+        <li><strong>วัดก่อนแก้</strong> ด้วย React DevTools Profiler และ Lighthouse</li>
+        <li><strong>ย้าย state ลงไปใกล้จุดที่ใช้</strong> ลดจำนวน component ที่ re-render</li>
+        <li><strong>ใส่ <code>key</code> ที่ stable</strong> ใน list (ใช้ id ไม่ใช้ index)</li>
+        <li><strong>Lazy load</strong> หน้า/component ใหญ่ด้วย <code>lazy()</code> + <code>Suspense</code></li>
+        <li><strong>Virtualize</strong> list ที่ยาวเกิน ~200 แถว (TanStack Virtual)</li>
+        <li><strong>เปิด React Compiler</strong><button class="term" data-term="compiler"></button> แทนการเขียน memo เองทุกที่</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide" data-title="โครงสร้างโปรเจกต์">
+    <div class="slide-inner">
+      <div class="eyebrow">Project Structure</div>
+      <h2>จัดโฟลเดอร์ตาม <span class="gold">Feature</span> ไม่ใช่ตามประเภทไฟล์</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="text">
+src/
+├─ app/                 # routing / providers
+├─ features/
+│  ├─ products/
+│  │  ├─ api.ts         # query + mutation hooks
+│  │  ├─ components/    # ใช้เฉพาะ feature นี้
+│  │  ├─ schemas.ts     # zod schema
+│  │  └─ types.ts
+│  └─ orders/
+├─ components/ui/       # ปุ่ม, input, modal กลาง
+├─ hooks/               # hook ใช้ร่วมทุก feature
+├─ lib/                 # api client, utils
+└─ styles/
+</pre>
+        <div class="grid">
+          <div class="card gold"><h3>ทำไมแบบ Feature</h3><p class="muted">แก้ feature เดียวอยู่ในโฟลเดอร์เดียว ลบ feature ทิ้งได้ง่าย และคนใหม่หาไฟล์เจอเร็ว</p></div>
+          <div class="card"><h3>กฎการ import</h3><ul><li><code>features/a</code> ห้าม import ไส้ใน <code>features/b</code></li><li>ของที่ใช้ร่วมให้ย้ายไป <code>components/ui</code> หรือ <code>lib</code></li><li>ใช้ alias <code>@/</code> แทน <code>../../..</code></li></ul></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 -->
+  <section class="slide" data-title="Naming Convention">
+    <div class="slide-inner">
+      <div class="eyebrow">Conventions</div>
+      <h2>การตั้งชื่อที่ทีมใช้ร่วมกัน</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>สิ่งที่ตั้งชื่อ</th><th>รูปแบบ</th><th>ตัวอย่าง</th></tr>
+        <tr><td>Component / ไฟล์ component</td><td>PascalCase</td><td><code>OrderTable.tsx</code></td></tr>
+        <tr><td>Hook</td><td>camelCase ขึ้นต้น use</td><td><code>useOrderFilter.ts</code></td></tr>
+        <tr><td>Event props / handler</td><td><code>onXxx</code> / <code>handleXxx</code></td><td><code>onSave</code>, <code>handleSave</code></td></tr>
+        <tr><td>Boolean</td><td>is / has / can / should</td><td><code>isLoading</code>, <code>canEdit</code></td></tr>
+        <tr><td>Constant</td><td>UPPER_SNAKE_CASE</td><td><code>MAX_UPLOAD_MB</code></td></tr>
+        <tr><td>Type / Interface</td><td>PascalCase ไม่ใส่ I</td><td><code>Order</code>, <code>OrderProps</code></td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- 13 -->
+  <section class="slide" data-title="Checklist ก่อนเปิด PR">
+    <div class="slide-inner">
+      <div class="eyebrow">Checklist</div>
+      <h2>Checklist ก่อนเปิด Pull Request</h2>
+      <div class="grid grid-2">
+        <div class="card good"><ul>
+          <li>☐ ไม่มี <code>any</code>, ไม่มี <code>console.log</code> หลงเหลือ</li>
+          <li>☐ ไม่มี warning ใน console (key, act, hydration)</li>
+          <li>☐ จัดการครบ 4 สถานะ: loading / error / empty / success</li>
+          <li>☐ ปุ่ม submit กันกดซ้ำ (disabled ระหว่าง pending)</li>
+        </ul></div>
+        <div class="card gold"><ul>
+          <li>☐ รองรับมือถือ (ทดสอบที่ 375px)</li>
+          <li>☐ ใช้ semantic HTML / label ครบ (Accessibility)</li>
+          <li>☐ ESLint + Prettier + <code>tsc --noEmit</code> ผ่าน</li>
+          <li>☐ มี test สำหรับ logic สำคัญ (Vitest / Testing Library)</li>
+        </ul></div>
+      </div>
+      <div class="quote">“ทำให้ถูก → ทำให้อ่านง่าย → ค่อยทำให้เร็ว” ตามลำดับนี้เสมอ</div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+window.KV_GLOSSARY = {
+  serverstate: {
+    title: "Server State",
+    body: "ข้อมูลที่ “เจ้าของจริง” อยู่บน Server (เช่นฐานข้อมูลผ่าน .NET API) ฝั่ง React แค่ถือสำเนาไว้แสดงผล จึงต้องคิดเรื่อง cache, ข้อมูลเก่า (stale) และการ refetch",
+    example: "รายการออเดอร์ที่คนอื่นอาจแก้ไขอยู่ เราต้องดึงใหม่เป็นระยะ ไม่ใช่เก็บไว้ใน useState ตลอดไป"
+  },
+  compiler: {
+    title: "React Compiler",
+    body: "เครื่องมือ build-time ของทีม React ที่ใส่ memoization ให้อัตโนมัติ ทำให้ไม่ต้องเขียน useMemo / useCallback / React.memo เองในกรณีส่วนใหญ่",
+    example: "เปิดผ่าน babel-plugin-react-compiler หรือ option ของ Next.js แล้วลบ useCallback ที่ไม่จำเป็นออกได้"
+  }
+};
+</script>
+<script src="../../assets/kv-deck.js"></script>
+</body>
+</html>

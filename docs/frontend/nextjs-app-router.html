@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>Next.js App Router Playbook</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css">
+</head>
+<body data-title="Next.js App Router Playbook" data-mark="NX">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">Frontend · Fullstack Framework</div>
+      <h1><span class="grad">Next.js App Router</span><br>Playbook สำหรับทีม</h1>
+      <p class="lead">เข้าใจ Server Component, การ render แต่ละแบบ, cache และ Server Actions เพื่อเลือกใช้ให้ถูกที่ และต่อกับ .NET API ได้อย่างเป็นระบบ</p>
+      <div class="tag-row">
+        <span class="tag gold">App Router</span><span class="tag blue">React Server Components</span>
+        <span class="tag">Server Actions</span><span class="tag">Caching</span><span class="tag">SEO</span>
+      </div>
+      <div class="quote">เริ่มที่ Server เสมอ แล้วค่อยย้ายลงมา Client เฉพาะส่วนที่ต้อง “โต้ตอบ”</div>
+    </div>
+    <template class="note"><p>เนื้อหาอ้างอิง Next.js 15–16 (App Router) หากโปรเจกต์ยังใช้ Pages Router ให้ดูสไลด์ “ย้ายจาก Pages Router” ท้ายเรื่อง</p></template>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="Server vs Client Component">
+    <div class="slide-inner">
+      <div class="eyebrow">Core Concept</div>
+      <h2>Server Component vs Client Component</h2>
+      <div class="grid grid-2">
+        <div class="card"><div class="icon">🖥️</div><h3 class="blue">Server Component <span class="tag">ค่าเริ่มต้น</span></h3><ul>
+          <li>รันบน server เท่านั้น ไม่ส่ง JS ไป browser</li>
+          <li>เรียก DB / API / secret ได้ตรง ๆ</li>
+          <li>ใช้ <code>async/await</code> ใน component ได้</li>
+          <li class="red">ใช้ <code>useState</code>, <code>onClick</code>, <code>window</code> ไม่ได้</li>
+        </ul></div>
+        <div class="card gold"><div class="icon">🖱️</div><h3 class="gold">Client Component <code>"use client"</code></h3><ul>
+          <li>มี state, event, effect, browser API</li>
+          <li>ถูก render ครั้งแรกบน server แล้ว hydrate<button class="term" data-term="hydrate"></button> ที่ browser</li>
+          <li>ทุกอย่างที่ import เข้ามาจะถูกส่งไป browser ด้วย</li>
+          <li class="red">ห้ามใส่ secret / connection string</li>
+        </ul></div>
+      </div>
+      <div class="diagram mt"><div class="flow">
+        <div class="node">page.tsx<small>Server</small></div><div class="arrow">→</div>
+        <div class="node">ProductList<small>Server · ดึงข้อมูล</small></div><div class="arrow">→</div>
+        <div class="node gold">AddToCartButton<small>Client · onClick</small></div>
+      </div></div>
+    </div>
+    <template class="note"><p>เทคนิคจำ: “ใบไม้เป็น Client, ลำต้นเป็น Server” ดัน "use client" ลงไปที่ component ปลายทางให้ลึกที่สุด</p></template>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="วาง use client ให้ถูกที่">
+    <div class="slide-inner">
+      <div class="eyebrow">Pattern</div>
+      <h2>ดัน <code>"use client"</code> ลงไปให้ลึกที่สุด</h2>
+      <div class="grid grid-2">
+        <div class="dont"><h4>ทั้งหน้าเป็น Client</h4>
+<pre class="code" data-lang="tsx">
+"use client";
+export default function ProductPage() {
+  const [qty, setQty] = useState(1);
+  const { data } = useQuery(...); // ดึงข้อมูลฝั่ง client
+  return &lt;Layout&gt;...&lt;/Layout&gt;;   // JS ทั้งหน้าถูกส่งไป
+}
+</pre></div>
+        <div class="do"><h4>หน้าเป็น Server, ปุ่มเป็น Client</h4>
+<pre class="code" data-lang="tsx">
+// app/products/[id]/page.tsx (Server)
+export default async function ProductPage(
+  { params }: { params: Promise&lt;{ id: string }&gt; }
+) {
+  const { id } = await params;
+  const product = await getProduct(id);
+  return (
+    &lt;&gt;
+      &lt;ProductDetail product={product} /&gt;
+      &lt;AddToCart productId={product.id} /&gt; {/* "use client" */}
+    &lt;/&gt;
+  );
+}
+</pre></div>
+      </div>
+      <div class="callout">Client Component รับ Server Component เป็น <code>children</code> ได้ เช่น Modal (client) ห่อเนื้อหาที่ render บน server</div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="รูปแบบการ Render">
+    <div class="slide-inner">
+      <div class="eyebrow">Rendering</div>
+      <h2>เลือกวิธี Render ตามลักษณะข้อมูล</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>รูปแบบ</th><th>ทำงานเมื่อ</th><th>เหมาะกับ</th><th>ตัวอย่าง</th></tr>
+        <tr><td><strong class="gold">Static (SSG)</strong></td><td>ตอน build</td><td>ข้อมูลแทบไม่เปลี่ยน</td><td>หน้า About, บทความ, docs</td></tr>
+        <tr><td><strong class="gold">ISR / Revalidate</strong><button class="term" data-term="isr"></button></td><td>build + สร้างใหม่ตามเวลา/สั่ง</td><td>เปลี่ยนบ้าง ไม่ต้อง real-time</td><td>หน้ารายการสินค้า, ราคา</td></tr>
+        <tr><td><strong class="gold">Dynamic (SSR)</strong></td><td>ทุก request</td><td>ขึ้นกับผู้ใช้ / cookies</td><td>Dashboard, หน้าบัญชี</td></tr>
+        <tr><td><strong class="gold">Streaming</strong></td><td>ส่งทีละส่วน</td><td>บางส่วนช้า</td><td>หน้ารายงานที่มีกราฟหลายตัว</td></tr>
+        <tr><td><strong class="gold">Client-side</strong></td><td>ใน browser</td><td>โต้ตอบสูง ไม่ต้อง SEO</td><td>หน้าแก้ไขข้อมูลหลังบ้าน</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="Data Fetching & Cache">
+    <div class="slide-inner">
+      <div class="eyebrow">Data</div>
+      <h2>ดึงข้อมูลจาก .NET API บน Server</h2>
+<pre class="code" data-lang="ts">
+// lib/api.ts — ใช้เฉพาะฝั่ง server
+import "server-only";
+
+export async function getProducts(category?: string) {
+  const res = await fetch(`${process.env.API_URL}/api/products?category=${category ?? ""}`, {
+    headers: { Authorization: `Bearer ${await getServiceToken()}` },
+    next: { revalidate: 60, tags: ["products"] }, // cache 60 วินาที + ติด tag
+  });
+  if (!res.ok) throw new Error(`GET /products failed: ${res.status}`);
+  return (await res.json()) as Product[];
+}
+</pre>
+      <div class="grid grid-3 mt">
+        <div class="card"><h4>ไม่ cache</h4><p class="small muted"><code>cache: "no-store"</code> ข้อมูลส่วนตัว/real-time</p></div>
+        <div class="card gold"><h4>cache ตามเวลา</h4><p class="small muted"><code>next: { revalidate: 60 }</code></p></div>
+        <div class="card good"><h4>ล้าง cache ตามเหตุการณ์</h4><p class="small muted"><code>revalidateTag("products")</code> หลังบันทึก</p></div>
+      </div>
+      <div class="callout warn">ตั้งแต่ Next.js 15 <code>fetch</code> <strong>ไม่ cache เป็นค่าเริ่มต้น</strong> ต้องระบุเองเสมอ เพื่อให้พฤติกรรมชัดเจน</div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="Server Actions">
+    <div class="slide-inner">
+      <div class="eyebrow">Mutations</div>
+      <h2>บันทึกข้อมูลด้วย <span class="gold">Server Actions</span></h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="tsx">
+// app/products/actions.ts
+"use server";
+
+export async function createProduct(_: State, formData: FormData) {
+  const parsed = schema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { errors: parsed.error.flatten().fieldErrors };
+
+  const session = await auth();            // ตรวจสิทธิ์ทุกครั้ง!
+  if (!session) return { message: "Unauthorized" };
+
+  await api.post("/products", parsed.data);
+  revalidateTag("products");
+  redirect("/products");
+}
+</pre>
+<pre class="code" data-lang="tsx">
+// app/products/new/form.tsx
+"use client";
+
+export function ProductForm() {
+  const [state, action, pending] =
+    useActionState(createProduct, {});
+  return (
+    &lt;form action={action}&gt;
+      &lt;input name="name" /&gt;
+      {state.errors?.name &amp;&amp; &lt;p&gt;{state.errors.name}&lt;/p&gt;}
+      &lt;button disabled={pending}&gt;บันทึก&lt;/button&gt;
+    &lt;/form&gt;
+  );
+}
+</pre>
+      </div>
+      <div class="callout bad"><strong>สำคัญ:</strong> Server Action คือ public endpoint ที่ใครก็ POST มาได้ ต้อง validate input และตรวจสิทธิ์ทุกครั้ง เหมือน API ทั่วไป</div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="BFF กับ .NET API">
+    <div class="slide-inner">
+      <div class="eyebrow">Architecture</div>
+      <h2>Next.js เป็น <span class="gold">BFF</span><button class="term" data-term="bff"></button> หน้า .NET API</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="node">Browser<small>Cookie (httpOnly)</small></div><div class="arrow">→</div>
+          <div class="node gold">Next.js<small>Server Components / Actions / Route Handlers</small></div><div class="arrow">→</div>
+          <div class="node violet">.NET Web API<small>Bearer JWT</small></div><div class="arrow">→</div>
+          <div class="node green">SQL Server / PostgreSQL</div>
+        </div>
+      </div>
+      <div class="grid grid-3 mt">
+        <div class="card good"><h4>ปลอดภัยขึ้น</h4><p class="small muted">token ไม่อยู่ใน JS ของ browser, URL ของ API ภายในไม่ถูกเปิดเผย</p></div>
+        <div class="card"><h4>ไม่มีปัญหา CORS</h4><p class="small muted">browser คุยกับ origin เดียวคือ Next.js</p></div>
+        <div class="card gold"><h4>รวม/แปลงข้อมูลได้</h4><p class="small muted">เรียกหลาย endpoint แล้วส่งเฉพาะที่หน้าจอต้องใช้</p></div>
+      </div>
+    </div>
+    <template class="note"><p>ถ้าหน้าจอเป็น client-heavy (เช่น grid แก้ไขข้อมูลเยอะ) อาจให้ browser เรียก .NET API ตรงผ่าน TanStack Query ได้ แต่ต้องตั้ง CORS และเก็บ token อย่างปลอดภัย</p></template>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="โครงสร้างโฟลเดอร์">
+    <div class="slide-inner">
+      <div class="eyebrow">File Conventions</div>
+      <h2>ไฟล์พิเศษใน App Router</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="text">
+app/
+├─ layout.tsx            # layout หลัก + providers
+├─ page.tsx              # หน้าแรก "/"
+├─ (marketing)/          # route group ไม่มีผลกับ URL
+│  └─ about/page.tsx
+├─ (app)/
+│  ├─ layout.tsx         # layout หลัง login
+│  └─ orders/
+│     ├─ page.tsx        # /orders
+│     ├─ loading.tsx     # skeleton ระหว่างโหลด
+│     ├─ error.tsx       # error boundary
+│     ├─ [id]/page.tsx   # /orders/123
+│     └─ actions.ts      # server actions
+├─ api/webhook/route.ts  # Route Handler (REST)
+└─ not-found.tsx
+</pre>
+        <div class="grid">
+          <div class="card"><h4><code>loading.tsx</code></h4><p class="small muted">แสดงทันทีระหว่างรอข้อมูล (Suspense อัตโนมัติ)</p></div>
+          <div class="card bad"><h4><code>error.tsx</code></h4><p class="small muted">ต้องเป็น Client Component, มีปุ่ม <code>reset()</code></p></div>
+          <div class="card gold"><h4><code>route.ts</code></h4><p class="small muted">ใช้เมื่อต้องการ endpoint จริง เช่น webhook, ไฟล์ download</p></div>
+          <div class="card violet"><h4><code>proxy.ts</code> (เดิม <code>middleware.ts</code>)</h4><p class="small muted">redirect ตาม auth / locale ก่อนเข้าหน้า (Next.js 16 เปลี่ยนชื่อเป็น proxy)</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="Environment Variables">
+    <div class="slide-inner">
+      <div class="eyebrow">Config &amp; Security</div>
+      <h2>Environment Variables: อะไรหลุดไป browser ได้</h2>
+      <div class="grid grid-2">
+        <div class="card gold"><h3><code>NEXT_PUBLIC_*</code></h3><p class="muted">ถูกฝังลง JS ฝั่ง browser ตอน build ใครก็อ่านได้</p><pre class="code" data-lang="env">NEXT_PUBLIC_SITE_URL=https://app.example.com
+NEXT_PUBLIC_GA_ID=G-XXXX</pre></div>
+        <div class="card good"><h3>ไม่มี prefix</h3><p class="muted">อ่านได้เฉพาะ server (Server Component / Action / Route)</p><pre class="code" data-lang="env">API_URL=http://api.internal:8080
+API_CLIENT_SECRET=***
+DATABASE_URL=***</pre></div>
+      </div>
+      <ul class="mt">
+        <li>commit เฉพาะ <code>.env.example</code> ห้าม commit <code>.env.local</code></li>
+        <li>ใส่ <code>import "server-only"</code> ในไฟล์ที่แตะ secret เพื่อให้ build error ถ้าเผลอ import ฝั่ง client</li>
+        <li>validate env ตอนเริ่มแอปด้วย Zod เพื่อให้พังเร็วถ้าตั้งค่าขาด</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title="SEO & Metadata">
+    <div class="slide-inner">
+      <div class="eyebrow">SEO</div>
+      <h2>Metadata, รูปภาพ และฟอนต์</h2>
+<pre class="code" data-lang="tsx">
+// app/products/[id]/page.tsx
+export async function generateMetadata({ params }: Props): Promise&lt;Metadata&gt; {
+  const { id } = await params;
+  const p = await getProduct(id);              // fetch เดียวกันถูก dedupe
+  return {
+    title: `${p.name} | Mercent Shop`,
+    description: p.summary,
+    openGraph: { images: [p.imageUrl] },
+  };
+}
+</pre>
+      <div class="grid grid-3 mt">
+        <div class="card"><h4><code>next/image</code></h4><p class="small muted">resize + lazy load + WebP/AVIF อัตโนมัติ ใส่ width/height เสมอ</p></div>
+        <div class="card"><h4><code>next/font</code></h4><p class="small muted">โหลดฟอนต์ (เช่น Noto Sans Thai) แบบ self-host ไม่มีกระพริบ</p></div>
+        <div class="card gold"><h4><code>sitemap.ts</code> / <code>robots.ts</code></h4><p class="small muted">สร้าง sitemap จากข้อมูลจริงด้วยโค้ด</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide" data-title="ข้อผิดพลาดที่พบบ่อย">
+    <div class="slide-inner">
+      <div class="eyebrow">Pitfalls</div>
+      <h2>ข้อผิดพลาดที่ทีมเจอบ่อย</h2>
+      <div class="grid grid-2">
+        <div class="card bad"><h4>Hydration mismatch</h4><p class="small muted">render ค่าที่ server/client ต่างกัน เช่น <code>new Date()</code>, <code>Math.random()</code>, <code>window</code> → ย้ายไปใน <code>useEffect</code> หรือส่งค่าจาก server</p></div>
+        <div class="card bad"><h4>ใส่ "use client" ที่ layout</h4><p class="small muted">ทำให้ทั้งแอปกลายเป็น client → แยก Providers ออกเป็นไฟล์เล็ก</p></div>
+        <div class="card bad"><h4>Waterfall request</h4><p class="small muted"><code>await a(); await b();</code> ที่ไม่เกี่ยวกัน → ใช้ <code>Promise.all</code></p></div>
+        <div class="card bad"><h4>เรียก Route Handler ของตัวเองจาก Server Component</h4><p class="small muted">เรียกฟังก์ชันตรง ๆ แทน ไม่ต้องวนผ่าน HTTP</p></div>
+        <div class="card bad"><h4>ลืมว่า params เป็น Promise</h4><p class="small muted">Next.js 15+ ต้อง <code>await params</code> / <code>await searchParams</code></p></div>
+        <div class="card bad"><h4>ไม่ตรวจสิทธิ์ใน Server Action</h4><p class="small muted">การซ่อนปุ่มไม่ใช่ security ต้องเช็คที่ server ทุกครั้ง</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 -->
+  <section class="slide" data-title="Deploy">
+    <div class="slide-inner">
+      <div class="eyebrow">Deployment</div>
+      <h2>Deploy แบบ Self-host ด้วย Docker</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="ts">
+// next.config.ts
+const config: NextConfig = {
+  output: "standalone",   // ได้ server.js + node_modules ที่จำเป็น
+  images: { remotePatterns: [{ hostname: "cdn.example.com" }] },
+};
+export default config;
+</pre>
+        <ol class="steps">
+          <li>build เป็น <code>standalone</code> แล้วใช้ multi-stage Dockerfile (image ~150MB)</li>
+          <li>ตั้ง env ฝั่ง server ใน runtime, ส่วน <code>NEXT_PUBLIC_*</code> ต้องมีตอน build</li>
+          <li>วางหลัง reverse proxy (Nginx / Traefik / Coolify) พร้อม HTTPS</li>
+          <li>ถ้ามีหลาย instance ต้องแชร์ cache (เช่น Redis cache handler)</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- 13 -->
+  <section class="slide" data-title="สรุป Decision Guide">
+    <div class="slide-inner">
+      <div class="eyebrow">Summary</div>
+      <h2>สรุป: ถามตัวเองก่อนเขียน</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>คำถาม</th><th>ถ้าใช่ → ทำแบบนี้</th></tr>
+        <tr><td>ต้องมี state / event / browser API ไหม?</td><td>แยกเป็น Client Component เล็ก ๆ</td></tr>
+        <tr><td>ข้อมูลแสดงอย่างเดียว?</td><td>ดึงใน Server Component</td></tr>
+        <tr><td>ข้อมูลเปลี่ยนไม่บ่อย?</td><td><code>revalidate</code> + <code>revalidateTag</code> หลังแก้ไข</td></tr>
+        <tr><td>ฟอร์มบันทึกข้อมูล?</td><td>Server Action + Zod + <code>useActionState</code></td></tr>
+        <tr><td>ระบบภายนอกต้องเรียกเข้ามา?</td><td>Route Handler (<code>route.ts</code>)</td></tr>
+        <tr><td>ต้องเช็ค login ก่อนเข้าหน้า?</td><td><code>proxy.ts</code> (redirect) + ตรวจซ้ำใน data layer</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+window.KV_GLOSSARY = {
+  hydrate: {
+    title: "Hydration",
+    body: "ขั้นตอนที่ React ใน browser “ปลุก” HTML ที่ server ส่งมา ให้กลายเป็นหน้าที่คลิก/พิมพ์ได้ โดยผูก event และ state เข้ากับ HTML เดิม",
+    example: "เหมือนได้บ้านตัวอย่างที่ตกแต่งเสร็จ (HTML) แล้วค่อยต่อไฟฟ้าประปา (JS) ให้ใช้งานได้จริง"
+  },
+  isr: {
+    title: "ISR (Incremental Static Regeneration)",
+    body: "หน้าถูกสร้างเป็น static ไว้ก่อน แล้ว Next.js สร้างใหม่เบื้องหลังเมื่อครบเวลาที่กำหนด หรือเมื่อเราสั่ง revalidate ผู้ใช้จึงได้หน้าที่เร็วเท่า static แต่ข้อมูลไม่เก่าเกินไป",
+    example: "หน้าราคาสินค้า revalidate ทุก 60 วินาที และสั่ง revalidateTag ทันทีเมื่อแอดมินแก้ราคา"
+  },
+  bff: {
+    title: "BFF (Backend for Frontend)",
+    body: "ชั้น server ที่ออกแบบมาเพื่อหน้าจอหนึ่งโดยเฉพาะ ทำหน้าที่รวม/แปลงข้อมูลจาก API หลัก และเก็บ secret แทน browser",
+    example: "Next.js เรียก 3 endpoint ของ .NET แล้วรวมเป็นข้อมูลก้อนเดียวที่หน้า Dashboard ต้องใช้"
+  }
+};
+</script>
+<script src="../../assets/kv-deck.js"></script>
+</body>
+</html>

@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>API Contract: Next.js ↔ .NET</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css">
+</head>
+<body data-title="API Contract: Next.js ↔ .NET" data-mark="API">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">Fullstack · REST API Standard</div>
+      <h1><span class="grad">API Contract</span><br>Next.js ↔ .NET</h1>
+      <p class="lead">ข้อตกลงร่วมระหว่างทีม Frontend และ Backend: URL, Status Code, รูปแบบ Error, Pagination, Auth และการสร้าง TypeScript client อัตโนมัติจาก OpenAPI</p>
+      <div class="tag-row">
+        <span class="tag gold">REST</span><span class="tag blue">OpenAPI</span><span class="tag">JWT</span>
+        <span class="tag">ProblemDetails</span><span class="tag">Type-safe Client</span>
+      </div>
+      <div class="quote">Contract ที่ชัดเจน ทำให้ Frontend กับ Backend ทำงานขนานกันได้ โดยไม่ต้องรอกัน</div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="Contract-first Flow">
+    <div class="slide-inner">
+      <div class="eyebrow">Workflow</div>
+      <h2>Flow การทำงานแบบ Contract-first</h2>
+      <div class="diagram"><div class="flow">
+        <div class="node gold">1. ตกลง Endpoint<small>ใน PR / ticket</small></div><div class="arrow">→</div>
+        <div class="node violet">2. .NET สร้าง OpenAPI<small>/openapi/v1.json</small></div><div class="arrow">→</div>
+        <div class="node">3. Generate TS Client<small>orval / openapi-typescript</small></div><div class="arrow">→</div>
+        <div class="node green">4. Next.js ใช้ type<small>compile error ถ้า contract เปลี่ยน</small></div>
+      </div></div>
+      <div class="grid grid-3 mt">
+        <div class="card"><h4>Mock ได้ทันที</h4><p class="small muted">Frontend ใช้ MSW mock จาก OpenAPI ระหว่างรอ Backend</p></div>
+        <div class="card gold"><h4>Type ไม่หลุด</h4><p class="small muted">ไม่ต้องเขียน interface ซ้ำมือ ลด bug ชื่อ field ผิด</p></div>
+        <div class="card good"><h4>รู้ทันทีเมื่อ Breaking</h4><p class="small muted">CI regenerate client แล้ว <code>tsc</code> ไม่ผ่าน = มีคนเปลี่ยน contract</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="URL & Naming">
+    <div class="slide-inner">
+      <div class="eyebrow">Resource Naming</div>
+      <h2>ตั้งชื่อ URL ให้เป็นมาตรฐาน</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>Method</th><th>URL</th><th>ความหมาย</th><th>Response</th></tr>
+        <tr><td><code>GET</code></td><td><code>/api/orders?status=paid&amp;page=1</code></td><td>รายการ + filter</td><td>200</td></tr>
+        <tr><td><code>GET</code></td><td><code>/api/orders/{id}</code></td><td>รายการเดียว</td><td>200 / 404</td></tr>
+        <tr><td><code>POST</code></td><td><code>/api/orders</code></td><td>สร้างใหม่</td><td>201 + Location</td></tr>
+        <tr><td><code>PUT</code></td><td><code>/api/orders/{id}</code></td><td>แทนที่ทั้งก้อน</td><td>200 / 204</td></tr>
+        <tr><td><code>PATCH</code></td><td><code>/api/orders/{id}</code></td><td>แก้บางฟิลด์</td><td>200 / 204</td></tr>
+        <tr><td><code>DELETE</code></td><td><code>/api/orders/{id}</code></td><td>ลบ</td><td>204</td></tr>
+        <tr><td><code>POST</code></td><td><code>/api/orders/{id}/cancel</code></td><td>Action ที่ไม่ใช่ CRUD</td><td>200 / 409</td></tr>
+      </table></div>
+      <p class="muted small mt">กฎ: ใช้คำนามพหูพจน์ · kebab-case ใน URL (<code>/order-items</code>) · camelCase ใน JSON · ไม่ใส่กริยาใน URL ยกเว้น action พิเศษ</p>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="Status Codes">
+    <div class="slide-inner">
+      <div class="eyebrow">HTTP Status</div>
+      <h2>Status Code ที่ทีมใช้ (และความหมายฝั่ง UI)</h2>
+      <div class="grid grid-4">
+        <div class="card good"><div class="big-number">200</div><p class="small muted">OK · แสดงข้อมูล</p></div>
+        <div class="card good"><div class="big-number">201</div><p class="small muted">Created · toast “บันทึกแล้ว”</p></div>
+        <div class="card good"><div class="big-number">204</div><p class="small muted">No Content · ลบ/อัปเดตสำเร็จ</p></div>
+        <div class="card gold"><div class="big-number">400</div><p class="small muted">Validation · แสดง error ใต้ช่อง</p></div>
+        <div class="card gold"><div class="big-number">401</div><p class="small muted">ไม่ได้ login / token หมดอายุ · refresh หรือพาไปหน้า login</p></div>
+        <div class="card gold"><div class="big-number">403</div><p class="small muted">ไม่มีสิทธิ์ · หน้า “ไม่มีสิทธิ์เข้าถึง”</p></div>
+        <div class="card gold"><div class="big-number">404</div><p class="small muted">ไม่พบ · หน้า not-found</p></div>
+        <div class="card gold"><div class="big-number">409</div><p class="small muted">Conflict · ข้อมูลถูกแก้ไปแล้ว / สถานะไม่อนุญาต</p></div>
+      </div>
+      <div class="callout bad mt"><strong>500</strong> = bug ของเรา เสมอ ห้ามใช้ 500 แทน validation error และห้ามตอบ 200 พร้อม <code>{"success": false}</code></div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="Error Format">
+    <div class="slide-inner">
+      <div class="eyebrow">Errors</div>
+      <h2>Error format เดียว: ProblemDetails</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="json">
+// 400 Bad Request
+{
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+  "title": "One or more validation errors occurred.",
+  "status": 400,
+  "traceId": "00-7a3f...-01",
+  "errors": {
+    "email": ["อีเมลนี้ถูกใช้แล้ว"],
+    "items[0].quantity": ["ต้องมากกว่า 0"]
+  }
+}
+</pre>
+<pre class="code" data-lang="ts">
+// lib/api-error.ts (Next.js)
+export function applyServerErrors&lt;T extends FieldValues&gt;(
+  err: ProblemDetails,
+  setError: UseFormSetError&lt;T&gt;
+) {
+  for (const [field, messages] of Object.entries(err.errors ?? {})) {
+    setError(field as Path&lt;T&gt;, { message: messages[0] });
+  }
+}
+</pre>
+      </div>
+      <div class="callout">แสดง <code>traceId</code> เล็ก ๆ ในหน้า error เพื่อให้ผู้ใช้แจ้งทีม Support แล้ว Backend ค้น log ได้ทันที</div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="Pagination & Filter">
+    <div class="slide-inner">
+      <div class="eyebrow">Lists</div>
+      <h2>Pagination, Sort และ Filter</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="text">
+GET /api/products?page=2&amp;pageSize=20&amp;sort=-createdAt&amp;category=shoes&amp;q=nike
+</pre>
+<pre class="code" data-lang="json">
+{
+  "items": [ { "id": "…", "name": "…" } ],
+  "page": 2,
+  "pageSize": 20,
+  "totalCount": 245,
+  "totalPages": 13
+}
+</pre>
+      </div>
+      <div class="grid grid-3 mt">
+        <div class="card"><h4>Offset (page)</h4><p class="small muted">หน้าหลังบ้าน, ตารางที่ต้องกระโดดไปหน้าใดก็ได้</p></div>
+        <div class="card gold"><h4>Cursor</h4><p class="small muted">feed / infinite scroll / ข้อมูลเยอะมาก ใช้ <code>?after=&lt;cursor&gt;</code></p></div>
+        <div class="card bad"><h4>จำกัดเสมอ</h4><p class="small muted">pageSize สูงสุด 100 ป้องกันการดึงทั้งตาราง</p></div>
+      </div>
+      <p class="muted small mt">ฝั่ง Next.js: เก็บ page/sort/filter ไว้ใน URL search params เพื่อให้แชร์ลิงก์และกด Back ได้</p>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="Authentication">
+    <div class="slide-inner">
+      <div class="eyebrow">Auth</div>
+      <h2>Authentication ระหว่าง Next.js กับ .NET</h2>
+      <div class="diagram"><div class="flow">
+        <div class="node">Browser</div><div class="arrow">→ login →</div>
+        <div class="node gold">Next.js (Auth.js)<small>เก็บ session ใน httpOnly cookie</small></div><div class="arrow">→ Bearer JWT →</div>
+        <div class="node violet">.NET API<small>AddJwtBearer + Policy</small></div>
+      </div></div>
+      <div class="grid grid-2 mt">
+        <div class="do"><h4>แนะนำ</h4><ul>
+          <li>Token อยู่ใน httpOnly + Secure + SameSite cookie</li>
+          <li>Access token อายุสั้น (5–15 นาที) + refresh token</li>
+          <li>.NET ตรวจ <code>issuer</code>, <code>audience</code>, <code>lifetime</code>, signature ทุกครั้ง</li>
+          <li>สิทธิ์ใช้ policy เช่น <code>RequireAuthorization("orders:write")</code></li>
+        </ul></div>
+        <div class="dont"><h4>หลีกเลี่ยง</h4><ul>
+          <li>เก็บ JWT ใน <code>localStorage</code> (โดน XSS ขโมยได้)</li>
+          <li>เช็คสิทธิ์แค่ซ่อนปุ่มใน UI</li>
+          <li>ใส่ข้อมูลลับใน payload ของ JWT (decode ได้ทุกคน)</li>
+        </ul></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="CORS & Security Headers">
+    <div class="slide-inner">
+      <div class="eyebrow">Security</div>
+      <h2>CORS และ Security ที่ต้องตั้งเสมอ</h2>
+<pre class="code" data-lang="csharp">
+builder.Services.AddCors(o =&gt; o.AddPolicy("web", p =&gt; p
+    .WithOrigins(builder.Configuration.GetSection("Cors:Origins").Get&lt;string[]&gt;()!)
+    .AllowAnyHeader()
+    .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE")
+    .AllowCredentials()));
+
+builder.Services.AddRateLimiter(o =&gt; o.AddFixedWindowLimiter("api", l =&gt;
+{
+    l.PermitLimit = 100;
+    l.Window = TimeSpan.FromMinutes(1);
+}));
+</pre>
+      <div class="grid grid-3 mt">
+        <div class="card bad"><h4>ห้าม</h4><p class="small muted"><code>AllowAnyOrigin()</code> คู่กับ credentials</p></div>
+        <div class="card gold"><h4>Rate limit</h4><p class="small muted">login, OTP, endpoint ส่งอีเมล</p></div>
+        <div class="card"><h4>HTTPS + HSTS</h4><p class="small muted">ทุก environment ที่ไม่ใช่ local</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="Generate TS Client">
+    <div class="slide-inner">
+      <div class="eyebrow">Type Safety</div>
+      <h2>Generate TypeScript client จาก OpenAPI</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="csharp">
+// .NET 9+ (Program.cs)
+builder.Services.AddOpenApi();
+app.MapOpenApi();               // /openapi/v1.json
+app.MapScalarApiReference();    // UI สำหรับทดลองเรียก
+</pre>
+<pre class="code" data-lang="ts">
+// orval.config.ts (Next.js)
+export default {
+  shop: {
+    input: "http://localhost:5080/openapi/v1.json",
+    output: {
+      target: "src/lib/api/generated.ts",
+      client: "react-query",   // ได้ useGetOrders() พร้อม type
+    },
+  },
+};
+</pre>
+      </div>
+<pre class="code" data-lang="bash">
+# package.json → "api:gen": "orval"
+npm run api:gen   # รันทุกครั้งที่ Backend เปลี่ยน contract (หรือให้ CI รัน)
+</pre>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title="Versioning & Breaking Change">
+    <div class="slide-inner">
+      <div class="eyebrow">Evolution</div>
+      <h2>เปลี่ยน API โดยไม่ทำให้ Frontend พัง</h2>
+      <div class="grid grid-2">
+        <div class="card good"><h3>Non-breaking (ทำได้เลย)</h3><ul>
+          <li>เพิ่ม field ใหม่ใน response</li>
+          <li>เพิ่ม endpoint ใหม่</li>
+          <li>เพิ่ม query param แบบ optional</li>
+        </ul></div>
+        <div class="card bad"><h3>Breaking (ต้องวางแผน)</h3><ul>
+          <li>ลบ / เปลี่ยนชื่อ field</li>
+          <li>เปลี่ยน type เช่น <code>number</code> → <code>string</code></li>
+          <li>เพิ่ม field บังคับใน request</li>
+          <li>เปลี่ยนความหมายของ status code</li>
+        </ul></div>
+      </div>
+      <ol class="steps mt">
+        <li>เพิ่มของใหม่ข้างของเดิม (หรือ <code>/api/v2</code>) แล้ว mark ของเดิมเป็น <code>[Obsolete]</code></li>
+        <li>Frontend ย้ายไปใช้ของใหม่ แล้ว deploy</li>
+        <li>ลบของเดิมหลัง monitor แล้วไม่มีคนเรียก</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide" data-title="สรุปข้อตกลง">
+    <div class="slide-inner">
+      <div class="eyebrow">Team Agreement</div>
+      <h2>สรุปข้อตกลงร่วม (ติดไว้ที่ README ทุกโปรเจกต์)</h2>
+      <div class="grid grid-2">
+        <div class="card gold"><ul>
+          <li>JSON เป็น <strong>camelCase</strong>, วันที่เป็น <strong>ISO 8601 UTC</strong> (<code>2026-10-06T08:30:00Z</code>)</li>
+          <li>เงินใช้ <code>decimal</code> ฝั่ง .NET และส่งเป็น number สูงสุด 2 ตำแหน่ง หรือ string</li>
+          <li>ID เป็น <code>Guid</code>/ULID ไม่เปิดเผย running number</li>
+          <li>enum ส่งเป็น string (<code>"paid"</code>) ไม่ใช่ตัวเลข</li>
+        </ul></div>
+        <div class="card"><ul>
+          <li>ทุก error เป็น ProblemDetails + traceId</li>
+          <li>list endpoint มี pagination เสมอ</li>
+          <li>OpenAPI คือ source of truth, client ถูก generate</li>
+          <li>Breaking change ต้องประกาศในช่องทีมก่อน merge</li>
+        </ul></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+<script src="../../assets/kv-deck.js"></script>
+</body>
+</html>

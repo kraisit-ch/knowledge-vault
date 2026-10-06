@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <!-- 1) เปลี่ยนชื่อเรื่อง -->
+  <title>ชื่อเรื่อง</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css">
+</head>
+<!-- 2) data-title = ชื่อบน top bar, data-mark = ตัวย่อ 2-3 ตัวในกล่องโลโก้ -->
+<body data-title="ชื่อเรื่อง" data-mark="KV">
+<main class="slides">
+
+  <!-- ===== สไลด์ 1: หน้าปก ===== -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">หมวด · ประเภทเนื้อหา</div>
+      <h1><span class="grad">หัวข้อหลัก</span><br>คำอธิบายรอง</h1>
+      <p class="lead">สรุป 1–2 บรรทัดว่าเอกสารนี้ช่วยแก้ปัญหาอะไร และใครควรอ่าน</p>
+      <div class="tag-row"><span class="tag gold">แท็กหลัก</span><span class="tag blue">แท็กรอง</span><span class="tag">อื่น ๆ</span></div>
+      <div class="quote">ประโยคสรุปแก่นของเรื่องใน 1 บรรทัด</div>
+    </div>
+    <template class="note"><p>โน้ตสำหรับผู้นำเสนอ (กด N เพื่อเปิด)</p></template>
+  </section>
+
+  <!-- ===== สไลด์: การ์ด 3 คอลัมน์ ===== -->
+  <section class="slide" data-title="แนวคิดหลัก">
+    <div class="slide-inner">
+      <div class="eyebrow">Concept</div>
+      <h2>หัวข้อสไลด์ <span class="gold">คำเน้น</span></h2>
+      <div class="grid grid-3">
+        <div class="card"><div class="icon">🧩</div><h3>หัวข้อ</h3><p class="muted">คำอธิบาย<button class="term" data-term="example"></button></p></div>
+        <div class="card gold"><div class="icon">⭐</div><h3>หัวข้อ</h3><p class="muted">คำอธิบาย</p></div>
+        <div class="card good"><div class="icon">✅</div><h3>หัวข้อ</h3><p class="muted">คำอธิบาย</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== สไลด์: Do / Don't + Code ===== -->
+  <section class="slide" data-title="ควรทำ / ไม่ควรทำ">
+    <div class="slide-inner">
+      <div class="eyebrow">Best Practice</div>
+      <h2>ควรทำ vs ไม่ควรทำ</h2>
+      <div class="grid grid-2">
+        <div class="dont"><h4>ไม่ควร</h4>
+<pre class="code" data-lang="ts">
+// โค้ดตัวอย่างที่ไม่ดี (ใช้ &amp;lt; &amp;gt; แทน &lt; &gt;)
+</pre></div>
+        <div class="do"><h4>ควร</h4>
+<pre class="code" data-lang="ts">
+// โค้ดตัวอย่างที่ดี
+</pre></div>
+      </div>
+      <div class="callout warn"><strong>ข้อควรระวัง:</strong> ...</div>
+    </div>
+  </section>
+
+  <!-- ===== สไลด์: Flow ===== -->
+  <section class="slide" data-title="Flow">
+    <div class="slide-inner">
+      <div class="eyebrow">Flow</div>
+      <h2>ลำดับการทำงาน</h2>
+      <div class="diagram"><div class="flow">
+        <div class="node">ขั้นที่ 1<small>รายละเอียด</small></div><div class="arrow">→</div>
+        <div class="node gold">ขั้นที่ 2<small>รายละเอียด</small></div><div class="arrow">→</div>
+        <div class="node green">ขั้นที่ 3<small>รายละเอียด</small></div>
+      </div></div>
+      <ol class="steps mt"><li>ขั้นตอนที่ 1</li><li>ขั้นตอนที่ 2</li></ol>
+    </div>
+  </section>
+
+  <!-- ===== สไลด์: ตาราง ===== -->
+  <section class="slide" data-title="สรุป">
+    <div class="slide-inner">
+      <div class="eyebrow">Summary</div>
+      <h2>สรุป</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>หัวข้อ</th><th>คำอธิบาย</th></tr>
+        <tr><td>...</td><td>...</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+</main>
+<script>
+// ศัพท์เฉพาะ: ใส่ <button class="term" data-term="key"></button> ในเนื้อหา
+window.KV_GLOSSARY = {
+  example: { title: "ชื่อศัพท์", body: "คำอธิบายแบบเข้าใจง่าย", example: "ตัวอย่างในชีวิตจริง" }
+};
+</script>
+<script src="../../assets/kv-deck.js"></script>
+</body>
+</html>

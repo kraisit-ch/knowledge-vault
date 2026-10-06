@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>.NET Web API & Clean Architecture</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css">
+</head>
+<body data-title=".NET Web API &amp; Clean Architecture" data-mark="C#">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">Backend · .NET / C#</div>
+      <h1><span class="grad">.NET Web API</span><br>&amp; Clean Architecture</h1>
+      <p class="lead">มาตรฐานการออกแบบ Web API ด้วย C# ให้แยกชั้นชัดเจน ทดสอบง่าย และรองรับการเติบโตของทีม</p>
+      <div class="tag-row">
+        <span class="tag gold">.NET 8 / 10 LTS</span><span class="tag blue">C#</span><span class="tag">EF Core</span>
+        <span class="tag">Minimal API</span><span class="tag">FluentValidation</span><span class="tag">Serilog</span>
+      </div>
+      <div class="quote">Business logic ต้องไม่รู้จัก Database, HTTP หรือ Framework ใด ๆ เลย</div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="Clean Architecture คืออะไร">
+    <div class="slide-inner">
+      <div class="eyebrow">Architecture</div>
+      <h2>4 ชั้น และ <span class="gold">ทิศทางการอ้างอิง</span></h2>
+      <div class="grid grid-2">
+        <div class="layers">
+          <div class="node violet">API / Presentation<small>Endpoints, Middleware, DI setup</small></div>
+          <div class="node green">Infrastructure<small>EF Core, Email, File, External API</small></div>
+          <div class="node">Application<small>Use cases, DTO, Validation, Interfaces</small></div>
+          <div class="node gold">Domain<small>Entity, Value Object, Business Rules</small></div>
+        </div>
+        <div class="grid">
+          <div class="card gold"><h3>Dependency Rule<button class="term" data-term="deprule"></button></h3><p class="muted">ชั้นนอกอ้างอิงชั้นในได้ แต่ <strong>ชั้นในห้ามอ้างอิงชั้นนอก</strong> Domain ต้องไม่มี package ของ EF Core หรือ ASP.NET</p></div>
+          <div class="card"><h3>Interface อยู่ข้างใน</h3><p class="muted"><code>IOrderRepository</code> ประกาศใน Application, implement ใน Infrastructure แล้วผูกด้วย DI</p></div>
+          <div class="card good"><h3>ผลลัพธ์</h3><p class="muted">เปลี่ยน DB / ทดสอบ use case โดยไม่ต้องรันเว็บหรือฐานข้อมูลจริง</p></div>
+        </div>
+      </div>
+    </div>
+    <template class="note"><p>สำหรับโปรเจกต์เล็ก (CRUD ไม่กี่หน้า) อาจใช้ Vertical Slice หรือโปรเจกต์เดียวก็พอ อย่าแยกชั้นเยอะจนเกินความจำเป็น</p></template>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="โครงสร้าง Solution">
+    <div class="slide-inner">
+      <div class="eyebrow">Solution Layout</div>
+      <h2>โครงสร้าง Solution มาตรฐานของทีม</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="text">
+Mercent.Shop.sln
+src/
+├─ Shop.Domain/            # ไม่มี dependency ภายนอก
+│  ├─ Orders/Order.cs
+│  └─ Common/Result.cs
+├─ Shop.Application/       # → Domain
+│  ├─ Orders/
+│  │  ├─ CreateOrder/
+│  │  │  ├─ CreateOrderCommand.cs
+│  │  │  ├─ CreateOrderHandler.cs
+│  │  │  └─ CreateOrderValidator.cs
+│  │  └─ OrderDto.cs
+│  └─ Abstractions/IAppDbContext.cs
+├─ Shop.Infrastructure/    # → Application
+│  ├─ Persistence/AppDbContext.cs
+│  └─ DependencyInjection.cs
+└─ Shop.Api/               # → Application, Infrastructure
+   ├─ Endpoints/OrderEndpoints.cs
+   └─ Program.cs
+tests/
+├─ Shop.Application.Tests/
+└─ Shop.Api.IntegrationTests/
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4>จัดตาม Feature ภายในชั้น</h4><p class="small muted">โฟลเดอร์ <code>Orders/CreateOrder</code> รวม command + handler + validator ไว้ด้วยกัน</p></div>
+          <div class="card"><h4>Directory.Build.props</h4><p class="small muted">กำหนด <code>Nullable</code>, <code>TreatWarningsAsErrors</code>, <code>LangVersion</code> ที่เดียวทุกโปรเจกต์</p></div>
+          <div class="card"><h4>Central Package Management</h4><p class="small muted">ใช้ <code>Directory.Packages.props</code> ล็อกเวอร์ชัน NuGet ให้ตรงกันทั้ง solution</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="Minimal API Endpoint">
+    <div class="slide-inner">
+      <div class="eyebrow">API Layer</div>
+      <h2>Endpoint บาง ๆ ส่งต่อให้ Use Case</h2>
+<pre class="code" data-lang="csharp">
+public static class OrderEndpoints
+{
+    public static void MapOrderEndpoints(this IEndpointRouteBuilder app)
+    {
+        var group = app.MapGroup("/api/orders")
+                       .WithTags("Orders")
+                       .RequireAuthorization();
+
+        group.MapGet("/{id:guid}", async (Guid id, IOrderService svc, CancellationToken ct) =&gt;
+            await svc.GetByIdAsync(id, ct) is { } order
+                ? Results.Ok(order)
+                : Results.NotFound());
+
+        group.MapPost("/", async (CreateOrderRequest req, IOrderService svc, CancellationToken ct) =&gt;
+        {
+            var result = await svc.CreateAsync(req, ct);
+            return result.IsSuccess
+                ? Results.Created($"/api/orders/{result.Value.Id}", result.Value)
+                : result.ToProblem();
+        });
+    }
+}
+</pre>
+      <div class="callout">Endpoint มีหน้าที่แค่ รับ request → เรียก service → แปลงผลเป็น HTTP response <strong>ห้ามมี business logic</strong> ในนี้ (Controllers ก็ใช้หลักเดียวกัน)</div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="Dependency Injection">
+    <div class="slide-inner">
+      <div class="eyebrow">DI Lifetimes</div>
+      <h2>เลือก Lifetime ของ Service ให้ถูก</h2>
+      <div class="grid grid-3">
+        <div class="card"><div class="big-number">Transient</div><p class="muted">สร้างใหม่ทุกครั้งที่ขอ</p><p class="small">service เบา ๆ ไม่มี state เช่น mapper, calculator</p></div>
+        <div class="card gold"><div class="big-number">Scoped</div><p class="muted">1 instance ต่อ 1 HTTP request</p><p class="small"><code>DbContext</code>, repository, service ที่ใช้ DbContext</p></div>
+        <div class="card violet"><div class="big-number">Singleton</div><p class="muted">1 instance ตลอดอายุแอป</p><p class="small">cache, config, <code>HttpClient</code> factory ต้อง thread-safe</p></div>
+      </div>
+      <div class="callout bad mt"><strong>Captive dependency:</strong> ห้าม inject Scoped (เช่น DbContext) เข้า Singleton เพราะจะถูกใช้ข้าม request และพังแบบสุ่ม ใน Background service ให้ใช้ <code>IServiceScopeFactory</code> สร้าง scope เอง</div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="EF Core Best Practices">
+    <div class="slide-inner">
+      <div class="eyebrow">Data Access</div>
+      <h2>EF Core: เร็วและถูกต้อง</h2>
+      <div class="grid grid-2">
+        <div class="dont"><h4>ดึงทั้ง entity แล้วค่อยกรอง</h4>
+<pre class="code" data-lang="csharp">
+var orders = await db.Orders
+    .Include(o =&gt; o.Items)
+    .ToListAsync();               // โหลดทั้งตาราง!
+return orders.Where(o =&gt; o.CustomerId == id)
+             .Select(o =&gt; new OrderDto(...));
+</pre></div>
+        <div class="do"><h4>Project เป็น DTO ใน query</h4>
+<pre class="code" data-lang="csharp">
+return await db.Orders
+    .AsNoTracking()
+    .Where(o =&gt; o.CustomerId == id)
+    .OrderByDescending(o =&gt; o.CreatedAt)
+    .Select(o =&gt; new OrderDto(o.Id, o.Total, o.Items.Count))
+    .Skip((page - 1) * size).Take(size)
+    .ToListAsync(ct);
+</pre></div>
+      </div>
+      <div class="grid grid-4 mt">
+        <div class="card"><h4>AsNoTracking</h4><p class="small muted">ทุก query ที่อ่านอย่างเดียว</p></div>
+        <div class="card"><h4>N+1</h4><p class="small muted">ระวัง lazy loading ใน loop</p></div>
+        <div class="card gold"><h4>Migrations</h4><p class="small muted">review SQL ก่อน apply production</p></div>
+        <div class="card"><h4>Index</h4><p class="small muted">คอลัมน์ที่ใช้ Where / OrderBy บ่อย</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="async / await">
+    <div class="slide-inner">
+      <div class="eyebrow">Async</div>
+      <h2>async / await ที่ถูกต้อง</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>ห้ามทำ</th><th>ทำแบบนี้แทน</th><th>เหตุผล</th></tr>
+        <tr><td><code>.Result</code> / <code>.Wait()</code></td><td><code>await</code> ตลอดสาย</td><td>thread pool starvation / deadlock</td></tr>
+        <tr><td><code>async void</code></td><td><code>async Task</code></td><td>exception หลุด จับไม่ได้ แอปล่ม</td></tr>
+        <tr><td>ไม่ส่ง <code>CancellationToken</code></td><td>รับ <code>ct</code> แล้วส่งต่อถึง EF / HttpClient</td><td>ผู้ใช้ปิดหน้า query ก็หยุดตาม</td></tr>
+        <tr><td><code>new HttpClient()</code> ทุกครั้ง</td><td><code>IHttpClientFactory</code> / typed client</td><td>socket exhaustion</td></tr>
+        <tr><td>ใช้ DbContext เดียวกันแบบขนาน</td><td>await ทีละ query หรือแยก context</td><td>DbContext ไม่ thread-safe</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="Validation">
+    <div class="slide-inner">
+      <div class="eyebrow">Validation</div>
+      <h2>Validate ด้วย <span class="gold">FluentValidation</span></h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="csharp">
+public sealed record CreateOrderRequest(
+    Guid CustomerId,
+    List&lt;OrderItemRequest&gt; Items,
+    string? Note);
+
+public sealed class CreateOrderValidator
+    : AbstractValidator&lt;CreateOrderRequest&gt;
+{
+    public CreateOrderValidator()
+    {
+        RuleFor(x =&gt; x.CustomerId).NotEmpty();
+        RuleFor(x =&gt; x.Items).NotEmpty()
+            .WithMessage("ต้องมีสินค้าอย่างน้อย 1 รายการ");
+        RuleForEach(x =&gt; x.Items).ChildRules(i =&gt;
+        {
+            i.RuleFor(x =&gt; x.Quantity).InclusiveBetween(1, 999);
+        });
+        RuleFor(x =&gt; x.Note).MaximumLength(500);
+    }
+}
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4>Input validation</h4><p class="small muted">รูปแบบข้อมูล ความยาว ค่าว่าง → ใน Validator ที่ชั้น Application</p></div>
+          <div class="card"><h4>Business rule</h4><p class="small muted">“สินค้าหมดสต็อก”, “ยกเลิกออเดอร์ที่จัดส่งแล้วไม่ได้” → ใน Domain entity</p></div>
+          <div class="card good"><h4>ส่งกลับเป็น 400 + ProblemDetails</h4><p class="small muted">ฟอร์มฝั่ง React แสดง error ตาม field ได้ทันที</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="Error Handling">
+    <div class="slide-inner">
+      <div class="eyebrow">Errors</div>
+      <h2>Error มาตรฐานเดียวทั้งระบบ: <span class="gold">ProblemDetails</span><button class="term" data-term="problem"></button></h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="csharp">
+// Program.cs
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler&lt;GlobalExceptionHandler&gt;();
+
+app.UseExceptionHandler();
+app.UseStatusCodePages();
+</pre>
+<pre class="code" data-lang="json">
+{
+  "type": "https://httpstatuses.io/409",
+  "title": "Order cannot be cancelled",
+  "status": 409,
+  "detail": "Order ORD-1024 has already shipped.",
+  "traceId": "00-4bf92f...-01",
+  "errors": { "items[0].quantity": ["ต้องอยู่ระหว่าง 1-999"] }
+}
+</pre>
+      </div>
+      <ul class="mt">
+        <li>Expected error (validation, not found, conflict) → ใช้ <code>Result&lt;T&gt;</code> ไม่ throw exception</li>
+        <li>Unexpected error → ให้ global handler log แล้วตอบ 500 <strong>ห้ามส่ง stack trace</strong> ออกไปใน production</li>
+        <li>ใส่ <code>traceId</code> ทุก response เพื่อให้ไล่ log ได้จาก error ที่ผู้ใช้แจ้ง</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title="Config & Secrets">
+    <div class="slide-inner">
+      <div class="eyebrow">Configuration</div>
+      <h2>Options Pattern และการเก็บ Secret</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="csharp">
+public sealed class JwtOptions
+{
+    public const string Section = "Jwt";
+    public required string Issuer { get; init; }
+    public required string Audience { get; init; }
+    public required string SigningKey { get; init; }
+}
+
+builder.Services.AddOptions&lt;JwtOptions&gt;()
+    .BindConfiguration(JwtOptions.Section)
+    .ValidateDataAnnotations()
+    .ValidateOnStart();   // config ผิด = แอปไม่ start
+</pre>
+        <div class="grid">
+          <div class="card good"><h4>Development</h4><p class="small muted"><code>dotnet user-secrets</code> ไม่อยู่ใน repo</p></div>
+          <div class="card gold"><h4>Production</h4><p class="small muted">Environment variables / Key Vault / Docker secrets</p></div>
+          <div class="card bad"><h4>ห้าม</h4><p class="small muted">connection string จริงใน <code>appsettings.json</code> ที่ commit</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide" data-title="Logging & Observability">
+    <div class="slide-inner">
+      <div class="eyebrow">Observability</div>
+      <h2>Structured Logging ด้วย Serilog</h2>
+      <div class="grid grid-2">
+        <div class="dont"><h4>String interpolation</h4>
+<pre class="code" data-lang="csharp">
+_logger.LogInformation($"Order {order.Id} created by {userId}");
+// ค้นหาตาม OrderId ไม่ได้ + สร้าง string ทุกครั้ง
+</pre></div>
+        <div class="do"><h4>Message template</h4>
+<pre class="code" data-lang="csharp">
+_logger.LogInformation("Order {OrderId} created by {UserId}",
+    order.Id, userId);
+// เก็บเป็น field ค้นหา/กรองใน Seq / Grafana ได้
+</pre></div>
+      </div>
+      <div class="grid grid-3 mt">
+        <div class="card"><h4>Health checks</h4><p class="small muted"><code>/health</code> เช็ค DB, Redis สำหรับ Docker / load balancer</p></div>
+        <div class="card gold"><h4>OpenTelemetry</h4><p class="small muted">trace ข้าม Next.js → .NET → DB ด้วย traceId เดียว</p></div>
+        <div class="card bad"><h4>ห้าม log</h4><p class="small muted">password, token, เลขบัตร, ข้อมูลส่วนบุคคลเต็ม (PDPA)</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 -->
+  <section class="slide" data-title="Testing">
+    <div class="slide-inner">
+      <div class="eyebrow">Testing</div>
+      <h2>Test Pyramid ของ .NET</h2>
+      <div class="grid grid-3">
+        <div class="card good"><div class="big-number">70%</div><h3>Unit Test</h3><p class="small muted">xUnit + FluentAssertions / Shouldly ทดสอบ Domain และ Handler, mock ด้วย NSubstitute</p></div>
+        <div class="card gold"><div class="big-number">25%</div><h3>Integration Test</h3><p class="small muted"><code>WebApplicationFactory</code> + Testcontainers (DB จริงใน Docker)</p></div>
+        <div class="card violet"><div class="big-number">5%</div><h3>E2E</h3><p class="small muted">Playwright ทดสอบ flow สำคัญผ่านหน้า Next.js</p></div>
+      </div>
+<pre class="code" data-lang="csharp">
+[Fact]
+public void Cancel_ShippedOrder_ReturnsFailure()
+{
+    var order = OrderFactory.Shipped();
+    var result = order.Cancel();
+    result.IsFailure.Should().BeTrue();
+    result.Error.Code.Should().Be("Order.AlreadyShipped");
+}
+</pre>
+    </div>
+  </section>
+
+  <!-- 13 -->
+  <section class="slide" data-title="Checklist">
+    <div class="slide-inner">
+      <div class="eyebrow">Checklist</div>
+      <h2>Checklist ก่อน Merge API</h2>
+      <div class="grid grid-2">
+        <div class="card good"><ul>
+          <li>☐ Endpoint มี <code>[Authorize]</code> / policy ถูกต้อง</li>
+          <li>☐ Input มี Validator, ตอบ 400 เป็น ProblemDetails</li>
+          <li>☐ ส่ง <code>CancellationToken</code> ถึง EF Core</li>
+          <li>☐ Query อ่านอย่างเดียวใช้ <code>AsNoTracking</code> + projection</li>
+          <li>☐ list endpoint มี pagination</li>
+        </ul></div>
+        <div class="card gold"><ul>
+          <li>☐ Migration ถูก review และ rollback ได้</li>
+          <li>☐ OpenAPI (Swagger/Scalar) อัปเดต, ฝั่ง Next.js regenerate client</li>
+          <li>☐ ไม่มี secret ใน appsettings / log</li>
+          <li>☐ Unit + Integration test ผ่านใน CI</li>
+          <li>☐ <code>dotnet format</code> และไม่มี warning</li>
+        </ul></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+window.KV_GLOSSARY = {
+  deprule: {
+    title: "Dependency Rule",
+    body: "กฎหลักของ Clean Architecture: source code อ้างอิงได้จาก “นอกเข้าใน” เท่านั้น ชั้นในสุด (Domain) จึงเป็นอิสระจาก framework ทั้งหมด",
+    example: "Order.cs ใน Domain ห้าม using Microsoft.EntityFrameworkCore แต่ AppDbContext ใน Infrastructure อ้างถึง Order ได้"
+  },
+  problem: {
+    title: "ProblemDetails (RFC 9457)",
+    body: "มาตรฐานรูปแบบ JSON สำหรับ error ของ HTTP API มีฟิลด์ type, title, status, detail ทำให้ทุก endpoint ตอบ error หน้าตาเดียวกัน ฝั่ง frontend เขียน handler ที่เดียวได้",
+    example: "React อ่าน errors จาก ProblemDetails แล้ว setError ให้แต่ละช่องใน React Hook Form อัตโนมัติ"
+  }
+};
+</script>
+<script src="../../assets/kv-deck.js"></script>
+</body>
+</html>

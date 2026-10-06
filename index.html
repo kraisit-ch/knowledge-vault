@@ -3,44 +3,307 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0057d9">
+<meta name="description" content="คลังความรู้ทีมพัฒนา MERCENT GROUP — React, Next.js, .NET / C#, DevOps">
 <title>Knowledge Vault</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#f7f8fa;--fg:#1c2330;--mut:#667085;--card:#fff;--bd:#e4e7ec;--ac:#4f46e5}
-@media(prefers-color-scheme:dark){:root{--bg:#0f1420;--fg:#e6e9ef;--mut:#98a2b3;--card:#171e2e;--bd:#263046;--ac:#818cf8}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,"Noto Sans Thai",sans-serif}
-.wrap{max-width:980px;margin:0 auto;padding:32px 16px}
-h1{margin:0}p.sub{color:var(--mut);margin:4px 0 20px}
-input{width:100%;padding:12px 14px;border:1px solid var(--bd);border-radius:10px;background:var(--card);color:var(--fg);font:inherit}
-nav{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
-nav button{border:1px solid var(--bd);background:var(--card);color:var(--fg);padding:6px 12px;border-radius:99px;cursor:pointer;font:inherit}
-nav button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
-h2{margin:28px 0 10px;font-size:1.15rem}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
-a.card{display:block;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;color:inherit;text-decoration:none}
-a.card:hover{border-color:var(--ac)}
-.meta{color:var(--mut);font-size:.85rem;margin-top:6px}
-.tag{display:inline-block;margin-right:6px}
+:root{
+  --blue:#0057d9;--blue-2:#3d8bff;--navy:#041633;--navy-2:#0a2552;
+  --gold:#f5b921;--gold-2:#ffd66b;--gold-3:#c98a00;
+  --bg:#f4f7fc;--card:#ffffff;--fg:#0f1d33;--muted:#5b6b85;--line:#e1e8f3;
+  --shadow:0 1px 2px rgba(10,37,82,.06),0 10px 30px rgba(10,37,82,.08);
+  --shadow-hover:0 2px 4px rgba(10,37,82,.08),0 22px 50px rgba(0,87,217,.16);
+  --radius:18px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#06101f;--card:#0c1a33;--fg:#e9f0fb;--muted:#9aabc6;--line:#1b2c4a;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.3);
+  --shadow-hover:0 2px 4px rgba(0,0,0,.3),0 22px 50px rgba(0,87,217,.28);
+}}
+:root[data-theme="dark"]{
+  --bg:#06101f;--card:#0c1a33;--fg:#e9f0fb;--muted:#9aabc6;--line:#1b2c4a;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.3);
+  --shadow-hover:0 2px 4px rgba(0,0,0,.3),0 22px 50px rgba(0,87,217,.28);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 "Noto Sans Thai","Leelawadee UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+.wrap{width:min(1180px,100%);margin:0 auto;padding:0 20px}
+
+/* ---------- Header ---------- */
+header.nav{position:sticky;top:0;z-index:50;background:rgba(4,22,51,.82);backdrop-filter:blur(14px);border-bottom:1px solid rgba(255,255,255,.08)}
+.nav .wrap{height:64px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.logo{display:flex;align-items:center;gap:10px;color:#fff;font-weight:800;letter-spacing:-.01em}
+.logo-mark{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,var(--blue),var(--blue-2));box-shadow:0 0 0 1.5px var(--gold),0 6px 18px rgba(0,87,217,.45);color:var(--gold-2);font-size:13px;font-weight:900}
+.logo small{display:block;font-size:11px;font-weight:600;color:var(--gold-2);letter-spacing:.12em;line-height:1}
+.nav-links{display:flex;align-items:center;gap:6px}
+.nav-links a{padding:8px 12px;border-radius:10px;color:#c9d7ee;font-size:14px;font-weight:600}
+.nav-links a:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-links a.gh{border:1px solid rgba(245,185,33,.5);color:var(--gold-2)}
+.nav-links a.gh:hover{background:rgba(245,185,33,.12)}
+
+/* ---------- Hero ---------- */
+.hero{position:relative;overflow:hidden;color:#fff;padding:84px 0 88px;
+  background:
+    radial-gradient(900px 420px at 85% -10%,rgba(245,185,33,.28),transparent 60%),
+    radial-gradient(700px 500px at 0% 100%,rgba(61,139,255,.45),transparent 60%),
+    linear-gradient(160deg,#03122b 0%,#062a66 55%,#0057d9 120%)}
+.hero::before{content:"";position:absolute;inset:0;opacity:.35;
+  background-image:linear-gradient(rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.06) 1px,transparent 1px);
+  background-size:44px 44px;mask-image:radial-gradient(ellipse at 50% 0%,#000 30%,transparent 75%)}
+.orb{position:absolute;border-radius:50%;filter:blur(2px);pointer-events:none}
+.orb.o1{width:260px;height:260px;right:-60px;top:40px;background:radial-gradient(circle at 30% 30%,rgba(255,214,107,.9),rgba(245,185,33,.25) 55%,transparent 70%);animation:float 9s ease-in-out infinite}
+.orb.o2{width:140px;height:140px;right:22%;bottom:30px;background:radial-gradient(circle at 30% 30%,rgba(143,192,255,.8),rgba(0,87,217,.2) 60%,transparent 72%);animation:float 7s ease-in-out infinite reverse}
+@keyframes float{50%{transform:translateY(-18px)}}
+.hero .wrap{position:relative}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid rgba(245,185,33,.45);border-radius:999px;background:rgba(245,185,33,.1);color:var(--gold-2);font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.eyebrow i{width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 4px rgba(245,185,33,.25)}
+.hero h1{margin:18px 0 14px;font-size:clamp(38px,6vw,72px);line-height:1.08;letter-spacing:-.035em;font-weight:900}
+.hero h1 .gold{background:linear-gradient(90deg,var(--gold-2),var(--gold) 60%,#ffe7a3);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p.sub{max-width:680px;margin:0;color:#c8d6ee;font-size:clamp(16px,2vw,20px)}
+.search{position:relative;max-width:640px;margin-top:30px}
+.search svg{position:absolute;left:18px;top:50%;width:20px;height:20px;transform:translateY(-50%);stroke:#7d8fb0;fill:none;stroke-width:2}
+.search input{width:100%;height:58px;padding:0 64px 0 52px;border:1px solid rgba(255,255,255,.18);border-radius:16px;background:rgba(255,255,255,.96);color:#0f1d33;font:inherit;font-size:16px;box-shadow:0 18px 50px rgba(0,0,0,.25);outline:none}
+.search input:focus{box-shadow:0 0 0 3px rgba(245,185,33,.6),0 18px 50px rgba(0,0,0,.25)}
+.search kbd{position:absolute;right:14px;top:50%;transform:translateY(-50%);padding:3px 9px;border:1px solid #d5deec;border-radius:7px;background:#f1f5fb;color:#5b6b85;font:600 12px ui-monospace,monospace}
+.stats{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
+.stat{min-width:130px;padding:12px 18px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:rgba(255,255,255,.06);backdrop-filter:blur(6px)}
+.stat b{display:block;font-size:26px;line-height:1.1;color:var(--gold-2);font-weight:900}
+.stat span{font-size:13px;color:#b9c9e4}
+
+/* ---------- Sections ---------- */
+main{position:relative;padding-top:56px}
+.section{margin-bottom:56px}
+.section-head{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:18px}
+.section-head h2{margin:0;font-size:clamp(22px,2.6vw,30px);letter-spacing:-.02em;font-weight:800}
+.section-head h2::after{content:"";display:block;width:44px;height:4px;margin-top:8px;border-radius:4px;background:linear-gradient(90deg,var(--blue),var(--gold))}
+.section-head p{margin:0;color:var(--muted);font-size:14px}
+
+/* Category cards */
+.cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px}
+.cat{position:relative;padding:18px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card);box-shadow:var(--shadow);cursor:pointer;text-align:left;font:inherit;color:inherit;transition:.22s ease;overflow:hidden}
+.cat::after{content:"";position:absolute;inset:auto 0 0 0;height:3px;background:linear-gradient(90deg,var(--blue),var(--gold));transform:scaleX(0);transform-origin:left;transition:.25s ease}
+.cat:hover{transform:translateY(-3px);box-shadow:var(--shadow-hover)}
+.cat:hover::after,.cat.on::after{transform:scaleX(1)}
+.cat.on{border-color:var(--blue)}
+.cat .ic{width:44px;height:44px;display:grid;place-items:center;border-radius:12px;background:linear-gradient(135deg,rgba(0,87,217,.12),rgba(245,185,33,.16));font-size:22px;margin-bottom:12px}
+.cat h3{margin:0;font-size:16px;font-weight:800}
+.cat p{margin:4px 0 0;color:var(--muted);font-size:13px;line-height:1.45}
+.cat .count{position:absolute;top:16px;right:16px;min-width:28px;padding:2px 8px;border-radius:999px;background:rgba(245,185,33,.16);color:var(--gold-3);font-size:12px;font-weight:800;text-align:center}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .cat .count{color:var(--gold-2)}}
+:root[data-theme="dark"] .cat .count{color:var(--gold-2)}
+
+/* Chips */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.chip{padding:7px 14px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--fg);font:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
+.chip:hover{border-color:var(--blue-2)}
+.chip.on{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 6px 16px rgba(0,87,217,.3)}
+
+/* Doc cards */
+.docs{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:18px}
+.doc{position:relative;display:flex;flex-direction:column;padding:22px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card);box-shadow:var(--shadow);transition:.22s ease;overflow:hidden}
+.doc::before{content:"";position:absolute;inset:0 0 auto 0;height:4px;background:linear-gradient(90deg,var(--blue),var(--blue-2) 60%,var(--gold))}
+.doc:hover{transform:translateY(-4px);box-shadow:var(--shadow-hover);border-color:rgba(0,87,217,.35)}
+.doc-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:rgba(0,87,217,.09);color:var(--blue);font-size:12px;font-weight:700}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .badge{color:#8fc0ff;background:rgba(61,139,255,.14)}}
+:root[data-theme="dark"] .badge{color:#8fc0ff;background:rgba(61,139,255,.14)}
+.new{padding:3px 9px;border-radius:999px;background:linear-gradient(135deg,var(--gold),#ffcf4d);color:#3a2700;font-size:11px;font-weight:900;letter-spacing:.06em}
+.doc h3{margin:0 0 6px;font-size:19px;line-height:1.35;font-weight:800;letter-spacing:-.01em}
+.doc p{margin:0 0 14px;color:var(--muted);font-size:14px;line-height:1.55;flex:1}
+.meta{display:flex;flex-wrap:wrap;gap:14px;color:var(--muted);font-size:13px;margin-bottom:12px}
+.meta span{display:inline-flex;align-items:center;gap:5px}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tags span{padding:2px 8px;border-radius:6px;background:var(--bg);border:1px solid var(--line);color:var(--muted);font-size:12px}
+.open{position:absolute;right:18px;bottom:18px;width:34px;height:34px;display:grid;place-items:center;border-radius:10px;background:var(--blue);color:#fff;opacity:0;transform:translateX(-6px);transition:.22s}
+.doc:hover .open{opacity:1;transform:none}
+.empty{grid-column:1/-1;padding:48px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:var(--radius)}
+mark{background:rgba(245,185,33,.35);color:inherit;border-radius:3px;padding:0 2px}
+
+/* CTA */
+.cta{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:20px;padding:30px;border-radius:22px;color:#fff;
+  background:radial-gradient(500px 200px at 90% 0%,rgba(245,185,33,.35),transparent 60%),linear-gradient(135deg,#062a66,#0057d9)}
+.cta h3{margin:0 0 4px;font-size:22px}
+.cta p{margin:0;color:#c8d6ee}
+.btn-gold{display:inline-flex;align-items:center;gap:8px;padding:12px 20px;border-radius:12px;background:linear-gradient(135deg,var(--gold-2),var(--gold));color:#2c1d00;font-weight:800;box-shadow:0 10px 24px rgba(245,185,33,.35)}
+.btn-gold:hover{filter:brightness(1.05)}
+
+/* Footer */
+footer{margin-top:24px;color:#b9c9e4;background:linear-gradient(180deg,#041633,#020b1c);border-top:3px solid var(--gold)}
+footer .wrap{padding:40px 20px 28px}
+.foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:24px;padding-bottom:24px;border-bottom:1px solid rgba(255,255,255,.08)}
+.foot p{margin:10px 0 0;max-width:420px;font-size:14px}
+.foot-links{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:14px}
+.foot-links a:hover{color:var(--gold-2)}
+.credit{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;padding-top:18px;font-size:13px}
+.credit strong{color:var(--gold-2);letter-spacing:.04em}
+
+@media (max-width:720px){
+  .nav-links a:not(.gh){display:none}
+  .hero{padding:48px 0 64px}
+  .cats{grid-template-columns:1fr 1fr}
+  .stat{min-width:0;flex:1}
+  .docs{grid-template-columns:1fr}
+  .open{opacity:1;transform:none}
+  .wrap{padding:0 16px}
+  .search kbd{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
-<body><div class="wrap">
-<h1 id="t"></h1><p class="sub" id="s"></p>
-<input id="q" type="search" placeholder="ค้นหา ชื่อเรื่อง / แท็ก ...">
-<nav id="nav"></nav><main id="list"></main>
-</div>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="logo" href="./"><div class="logo-mark">KV</div><div>Knowledge Vault<small>MERCENT GROUP</small></div></a>
+    <nav class="nav-links">
+      <a href="#categories">หมวดหมู่</a>
+      <a href="#docs">เอกสารทั้งหมด</a>
+      <a class="gh" href="https://github.com/kraisit-ch/knowledge-vault" target="_blank" rel="noopener">GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="orb o1"></div><div class="orb o2"></div>
+  <div class="wrap">
+    <span class="eyebrow"><i></i>Developer Knowledge Base</span>
+    <h1>คลังความรู้ทีมพัฒนา<br><span class="gold">เรียนรู้ · แบ่งปัน · เติบโตไปด้วยกัน</span></h1>
+    <p class="sub" id="subtitle">รวมเอกสาร มาตรฐาน และ Best Practice ของทีม ทั้ง React, Next.js, .NET / C# และ DevOps ในรูปแบบสไลด์ที่อ่านง่าย</p>
+    <label class="search">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="ค้นหาเรื่อง, เทคโนโลยี หรือแท็ก เช่น nextjs, ef-core ..." autocomplete="off" aria-label="ค้นหาเอกสาร">
+      <kbd>/</kbd>
+    </label>
+    <div class="stats" id="stats"></div>
+  </div>
+</section>
+
+<main class="wrap">
+  <section class="section" id="categories">
+    <div class="section-head"><div><h2>หมวดหมู่ความรู้</h2></div><p>คลิกเพื่อกรองเอกสาร</p></div>
+    <div class="cats" id="cats"></div>
+  </section>
+
+  <section class="section" id="docs">
+    <div class="section-head"><div><h2 id="docsTitle">เอกสารทั้งหมด</h2></div><p id="resultCount"></p></div>
+    <div class="chips" id="chips"></div>
+    <div class="docs" id="list"></div>
+  </section>
+
+  <section class="section">
+    <div class="cta">
+      <div><h3>อยากเพิ่มความรู้ใหม่เข้าคลัง?</h3><p>ใช้ template กลางและทำตามกฎใน todo.md เพื่อให้ทุกเรื่องหน้าตาและมาตรฐานเดียวกัน</p></div>
+      <a class="btn-gold" href="https://github.com/kraisit-ch/knowledge-vault/blob/main/todo.md" target="_blank" rel="noopener">อ่านกฎการเขียนเอกสาร →</a>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div>
+        <a class="logo" href="./"><div class="logo-mark">KV</div><div>Knowledge Vault<small>MERCENT GROUP</small></div></a>
+        <p>คลังความรู้ภายในสำหรับทีมพัฒนาซอฟต์แวร์ เพื่อให้ทุกคนเขียนโค้ดและทำงานไปในทิศทางเดียวกัน</p>
+      </div>
+      <div class="foot-links">
+        <a href="#categories">หมวดหมู่</a>
+        <a href="#docs">เอกสารทั้งหมด</a>
+        <a href="https://github.com/kraisit-ch/knowledge-vault" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://mercent.co.th" target="_blank" rel="noopener">mercent.co.th</a>
+      </div>
+    </div>
+    <div class="credit">
+      <span>© <span id="year">2026</span> <strong>MERCENT GROUP Co., Ltd.</strong> All rights reserved.</span>
+      <span>Crafted with 💙💛 by the MERCENT Dev Team</span>
+    </div>
+  </div>
+</footer>
+
 <script>
-let C,cat="all";
-const $=id=>document.getElementById(id);
-fetch("catalog.json").then(r=>r.json()).then(d=>{C=d;document.title=d.title;$("t").textContent=d.title;$("s").textContent=d.subtitle;
-  $("nav").innerHTML=[{id:"all",name:"ทั้งหมด",icon:""},...d.categories].map(c=>`<button data-id="${c.id}">${c.icon} ${c.name}</button>`).join("");
-  $("nav").onclick=e=>{if(e.target.dataset.id){cat=e.target.dataset.id;render()}};
-  $("q").oninput=render;render()});
-function render(){
-  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.id===cat));
-  const q=$("q").value.toLowerCase();
-  $("list").innerHTML=C.categories.filter(c=>cat==="all"||c.id===cat).map(c=>{
-    const ds=C.docs.filter(d=>d.category===c.id&&(d.title+" "+(d.tags||[]).join(" ")).toLowerCase().includes(q));
-    if(!ds.length)return"";
-    return`<h2>${c.icon} ${c.name} (${ds.length})</h2><div class="grid">`+ds.map(d=>
-      `<a class="card" href="${encodeURI(d.path)}"><b>${d.title}</b><div class="meta">${d.date||""}<br>${(d.tags||[]).map(t=>`<span class="tag">#${t}</span>`).join("")}</div></a>`).join("")+"</div>"}).join("")||"<p>ไม่พบเอกสาร</p>";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const hl = (text, q) => {
+  const safe = esc(text);
+  if (!q) return safe;
+  const i = safe.toLowerCase().indexOf(esc(q).toLowerCase());
+  return i < 0 ? safe : safe.slice(0, i) + "<mark>" + safe.slice(i, i + esc(q).length) + "</mark>" + safe.slice(i + esc(q).length);
+};
+const fmtDate = (d) => d ? new Date(d + "T00:00:00").toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }) : "";
+const isNew = (d) => d && (Date.now() - new Date(d + "T00:00:00")) / 864e5 <= 30;
+
+let C, cat = "all";
+$("year").textContent = new Date().getFullYear();
+
+fetch("catalog.json")
+  .then((r) => r.json())
+  .then((d) => {
+    C = d;
+    const totalSlides = d.docs.reduce((s, x) => s + (x.slides || 0), 0);
+    $("stats").innerHTML = [
+      [d.docs.length, "เอกสาร"],
+      [d.categories.length, "หมวดหมู่"],
+      [totalSlides + "+", "สไลด์ความรู้"],
+    ].map(([n, l]) => `<div class="stat"><b>${n}</b><span>${l}</span></div>`).join("");
+
+    $("cats").innerHTML = d.categories.map((c) => {
+      const n = d.docs.filter((x) => x.category === c.id).length;
+      return `<button class="cat" data-id="${esc(c.id)}"><span class="count">${n}</span><div class="ic">${c.icon}</div><h3>${esc(c.name)}</h3><p>${esc(c.desc || "")}</p></button>`;
+    }).join("");
+
+    $("chips").innerHTML = [{ id: "all", name: "ทั้งหมด", icon: "✨" }, ...d.categories]
+      .map((c) => `<button class="chip" data-id="${esc(c.id)}">${c.icon} ${esc(c.name)}</button>`).join("");
+
+    const pick = (e) => {
+      const b = e.target.closest("[data-id]");
+      if (!b) return;
+      cat = cat === b.dataset.id && b.classList.contains("cat") ? "all" : b.dataset.id;
+      render();
+      if (b.classList.contains("cat")) $("docs").scrollIntoView({ behavior: "smooth" });
+    };
+    $("cats").onclick = pick;
+    $("chips").onclick = pick;
+    $("q").oninput = render;
+    render();
+  })
+  .catch(() => { $("list").innerHTML = '<div class="empty">โหลด catalog.json ไม่สำเร็จ (ถ้าเปิดไฟล์ตรง ๆ ให้รันผ่าน local server)</div>'; });
+
+function render() {
+  document.querySelectorAll("[data-id]").forEach((b) => b.classList.toggle("on", b.dataset.id === cat));
+  const q = $("q").value.trim().toLowerCase();
+  const cats = Object.fromEntries(C.categories.map((c) => [c.id, c]));
+  const docs = C.docs
+    .filter((d) => cat === "all" || d.category === cat)
+    .filter((d) => !q || [d.title, d.desc, (d.tags || []).join(" "), cats[d.category]?.name].join(" ").toLowerCase().includes(q))
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+
+  $("docsTitle").textContent = cat === "all" ? "เอกสารทั้งหมด" : `${cats[cat].icon} ${cats[cat].name}`;
+  $("resultCount").textContent = `${docs.length} เรื่อง`;
+  $("list").innerHTML = docs.map((d) => {
+    const c = cats[d.category] || { icon: "📄", name: d.category };
+    return `<a class="doc" href="${encodeURI(d.path)}">
+      <div class="doc-top"><span class="badge">${c.icon} ${esc(c.name)}</span>${isNew(d.date) ? '<span class="new">NEW</span>' : ""}</div>
+      <h3>${hl(d.title, q)}</h3>
+      <p>${hl(d.desc || "", q)}</p>
+      <div class="meta">
+        ${d.date ? `<span>📅 ${fmtDate(d.date)}</span>` : ""}
+        ${d.slides ? `<span>🗂️ ${d.slides} สไลด์</span>` : ""}
+        ${d.level ? `<span>🎯 ${esc(d.level)}</span>` : ""}
+      </div>
+      <div class="tags">${(d.tags || []).map((t) => `<span>#${hl(t, q)}</span>`).join("")}</div>
+      <span class="open" aria-hidden="true">→</span>
+    </a>`;
+  }).join("") || '<div class="empty">ไม่พบเอกสารที่ตรงกับคำค้น ลองคำอื่นหรือเลือก “ทั้งหมด”</div>';
 }
-</script></body></html>
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "/" && document.activeElement !== $("q")) { e.preventDefault(); $("q").focus(); }
+  if (e.key === "Escape" && document.activeElement === $("q")) { $("q").value = ""; render(); $("q").blur(); }
+});
+</script>
+</body>
+</html>
