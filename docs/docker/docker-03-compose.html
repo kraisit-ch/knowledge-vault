@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>Docker 3: Docker Compose</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css">
+</head>
+<body data-title="Docker 3: Docker Compose" data-mark="D3">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">🐳 Docker สำหรับ Dev · ตอนที่ 3/7</div>
+      <h1><span class="grad">Docker Compose</span><br>รันทั้งระบบด้วยคำสั่งเดียว</h1>
+      <p class="lead">เขียนไฟล์เดียวเพื่อรัน Next.js + .NET API + PostgreSQL + Redis พร้อมกัน ให้ทุก service คุยกันได้ และรอกันอย่างถูกลำดับ</p>
+      <div class="tag-row"><span class="tag gold">compose.yaml</span><span class="tag blue">services</span><span class="tag">depends_on</span><span class="tag">healthcheck</span><span class="tag">profiles</span></div>
+      <div class="quote">คนใหม่ clone repo → <code>docker compose up</code> → เริ่มเขียนโค้ดได้ภายใน 10 นาที</div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="ทำไมต้อง Compose">
+    <div class="slide-inner">
+      <div class="eyebrow">ปัญหาที่แก้</div>
+      <h2>จาก <code>docker run</code> ยาว ๆ หลายคำสั่ง → ไฟล์เดียว</h2>
+      <div class="grid grid-2">
+        <div class="dont"><h4>ไม่มี Compose</h4>
+<pre class="code" data-lang="bash">
+docker network create shop
+docker run -d --name db --network shop -e POSTGRES_PASSWORD=dev -v pgdata:/var/lib/postgresql/data postgres:17-alpine
+docker run -d --name redis --network shop redis:7-alpine
+docker run -d --name api --network shop -p 8080:8080 -e ConnectionStrings__Default=... shop-api:dev
+# ... จำลำดับเอง พิมพ์ผิดง่าย
+</pre></div>
+        <div class="do"><h4>มี Compose</h4>
+<pre class="code" data-lang="bash">
+docker compose up -d      # เปิดทั้งระบบ
+docker compose down       # ปิดทั้งระบบ
+</pre>
+          <p class="small muted">ทุกอย่างอยู่ใน <code>compose.yaml</code> ที่ commit ลง Git ทุกคนได้ระบบเหมือนกัน</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="โครงสร้าง compose.yaml">
+    <div class="slide-inner">
+      <div class="eyebrow">โครงสร้างไฟล์</div>
+      <h2>โครงสร้างของ <code>compose.yaml</code></h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="yaml">
+# compose.yaml  (ไม่ต้องใส่ version: แล้ว)
+name: shop
+
+services:            # container แต่ละตัว
+  db:
+    image: postgres:17-alpine
+  api:
+    build: ./src/Shop.Api      # build จาก Dockerfile
+    ports: ["8080:8080"]
+    depends_on: [db]
+
+volumes:             # ที่เก็บข้อมูลถาวร
+  pgdata:
+
+networks:            # (ไม่จำเป็น) Compose สร้าง network ให้อัตโนมัติ
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4>service = 1 กล่องงาน</h4><p class="small muted">ชื่อ service (เช่น <code>db</code>) ใช้เป็น hostname คุยกันได้ทันที<button class="term" data-term="dns"></button></p></div>
+          <div class="card"><h4><code>image</code> หรือ <code>build</code></h4><p class="small muted">ใช้ image สำเร็จรูป หรือ build จาก Dockerfile ของเรา</p></div>
+          <div class="card violet"><h4>ชื่อไฟล์</h4><p class="small muted">ใช้ <code>compose.yaml</code> (ชื่อใหม่) หรือ <code>docker-compose.yml</code> (ชื่อเดิม) ได้ทั้งคู่</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="ตัวอย่างระบบเต็ม">
+    <div class="slide-inner">
+      <div class="eyebrow">ตัวอย่างจริง</div>
+      <h2>Next.js + .NET API + PostgreSQL + Redis</h2>
+<pre class="code" data-lang="yaml">
+name: shop
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: shop
+      POSTGRES_USER: shop
+      POSTGRES_PASSWORD: ${DB_PASSWORD}          # อ่านจากไฟล์ .env (ตอนที่ 4)
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shop -d shop"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+
+  api:
+    build: { context: ., dockerfile: src/Shop.Api/Dockerfile }
+    env_file: [./env/api.env]
+    environment:
+      ConnectionStrings__Default: Host=db;Database=shop;Username=shop;Password=${DB_PASSWORD}
+      Redis__Connection: redis:6379
+    ports: ["8080:8080"]
+    depends_on:
+      db: { condition: service_healthy }        # รอ DB พร้อมจริงก่อน
+      redis: { condition: service_started }
+
+  web:
+    build: { context: ./web, args: { NEXT_PUBLIC_API_URL: http://localhost:8080 } }
+    environment:
+      API_URL: http://api:8080                  # ฝั่ง server ของ Next.js เรียกผ่านชื่อ service
+    ports: ["3000:3000"]
+    depends_on: [api]
+
+volumes:
+  pgdata:
+</pre>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="depends_on + healthcheck">
+    <div class="slide-inner">
+      <div class="eyebrow">ลำดับการเริ่ม</div>
+      <h2><code>depends_on</code> อย่างเดียว <span class="red">ไม่พอ</span></h2>
+      <div class="grid grid-2">
+        <div class="dont"><h4>depends_on แบบธรรมดา</h4><p class="muted">รอแค่ให้ container ของ DB “เริ่ม” แต่ PostgreSQL ยังเปิดไม่เสร็จ</p><p class="small">→ API เชื่อมต่อ DB ไม่ได้ แล้วล่มตอนเปิด</p></div>
+        <div class="do"><h4>depends_on + healthcheck</h4><p class="muted">รอจน DB ตอบ <code>pg_isready</code> ผ่านจริง</p><p class="small">→ API เปิดได้ทุกครั้ง</p></div>
+      </div>
+      <div class="table-wrap mt"><table class="table">
+        <tr><th>condition</th><th>รอจนกว่า</th></tr>
+        <tr><td><code>service_started</code></td><td>container เริ่มทำงาน (ค่าเริ่มต้น)</td></tr>
+        <tr><td><code>service_healthy</code></td><td>healthcheck ผ่าน — ใช้กับ DB, Redis, message broker</td></tr>
+        <tr><td><code>service_completed_successfully</code></td><td>container จบด้วย exit 0 — ใช้กับงาน migration ที่ต้องเสร็จก่อน</td></tr>
+      </table></div>
+      <p class="muted small mt">แม้จะรอแล้ว แอปควรมี retry ตอนเชื่อมต่อ DB ด้วย เพราะใน production DB อาจหลุดได้ทุกเมื่อ</p>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="คำสั่งที่ใช้ทุกวัน">
+    <div class="slide-inner">
+      <div class="eyebrow">CLI</div>
+      <h2>คำสั่ง Compose ที่ใช้ทุกวัน</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="bash">
+docker compose up -d              # เปิดทั้งหมด (เบื้องหลัง)
+docker compose up -d --build      # build ใหม่ก่อนเปิด (แก้ Dockerfile/โค้ด)
+docker compose up -d api          # เปิดเฉพาะ api (+ ตัวที่มันพึ่ง)
+docker compose ps                 # สถานะทุก service
+docker compose logs -f api        # ดู log ของ api
+docker compose exec db psql -U shop   # รันคำสั่งใน service
+docker compose restart api
+docker compose stop               # หยุด (ไม่ลบ)
+docker compose down               # หยุด + ลบ container และ network
+docker compose down -v            # ลบ volume ด้วย (ข้อมูล DB หาย!)
+docker compose config             # ดูไฟล์ที่รวมและแทนค่าตัวแปรแล้ว
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4><code>docker compose config</code></h4><p class="small muted">คำสั่งที่ช่วย debug ได้มากที่สุด: เห็นค่าจริงหลังแทน <code>${VAR}</code> และรวมหลายไฟล์แล้ว</p></div>
+          <div class="card bad"><h4><code>down -v</code></h4><p class="small muted">ลบ volume = ลบข้อมูลฐานข้อมูล ใช้เมื่ออยากเริ่มใหม่จริง ๆ เท่านั้น</p></div>
+          <div class="card"><h4><code>docker compose</code> ไม่ใช่ <code>docker-compose</code></h4><p class="small muted">v2 เป็น plugin ของ docker แล้ว ตัวมีขีด (v1) เลิกพัฒนาแล้ว</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="หลายไฟล์ / Override">
+    <div class="slide-inner">
+      <div class="eyebrow">แยก dev / prod</div>
+      <h2>แยกค่าตาม environment ด้วยหลายไฟล์</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="yaml">
+# compose.yaml            → ส่วนที่เหมือนกันทุก env
+# compose.override.yaml   → dev: Compose อ่านอัตโนมัติ!
+services:
+  api:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+    ports: ["8080:8080"]
+  db:
+    ports: ["5432:5432"]   # เปิดให้ DBeaver ต่อได้ (dev เท่านั้น)
+</pre>
+<pre class="code" data-lang="bash">
+# dev: compose.yaml + compose.override.yaml (อัตโนมัติ)
+docker compose up -d
+
+# prod: ระบุไฟล์เอง (ไม่อ่าน override)
+docker compose -f compose.yaml -f compose.prod.yaml up -d
+</pre>
+      </div>
+      <div class="callout">ไฟล์หลังจะ “ทับ” ค่าของไฟล์ก่อนหน้า ใช้แยกสิ่งที่ต่างกัน เช่น port ที่เปิด, environment, จำนวน replica</div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="Profiles">
+    <div class="slide-inner">
+      <div class="eyebrow">เปิดเฉพาะที่ต้องใช้</div>
+      <h2>Profiles: service เสริมที่ไม่ต้องรันทุกครั้ง</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="yaml">
+services:
+  db: { image: postgres:17-alpine }
+
+  pgadmin:
+    image: dpage/pgadmin4
+    profiles: [tools]          # ไม่รันโดยค่าเริ่มต้น
+    ports: ["5050:80"]
+
+  mailpit:
+    image: axllent/mailpit     # จับอีเมลทดสอบ ดูได้ที่ :8025
+    profiles: [tools]
+    ports: ["8025:8025", "1025:1025"]
+</pre>
+<pre class="code" data-lang="bash">
+docker compose up -d                     # db เท่านั้น
+docker compose --profile tools up -d     # db + pgadmin + mailpit
+</pre>
+      </div>
+      <div class="card gold mt"><p>ตัวอย่างที่ใช้บ่อย: เครื่องมือจัดการ DB, Mailpit สำหรับทดสอบอีเมล, Kafka UI / RabbitMQ management, job ที่ seed ข้อมูล</p></div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="ข้อผิดพลาดที่พบบ่อย">
+    <div class="slide-inner">
+      <div class="eyebrow">Pitfalls</div>
+      <h2>ข้อผิดพลาดที่พบบ่อย</h2>
+      <div class="grid grid-2">
+        <div class="card bad"><h4>ใช้ <code>localhost</code> คุยข้าม service</h4><p class="small muted">ใน container <code>localhost</code> คือตัวมันเอง ต้องใช้ชื่อ service เช่น <code>Host=db</code></p></div>
+        <div class="card bad"><h4>แก้โค้ดแล้วไม่เห็นผล</h4><p class="small muted">image เดิมยังอยู่ ต้อง <code>up -d --build</code> (หรือใช้ watch ในตอนที่ 6)</p></div>
+        <div class="card bad"><h4>port ซ้ำกับโปรแกรมในเครื่อง</h4><p class="small muted">"port is already allocated" → เปลี่ยนฝั่งซ้าย เช่น <code>"15432:5432"</code></p></div>
+        <div class="card bad"><h4>เปิด port DB ใน production</h4><p class="small muted">ให้ service คุยกันใน network ภายใน ไม่ต้อง <code>ports:</code> สำหรับ DB</p></div>
+      </div>
+      <div class="tag-row"><span class="muted small">ตอนถัดไป →</span><a class="tag gold" href="docker-04-env-config.html">ตอนที่ 4: การจัดการ .env และ Config</a><a class="tag" href="docker-02-dockerfile.html">← ตอนที่ 2</a></div>
+    </div>
+  </section>
+
+</main>
+<script>
+window.KV_GLOSSARY = {
+  dns: { title: "Service Discovery (DNS ภายใน)", body: "Compose สร้าง network ให้ทุก service ใน project และตั้งชื่อ service เป็น hostname อัตโนมัติ container จึงเรียกกันด้วยชื่อได้ ไม่ต้องรู้ IP", example: "api เชื่อม PostgreSQL ด้วย Host=db และ Next.js เรียก API ด้วย http://api:8080" }
+};
+</script>
+<script src="../../assets/kv-deck.js"></script>
+</body>
+</html>

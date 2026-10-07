@@ -4,12 +4,20 @@
   "categories": [
     { "id": "frontend",  "name": "Frontend",           "icon": "⚛️", "desc": "React, Next.js, UI และ Performance" },
     { "id": "backend",   "name": "Backend & API",      "icon": "🛠️", "desc": ".NET / C#, Web API, Database" },
+    { "id": "docker",    "name": "Docker สำหรับ Dev",   "icon": "🐳", "desc": "ซีรีส์ 7 ตอน จากพื้นฐานถึง .env และ Production" },
     { "id": "team",      "name": "Team & Process",     "icon": "🤝", "desc": "Git, Code Review, มาตรฐานการทำงาน" },
     { "id": "messaging", "name": "Messaging & Queue",  "icon": "📨", "desc": "Kafka, RabbitMQ, Background Job" },
     { "id": "testing",   "name": "Testing",            "icon": "🧪", "desc": "E2E, Unit, Integration Test" },
     { "id": "devops",    "name": "DevOps & Server",    "icon": "🖥️", "desc": "Docker, Server, Deployment" }
   ],
   "docs": [
+    { "category": "docker", "title": "Docker 1: พื้นฐานที่ Dev ต้องรู้", "desc": "Image vs Container, docker run, ดู log, เข้าไปใน container และทำความสะอาดเครื่อง", "path": "docs/docker/docker-01-basics.html", "date": "2026-10-07", "slides": 10, "level": "พื้นฐาน", "tags": ["docker", "cli", "beginner"] },
+    { "category": "docker", "title": "Docker 2: เขียน Dockerfile", "desc": "คำสั่งหลัก, Layer cache, .dockerignore, Multi-stage และตัวอย่าง Next.js / .NET", "path": "docs/docker/docker-02-dockerfile.html", "date": "2026-10-07", "slides": 10, "level": "พื้นฐาน–กลาง", "tags": ["dockerfile", "nextjs", "dotnet", "multi-stage"] },
+    { "category": "docker", "title": "Docker 3: Docker Compose", "desc": "รัน Next.js + .NET + PostgreSQL + Redis ด้วยคำสั่งเดียว, healthcheck, override, profiles", "path": "docs/docker/docker-03-compose.html", "date": "2026-10-07", "slides": 9, "level": "พื้นฐาน–กลาง", "tags": ["compose", "healthcheck", "profiles"] },
+    { "category": "docker", "title": "Docker 4: การจัดการ .env และ Config", "desc": ".env vs env_file vs environment, ค่าไหนชนะ, ARG vs ENV, NEXT_PUBLIC, .NET config, Secrets", "path": "docs/docker/docker-04-env-config.html", "date": "2026-10-07", "slides": 14, "level": "กลาง", "tags": ["env", "config", "secrets", "nextjs", "dotnet"] },
+    { "category": "docker", "title": "Docker 5: Volume & Network", "desc": "Named volume vs bind mount, backup/restore DB, container คุยกันอย่างไร, host.docker.internal", "path": "docs/docker/docker-05-volumes-network.html", "date": "2026-10-07", "slides": 10, "level": "กลาง", "tags": ["volume", "network", "backup"] },
+    { "category": "docker", "title": "Docker 6: Dev Workflow & แก้ปัญหา", "desc": "Hot reload ด้วย compose watch, Windows/WSL2, ลำดับการ debug และ error ที่เจอบ่อย", "path": "docs/docker/docker-06-dev-workflow.html", "date": "2026-10-07", "slides": 9, "level": "กลาง", "tags": ["hot-reload", "watch", "wsl2", "troubleshooting"] },
+    { "category": "docker", "title": "Docker 7: Production & Security", "desc": "Image tag, healthcheck, resource limit, hardening, scan ช่องโหว่ และ CI/CD flow", "path": "docs/docker/docker-07-production.html", "date": "2026-10-07", "slides": 9, "level": "กลาง–สูง", "tags": ["production", "security", "ci-cd"] },
     { "category": "frontend",  "title": "React Essentials สำหรับทีม", "desc": "Component, Hooks, State, Data fetching, Forms และ Checklist ก่อนเปิด PR", "path": "docs/frontend/react-essentials.html", "date": "2026-10-06", "slides": 13, "level": "พื้นฐาน–กลาง", "tags": ["react", "hooks", "tanstack-query", "zod"] },
     { "category": "frontend",  "title": "Next.js App Router Playbook", "desc": "Server vs Client Component, Rendering, Cache, Server Actions และ BFF กับ .NET", "path": "docs/frontend/nextjs-app-router.html", "date": "2026-10-06", "slides": 13, "level": "กลาง", "tags": ["nextjs", "rsc", "server-actions", "seo"] },
     { "category": "backend",   "title": ".NET Web API & Clean Architecture", "desc": "โครงสร้าง Solution, DI, EF Core, Validation, ProblemDetails, Logging และ Testing", "path": "docs/backend/dotnet-clean-architecture.html", "date": "2026-10-06", "slides": 13, "level": "กลาง", "tags": ["dotnet", "csharp", "ef-core", "clean-architecture"] },

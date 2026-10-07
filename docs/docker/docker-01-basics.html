@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>Docker 1: พื้นฐานที่ Dev ต้องรู้</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css">
+</head>
+<body data-title="Docker 1: พื้นฐานที่ Dev ต้องรู้" data-mark="D1">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">🐳 Docker สำหรับ Dev · ตอนที่ 1/7</div>
+      <h1><span class="grad">Docker พื้นฐาน</span><br>Image, Container และคำสั่งที่ใช้ทุกวัน</h1>
+      <p class="lead">จบตอนนี้คุณจะรัน container ได้, ดู log ได้, เข้าไปดูข้างในได้ และรู้ว่า Image กับ Container ต่างกันอย่างไร</p>
+      <div class="tag-row"><span class="tag gold">Image</span><span class="tag blue">Container</span><span class="tag">Registry</span><span class="tag">Port</span><span class="tag">CLI</span></div>
+      <div class="quote">“รันบนเครื่องผมได้” จะไม่ใช่ข้ออ้างอีกต่อไป เพราะทุกคนรันจาก image เดียวกัน</div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="Docker แก้ปัญหาอะไร">
+    <div class="slide-inner">
+      <div class="eyebrow">ปัญหาที่แก้</div>
+      <h2>ทำไมทีมต้องใช้ Docker</h2>
+      <div class="grid grid-2">
+        <div class="dont"><h4>ไม่มี Docker</h4><ul>
+          <li>คนใหม่ใช้ 1–2 วันติดตั้ง Node, .NET SDK, PostgreSQL, Redis</li>
+          <li>เครื่องแต่ละคนเวอร์ชันไม่ตรงกัน → bug เฉพาะเครื่อง</li>
+          <li>Server production ตั้งค่าไม่เหมือนเครื่อง dev</li>
+        </ul></div>
+        <div class="do"><h4>มี Docker</h4><ul>
+          <li><code>docker compose up</code> คำสั่งเดียว ได้ระบบครบทั้งชุด</li>
+          <li>ทุกคนใช้เวอร์ชันเดียวกันตามที่เขียนไว้ในไฟล์</li>
+          <li>image ที่ทดสอบผ่าน คือ image เดียวกับที่ขึ้น production</li>
+        </ul></div>
+      </div>
+      <div class="callout">Docker ไม่ใช่ Virtual Machine: container ใช้ kernel ร่วมกับเครื่องหลัก จึงเปิดเร็วเป็นวินาทีและกินทรัพยากรน้อยกว่ามาก</div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="Image vs Container">
+    <div class="slide-inner">
+      <div class="eyebrow">แนวคิดหลัก</div>
+      <h2>Image vs Container</h2>
+      <div class="diagram"><div class="flow">
+        <div class="node">Dockerfile<small>สูตรอาหาร</small></div><div class="arrow">— build →</div>
+        <div class="node gold">Image<small>อาหารแช่แข็ง (อ่านอย่างเดียว)</small></div><div class="arrow">— run →</div>
+        <div class="node green">Container<small>อาหารที่อุ่นแล้วกำลังกิน</small></div>
+      </div></div>
+      <div class="grid grid-3 mt">
+        <div class="card gold"><h3>Image<button class="term" data-term="image"></button></h3><p class="muted">แม่แบบที่มี OS ย่อ + runtime + โค้ด แก้ไขไม่ได้</p><p class="small">ตัวอย่าง: <code>postgres:17</code>, <code>node:22-alpine</code></p></div>
+        <div class="card good"><h3>Container</h3><p class="muted">สิ่งที่รันอยู่จริงจาก image 1 image รันได้หลาย container</p><p class="small">ลบ container แล้ว ข้อมูลข้างในหายด้วย (ถ้าไม่ใช้ volume)</p></div>
+        <div class="card violet"><h3>Registry<button class="term" data-term="registry"></button></h3><p class="muted">ที่เก็บ image ให้ดาวน์โหลด</p><p class="small">Docker Hub, GitHub Container Registry (ghcr.io)</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="ชื่อ Image และ Tag">
+    <div class="slide-inner">
+      <div class="eyebrow">อ่านชื่อ Image ให้เป็น</div>
+      <h2>ชื่อ Image = <span class="gold">registry/ชื่อ:tag</span></h2>
+<pre class="code" data-lang="text">
+ghcr.io/mercent/order-api:1.4.2
+└──┬──┘ └──┬──┘ └───┬───┘ └─┬─┘
+registry  owner   ชื่อ image  tag (เวอร์ชัน)
+
+postgres:17-alpine     → Docker Hub (ไม่ระบุ registry), tag = 17-alpine
+node:22                → ไม่ใช่ alpine (ใหญ่กว่า แต่เข้ากันได้ดีกว่า)
+nginx                  → ไม่ใส่ tag = latest
+</pre>
+      <div class="grid grid-3 mt">
+        <div class="card bad"><h4>ห้ามพึ่ง <code>latest</code></h4><p class="small muted">วันนี้กับพรุ่งนี้อาจได้คนละเวอร์ชัน ระบุ tag เสมอ</p></div>
+        <div class="card"><h4><code>-alpine</code></h4><p class="small muted">เล็กมาก (~5MB base) แต่ใช้ musl อาจมีปัญหากับ native library บางตัว</p></div>
+        <div class="card gold"><h4><code>-slim</code></h4><p class="small muted">Debian ตัดของไม่จำเป็นออก เป็นตัวเลือกกลางที่ปลอดภัย</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="คำสั่งแรก: docker run">
+    <div class="slide-inner">
+      <div class="eyebrow">ลงมือ</div>
+      <h2>คำสั่งแรก: <code>docker run</code></h2>
+<pre class="code" data-lang="bash">
+docker run -d --name pg -p 5432:5432 -e POSTGRES_PASSWORD=dev postgres:17-alpine
+</pre>
+      <div class="table-wrap mt"><table class="table">
+        <tr><th>ส่วน</th><th>ความหมาย</th></tr>
+        <tr><td><code>-d</code></td><td>รันเบื้องหลัง (detached) คืน terminal ให้ทันที</td></tr>
+        <tr><td><code>--name pg</code></td><td>ตั้งชื่อ ไว้อ้างถึงภายหลัง (ไม่ตั้ง Docker จะสุ่มชื่อให้)</td></tr>
+        <tr><td><code>-p 5432:5432</code></td><td>port <strong class="gold">เครื่องเรา : port ใน container</strong><button class="term" data-term="port"></button></td></tr>
+        <tr><td><code>-e KEY=value</code></td><td>ส่ง environment variable เข้า container (ละเอียดในตอนที่ 4)</td></tr>
+        <tr><td><code>postgres:17-alpine</code></td><td>image ที่ใช้ ถ้าไม่มีในเครื่องจะดาวน์โหลดให้อัตโนมัติ</td></tr>
+      </table></div>
+      <p class="muted small mt">เพิ่ม <code>--rm</code> เพื่อลบ container อัตโนมัติเมื่อหยุด เหมาะกับการลองของชั่วคราว</p>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="วงจรชีวิต Container">
+    <div class="slide-inner">
+      <div class="eyebrow">Lifecycle</div>
+      <h2>วงจรชีวิตของ Container</h2>
+      <div class="diagram"><div class="flow">
+        <div class="node">created</div><div class="arrow">→ start →</div>
+        <div class="node green">running</div><div class="arrow">→ stop →</div>
+        <div class="node gold">exited<small>ข้อมูลยังอยู่</small></div><div class="arrow">→ rm →</div>
+        <div class="node violet">ถูกลบ<small>ข้อมูลหาย</small></div>
+      </div></div>
+<pre class="code mt" data-lang="bash">
+docker stop pg        # หยุด (ส่ง SIGTERM รอ 10 วินาที แล้วค่อย kill)
+docker start pg       # เปิดตัวเดิมขึ้นมาใหม่ ข้อมูลข้างในยังอยู่
+docker restart pg
+docker rm pg          # ลบ (ต้อง stop ก่อน หรือใช้ -f)
+docker rm -f pg       # บังคับหยุดและลบทันที
+</pre>
+      <div class="callout warn">container ถูกออกแบบให้ “ทิ้งได้” ข้อมูลที่ต้องเก็บ เช่น ฐานข้อมูล ต้องอยู่ใน <strong>volume</strong> (ตอนที่ 5)</div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="ดูสถานะและ Log">
+    <div class="slide-inner">
+      <div class="eyebrow">ตรวจสอบ</div>
+      <h2>ดูว่าอะไรรันอยู่ และเกิดอะไรขึ้น</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="bash">
+docker ps              # container ที่กำลังรัน
+docker ps -a           # รวมตัวที่หยุดแล้ว
+docker images          # image ในเครื่อง
+
+docker logs pg         # log ทั้งหมด
+docker logs -f pg      # ติดตาม log แบบ real-time
+docker logs --tail 100 -f pg
+
+docker stats           # CPU / RAM ของแต่ละ container
+docker inspect pg      # รายละเอียดทั้งหมด (IP, env, mount)
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4>container หยุดเองทันที?</h4><p class="small muted">ดู <code>docker ps -a</code> ช่อง STATUS เช่น <code>Exited (1)</code> แล้ว <code>docker logs</code> หา error</p></div>
+          <div class="card"><h4>Exit code ที่เจอบ่อย</h4><p class="small muted"><code>0</code> จบปกติ · <code>1</code> แอป error · <code>137</code> ถูก kill (มักเพราะ RAM ไม่พอ) · <code>143</code> ถูกสั่ง stop</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="เข้าไปข้างใน Container">
+    <div class="slide-inner">
+      <div class="eyebrow">Debug</div>
+      <h2>เข้าไปข้างใน Container ด้วย <code>docker exec</code></h2>
+<pre class="code" data-lang="bash">
+docker exec -it pg sh                      # เปิด shell (alpine ใช้ sh, debian ใช้ bash)
+docker exec -it pg psql -U postgres        # รันคำสั่งเดียวโดยตรง
+docker exec pg env                         # ดู environment variables ที่ container เห็น
+
+docker cp pg:/var/lib/postgresql/data/postgresql.conf ./   # copy ไฟล์ออกมา
+docker cp ./seed.sql pg:/tmp/seed.sql                       # copy ไฟล์เข้าไป
+</pre>
+      <div class="grid grid-2 mt">
+        <div class="card"><h4><code>-it</code> คืออะไร</h4><p class="small muted"><code>-i</code> รับ input จาก keyboard · <code>-t</code> จำลอง terminal ใช้คู่กันเมื่อต้องพิมพ์โต้ตอบ</p></div>
+        <div class="card bad"><h4>อย่าแก้ไฟล์ใน container เพื่อแก้ปัญหาถาวร</h4><p class="small muted">ลบ container แล้วหายหมด ให้แก้ที่ Dockerfile / config แล้ว build ใหม่</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="ทำความสะอาดเครื่อง">
+    <div class="slide-inner">
+      <div class="eyebrow">Housekeeping</div>
+      <h2>Docker กินพื้นที่ดิสก์ — ทำความสะอาดเป็นระยะ</h2>
+<pre class="code" data-lang="bash">
+docker system df                 # ดูว่าอะไรใช้พื้นที่เท่าไร
+docker container prune           # ลบ container ที่หยุดแล้ว
+docker image prune               # ลบ image ที่ไม่มีชื่อ (dangling)
+docker image prune -a            # ลบ image ที่ไม่มี container ใช้เลย
+docker builder prune             # ล้าง build cache
+docker system prune              # ลบทั้งหมดข้างบน (ยกเว้น volume)
+</pre>
+      <div class="callout bad"><code>docker system prune --volumes</code> และ <code>docker volume prune</code> <strong>ลบข้อมูลฐานข้อมูลใน volume ด้วย</strong> ใช้เมื่อแน่ใจเท่านั้น</div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title="Cheat Sheet">
+    <div class="slide-inner">
+      <div class="eyebrow">สรุป</div>
+      <h2>Cheat Sheet ตอนที่ 1</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>อยากทำ</th><th>คำสั่ง</th></tr>
+        <tr><td>รัน container เบื้องหลัง</td><td><code>docker run -d --name app -p 8080:80 nginx:1.27</code></td></tr>
+        <tr><td>ดูตัวที่รันอยู่ / ทั้งหมด</td><td><code>docker ps</code> / <code>docker ps -a</code></td></tr>
+        <tr><td>ดู log แบบติดตาม</td><td><code>docker logs -f app</code></td></tr>
+        <tr><td>เข้า shell</td><td><code>docker exec -it app sh</code></td></tr>
+        <tr><td>หยุด / เปิด / ลบ</td><td><code>docker stop app</code> / <code>docker start app</code> / <code>docker rm -f app</code></td></tr>
+        <tr><td>ดาวน์โหลด image</td><td><code>docker pull postgres:17-alpine</code></td></tr>
+        <tr><td>ดูพื้นที่ / ล้าง</td><td><code>docker system df</code> / <code>docker system prune</code></td></tr>
+      </table></div>
+      <div class="tag-row"><span class="muted small">ตอนถัดไป →</span><a class="tag gold" href="docker-02-dockerfile.html">ตอนที่ 2: เขียน Dockerfile</a></div>
+    </div>
+  </section>
+
+</main>
+<script>
+window.KV_GLOSSARY = {
+  image: { title: "Image", body: "แพ็กเกจแบบอ่านอย่างเดียวที่บรรจุทุกอย่างที่แอปต้องใช้ (ระบบไฟล์ OS ย่อ, runtime, library, โค้ด) ประกอบด้วยหลาย layer ซ้อนกัน", example: "node:22-alpine คือ Alpine Linux + Node.js 22 พร้อมใช้" },
+  registry: { title: "Registry", body: "เซิร์ฟเวอร์เก็บและแจกจ่าย image คล้าย npm หรือ NuGet แต่สำหรับ image", example: "CI build image แล้ว push ไป ghcr.io จากนั้น server production ดึงไปรัน" },
+  port: { title: "Port Mapping", body: "container มีเครือข่ายแยกของตัวเอง ต้องเปิดทางจาก port ของเครื่องเราเข้าไปยัง port ใน container ด้วย -p ฝั่งซ้ายคือเครื่องเรา ฝั่งขวาคือใน container", example: "-p 15432:5432 → ต่อ DB จากเครื่องเราที่ localhost:15432 เหมาะเมื่อ 5432 ถูกใช้อยู่แล้ว" }
+};
+</script>
+<script src="../../assets/kv-deck.js"></script>
+</body>
+</html>

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>Docker 7: Production &amp; Security</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css">
+</head>
+<body data-title="Docker 7: Production &amp; Security" data-mark="D7">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">🐳 Docker สำหรับ Dev · ตอนที่ 7/7</div>
+      <h1><span class="grad">Production &amp; Security</span><br>จากเครื่อง dev สู่ระบบจริง</h1>
+      <p class="lead">สิ่งที่ต้องเปลี่ยนเมื่อนำ container ขึ้น production: การตั้ง tag, healthcheck, การจำกัดทรัพยากร, log, ความปลอดภัย และ flow CI/CD ที่ rollback ได้</p>
+      <div class="tag-row"><span class="tag gold">Image Tag</span><span class="tag blue">Healthcheck</span><span class="tag">Non-root</span><span class="tag">Image Scan</span><span class="tag">CI/CD</span></div>
+      <div class="quote">dev ต้องการ “สะดวก” · production ต้องการ “คาดเดาได้ ปลอดภัย และกู้คืนได้”</div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="Dev vs Production">
+    <div class="slide-inner">
+      <div class="eyebrow">ต่างกันอย่างไร</div>
+      <h2>สิ่งที่ต้องเปลี่ยนเมื่อขึ้น Production</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>หัวข้อ</th><th>Dev</th><th>Production</th></tr>
+        <tr><td>Image</td><td><code>build:</code> จากโค้ดในเครื่อง</td><td><code>image:</code> ที่ CI build แล้ว พร้อม tag ชัดเจน</td></tr>
+        <tr><td>โค้ด</td><td>bind mount / watch</td><td>อยู่ใน image เท่านั้น</td></tr>
+        <tr><td>Port DB</td><td>เปิดให้ต่อจากเครื่อง</td><td>ไม่เปิด เข้าถึงผ่าน network ภายใน</td></tr>
+        <tr><td>Secret</td><td><code>.env</code> บนเครื่อง</td><td>secret / ระบบจัดการ env ของแพลตฟอร์ม</td></tr>
+        <tr><td>Restart</td><td>ไม่จำเป็น</td><td><code>restart: unless-stopped</code></td></tr>
+        <tr><td>Log</td><td>ดูด้วย <code>logs -f</code></td><td>จำกัดขนาด + ส่งไประบบรวม log</td></tr>
+        <tr><td>Resource</td><td>ไม่จำกัด</td><td>จำกัด CPU / RAM ต่อ service</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="Image Tag Strategy">
+    <div class="slide-inner">
+      <div class="eyebrow">รู้ว่าอะไรรันอยู่</div>
+      <h2>ตั้ง Tag ให้ย้อนกลับได้เสมอ</h2>
+<pre class="code" data-lang="bash">
+# CI สร้าง tag ทั้งเวอร์ชันและ commit
+docker build -t ghcr.io/mercent/shop-api:1.4.2 \
+             -t ghcr.io/mercent/shop-api:sha-3f9c2a1 .
+docker push ghcr.io/mercent/shop-api --all-tags
+</pre>
+      <div class="grid grid-3 mt">
+        <div class="card good"><h4>Immutable tag<button class="term" data-term="immutable"></button></h4><p class="small muted"><code>1.4.2</code> และ <code>sha-3f9c2a1</code> ต้องไม่ถูกเขียนทับ รู้เสมอว่ารันโค้ดอะไร</p></div>
+        <div class="card bad"><h4>ห้าม deploy <code>latest</code></h4><p class="small muted">rollback ไม่ได้ และไม่รู้ว่าแต่ละเครื่องรันเวอร์ชันไหน</p></div>
+        <div class="card gold"><h4>Rollback = เปลี่ยน tag</h4><p class="small muted">แก้ <code>image: ...:1.4.1</code> แล้ว <code>up -d</code> หรือกด redeploy เวอร์ชันก่อนใน Coolify</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="Compose สำหรับ Production">
+    <div class="slide-inner">
+      <div class="eyebrow">ตัวอย่าง</div>
+      <h2><code>compose.prod.yaml</code></h2>
+<pre class="code" data-lang="yaml">
+services:
+  api:
+    image: ghcr.io/mercent/shop-api:${API_TAG:?ต้องระบุ API_TAG}
+    restart: unless-stopped
+    env_file: [/srv/shop/api.env]            # อยู่บน server ไม่อยู่ใน Git
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 512M }
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    stop_grace_period: 30s
+</pre>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="Healthcheck">
+    <div class="slide-inner">
+      <div class="eyebrow">ระบบรู้ว่าแอปพร้อมจริง</div>
+      <h2>Healthcheck: “รันอยู่” ไม่เท่ากับ “พร้อมใช้งาน”</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="csharp">
+// .NET: Program.cs
+builder.Services.AddHealthChecks()
+    .AddNpgSql(builder.Configuration.GetConnectionString("Default")!)
+    .AddRedis(builder.Configuration["Redis:Connection"]!);
+
+app.MapHealthChecks("/health");
+</pre>
+<pre class="code" data-lang="ts">
+// Next.js: app/api/health/route.ts
+export const dynamic = "force-dynamic";
+export function GET() {
+  return Response.json({ status: "ok" });
+}
+</pre>
+      </div>
+      <div class="grid grid-3 mt">
+        <div class="card gold"><h4>ใช้ทำอะไร</h4><p class="small muted"><code>depends_on</code> รอ, reverse proxy ไม่ส่ง traffic ไปตัวที่ป่วย, Coolify/Swarm restart ตัวที่ป่วย</p></div>
+        <div class="card"><h4>image ต้องมีเครื่องมือ</h4><p class="small muted">image ของ aspnet ไม่มี <code>curl</code> โดยค่าเริ่มต้น ต้องติดตั้งเพิ่ม หรือใช้ healthcheck ฝั่ง proxy แทน</p></div>
+        <div class="card bad"><h4>อย่าเช็คหนักเกินไป</h4><p class="small muted">health ที่ query DB หนักทุก 5 วินาทีก็สร้างภาระได้</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="Security Hardening">
+    <div class="slide-inner">
+      <div class="eyebrow">ความปลอดภัย</div>
+      <h2>ลดความเสียหายถ้า container ถูกเจาะ</h2>
+      <div class="grid grid-2">
+        <div class="card gold"><h4>1. ไม่รันเป็น root</h4><p class="small muted"><code>USER node</code> / <code>USER $APP_UID</code> ใน Dockerfile</p></div>
+        <div class="card gold"><h4>2. ระบบไฟล์อ่านอย่างเดียว</h4><p class="small muted"><code>read_only: true</code> + <code>tmpfs</code> สำหรับโฟลเดอร์ที่ต้องเขียน</p></div>
+        <div class="card"><h4>3. ตัดสิทธิ์พิเศษของ Linux</h4><p class="small muted"><code>cap_drop: [ALL]</code> และ <code>no-new-privileges</code></p></div>
+        <div class="card"><h4>4. ใช้ base image เล็กและอัปเดต</h4><p class="small muted"><code>-alpine</code> / <code>-slim</code> / chiseled ของ .NET · rebuild เมื่อมี security patch</p></div>
+        <div class="card bad"><h4>5. ห้าม mount <code>/var/run/docker.sock</code></h4><p class="small muted">เทียบเท่าให้สิทธิ์ root ของทั้ง server ยกเว้นเครื่องมือที่จำเป็นจริงและเชื่อถือได้</p></div>
+        <div class="card bad"><h4>6. ห้าม <code>privileged: true</code></h4><p class="small muted">container ทำได้แทบทุกอย่างบน host</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="Scan ช่องโหว่">
+    <div class="slide-inner">
+      <div class="eyebrow">Supply Chain</div>
+      <h2>Scan image หาช่องโหว่ก่อน deploy</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="bash">
+# Docker Scout (มากับ Docker Desktop)
+docker scout quickview ghcr.io/mercent/shop-api:1.4.2
+docker scout cves ghcr.io/mercent/shop-api:1.4.2
+
+# Trivy (open source, ใช้ใน CI ได้)
+trivy image --severity HIGH,CRITICAL --exit-code 1 \
+  ghcr.io/mercent/shop-api:1.4.2
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4>ใส่ใน CI</h4><p class="small muted">พบ CRITICAL → pipeline ไม่ผ่าน ไม่ push image</p></div>
+          <div class="card"><h4>อัปเดต base image อัตโนมัติ</h4><p class="small muted">Dependabot / Renovate อ่าน <code>FROM</code> ใน Dockerfile แล้วเปิด PR ให้</p></div>
+          <div class="card violet"><h4>ใช้ image ทางการ</h4><p class="small muted">Docker Official / Verified Publisher เช่น <code>postgres</code>, <code>mcr.microsoft.com/dotnet</code></p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="CI/CD Flow">
+    <div class="slide-inner">
+      <div class="eyebrow">ส่งขึ้น Production</div>
+      <h2>Flow ที่แนะนำ</h2>
+      <div class="diagram"><div class="flow">
+        <div class="node">Push / Merge<small>main</small></div><div class="arrow">→</div>
+        <div class="node">CI: test<small>unit + integration</small></div><div class="arrow">→</div>
+        <div class="node gold">Build image<small>tag: version + sha</small></div><div class="arrow">→</div>
+        <div class="node">Scan<small>Trivy / Scout</small></div><div class="arrow">→</div>
+        <div class="node violet">Push<small>ghcr.io</small></div><div class="arrow">→</div>
+        <div class="node green">Deploy<small>Coolify ดึง tag ใหม่</small></div>
+      </div></div>
+      <div class="grid grid-3 mt">
+        <div class="card gold"><h4>build ครั้งเดียว ใช้ทุก env</h4><p class="small muted">image เดียวกันผ่าน staging แล้วค่อยขึ้น production (เปลี่ยนแค่ env)</p></div>
+        <div class="card"><h4>Database migration</h4><p class="small muted">รันเป็น job แยกก่อน deploy แอป ไม่ให้หลาย replica รัน migration พร้อมกันตอน start</p></div>
+        <div class="card bad"><h4>migration ต้องย้อนกลับได้</h4><p class="small muted">rollback image ได้ แต่ข้อมูลไม่ย้อนเอง (ดูเรื่อง aaPanel vs Coolify)</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="Checklist ก่อนขึ้น Production">
+    <div class="slide-inner">
+      <div class="eyebrow">Production Checklist</div>
+      <h2>Checklist ก่อนขึ้น Production</h2>
+      <div class="grid grid-2">
+        <div class="card good"><ul>
+          <li>☐ image tag แบบ immutable (version + sha)</li>
+          <li>☐ multi-stage, non-root, base image ล่าสุด</li>
+          <li>☐ scan ไม่มี CRITICAL</li>
+          <li>☐ healthcheck + <code>restart: unless-stopped</code></li>
+          <li>☐ จำกัด CPU / RAM และขนาด log</li>
+        </ul></div>
+        <div class="card gold"><ul>
+          <li>☐ secret ไม่อยู่ใน image / Git</li>
+          <li>☐ DB ไม่เปิด port สู่ภายนอก, มี backup ที่ทดสอบ restore แล้ว</li>
+          <li>☐ migration แยก job และย้อนกลับได้</li>
+          <li>☐ รู้ขั้นตอน rollback ไปเวอร์ชันก่อน</li>
+          <li>☐ แอปปิดตัวสุภาพเมื่อได้ SIGTERM</li>
+        </ul></div>
+      </div>
+      <div class="quote">🎉 จบซีรีส์ Docker สำหรับ Dev — กลับไปทบทวนตอนไหนก็ได้จากหมวด 🐳 ในหน้าแรก</div>
+      <div class="tag-row"><a class="tag" href="docker-01-basics.html">ตอนที่ 1: พื้นฐาน</a><a class="tag gold" href="docker-04-env-config.html">ตอนที่ 4: .env &amp; Config</a><a class="tag blue" href="../devops/docker-coolify-aapanel.html">aaPanel vs Coolify</a><a class="tag" href="docker-06-dev-workflow.html">← ตอนที่ 6</a></div>
+    </div>
+  </section>
+
+</main>
+<script>
+window.KV_GLOSSARY = {
+  immutable: { title: "Immutable Tag", body: "tag ที่เมื่อ push แล้วจะไม่ถูกเขียนทับด้วย image อื่นอีก ทำให้ tag หนึ่งชี้ไปที่โค้ดชุดเดียวตลอดไป ตรวจสอบย้อนหลังและ rollback ได้แน่นอน", example: "sha-3f9c2a1 = image ที่ build จาก commit 3f9c2a1 เสมอ ต่างจาก latest ที่เปลี่ยนทุกครั้งที่ build" }
+};
+</script>
+<script src="../../assets/kv-deck.js"></script>
+</body>
+</html>

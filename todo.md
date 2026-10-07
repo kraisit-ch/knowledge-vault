@@ -111,8 +111,18 @@ git add . && git commit -m "docs(backend): add ef-core performance" && git push
 - [ ] Incident Response & Postmortem template
 - [ ] การใช้ AI (Claude Code / Copilot) ในทีมอย่างปลอดภัย
 
+### 🐳 Docker สำหรับ Dev (ซีรีส์ `docs/docker/`)
+- [x] ตอนที่ 1: พื้นฐาน (Image, Container, คำสั่งประจำวัน)
+- [x] ตอนที่ 2: เขียน Dockerfile (Layer cache, Multi-stage, Next.js / .NET)
+- [x] ตอนที่ 3: Docker Compose
+- [x] ตอนที่ 4: การจัดการ .env และ Config
+- [x] ตอนที่ 5: Volume & Network
+- [x] ตอนที่ 6: Dev Workflow & แก้ปัญหา (Windows / WSL2)
+- [x] ตอนที่ 7: Production & Security
+- [ ] ตอนเสริม: Dev Containers (VS Code) สำหรับทีม
+- [ ] ตอนเสริม: รัน SQL Server / RabbitMQ / Kafka สำหรับ dev ด้วย Compose
+
 ### 🖥️ DevOps & Security
-- [ ] Docker สำหรับ Next.js + .NET (multi-stage build)
 - [ ] CI/CD ด้วย GitHub Actions → Deploy (Coolify / VPS)
 - [ ] Logging & Monitoring (Serilog + Seq / Grafana)
 - [ ] OWASP Top 10 สำหรับเว็บแอป
@@ -141,6 +151,15 @@ git add . && git commit -m "docs(backend): add ef-core performance" && git push
 ## 7. บันทึกงาน (Work Log)
 
 > เพิ่มรายการใหม่ไว้ **บนสุด** ทุกครั้งที่ push งาน ระบุวันที่, สิ่งที่ทำ และ commit
+
+### 2026-10-07
+
+| งาน | Commit |
+|---|---|
+| เพิ่มหมวด **🐳 Docker สำหรับ Dev** ซีรีส์ 7 ตอน (70 สไลด์): พื้นฐาน · Dockerfile · Compose · **.env & Config** (14 สไลด์) · Volume & Network · Dev Workflow & แก้ปัญหา · Production & Security — ทุกตอนลิงก์ไปตอนถัดไป | ดู `git log` |
+| ธีม: ไฮไลต์ keyword/ตัวเลขเฉพาะภาษาโปรแกรม (Dockerfile/YAML/bash ไม่ระบายสีคำอย่าง `from`, `public` ผิด) · คอมเมนต์ `#` ใน Dockerfile แสดงเป็นคอมเมนต์ | ดู `git log` |
+| หน้าแรก: การ์ดหมวดหมู่ 7 หมวดพอดีแถวเดียว · กดเมนูแล้วหัวข้อไม่ถูกแถบด้านบนบัง | ดู `git log` |
+| `todo.md`: เพิ่ม roadmap ซีรีส์ Docker + ตอนเสริมที่ควรทำต่อ | ดู `git log` |
 
 ### 2026-10-06
 

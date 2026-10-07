@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>Docker 5: Volume &amp; Network</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css">
+</head>
+<body data-title="Docker 5: Volume &amp; Network" data-mark="D5">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">🐳 Docker สำหรับ Dev · ตอนที่ 5/7</div>
+      <h1><span class="grad">Volume &amp; Network</span><br>ข้อมูลไม่หาย และ container คุยกันได้</h1>
+      <p class="lead">เก็บข้อมูลฐานข้อมูลให้อยู่รอดเมื่อลบ container, เลือกระหว่าง volume กับ bind mount, สำรอง/กู้คืนข้อมูล และเข้าใจว่า container ต่อหากันหรือต่อออกมาที่เครื่องเราอย่างไร</p>
+      <div class="tag-row"><span class="tag gold">Named Volume</span><span class="tag blue">Bind Mount</span><span class="tag">Backup</span><span class="tag">Bridge Network</span><span class="tag">host.docker.internal</span></div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="ทำไมต้องมี Volume">
+    <div class="slide-inner">
+      <div class="eyebrow">ปัญหา</div>
+      <h2>ลบ container = ข้อมูลข้างในหาย</h2>
+      <div class="diagram"><div class="flow">
+        <div class="node">container db<small>ข้อมูลอยู่ใน container</small></div><div class="arrow">→ docker compose down →</div>
+        <div class="node" style="border-color:rgba(255,107,107,.5);background:rgba(255,107,107,.08)">ข้อมูลหายทั้งหมด</div>
+      </div>
+      <div class="flow mt">
+        <div class="node">container db</div><div class="arrow">↔ mount ↔</div>
+        <div class="node gold">volume pgdata<small>อยู่นอก container</small></div><div class="arrow">→ down / up ใหม่ →</div>
+        <div class="node green">ข้อมูลยังอยู่</div>
+      </div></div>
+      <p class="lead mt">ระบบไฟล์ใน container เป็นของชั่วคราว อะไรที่ต้องเก็บ (DB, ไฟล์อัปโหลด) ต้องเก็บใน volume</p>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="3 แบบของการ Mount">
+    <div class="slide-inner">
+      <div class="eyebrow">เลือกให้ถูก</div>
+      <h2>3 วิธีเก็บข้อมูล</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>แบบ</th><th>เขียนใน compose</th><th>ข้อมูลอยู่ที่</th><th>ใช้กับ</th></tr>
+        <tr><td><strong class="gold">Named volume</strong><button class="term" data-term="volume"></button></td><td><code>pgdata:/var/lib/postgresql/data</code></td><td>Docker จัดการให้</td><td>ฐานข้อมูล, Redis, ไฟล์อัปโหลด — <strong>ค่าเริ่มต้นที่ควรใช้</strong></td></tr>
+        <tr><td><strong class="blue">Bind mount</strong><button class="term" data-term="bind"></button></td><td><code>./web:/app</code></td><td>โฟลเดอร์บนเครื่องเรา</td><td>โค้ดตอน dev (hot reload), ไฟล์ config, seed SQL</td></tr>
+        <tr><td><strong>tmpfs</strong></td><td><code>tmpfs: [/tmp]</code></td><td>RAM (หายเมื่อหยุด)</td><td>ไฟล์ชั่วคราวที่ไม่อยากเขียนดิสก์</td></tr>
+      </table></div>
+<pre class="code mt" data-lang="yaml">
+services:
+  db:
+    image: postgres:17-alpine
+    volumes:
+      - pgdata:/var/lib/postgresql/data                          # named volume
+      - ./db/init:/docker-entrypoint-initdb.d:ro                 # bind mount (อ่านอย่างเดียว)
+volumes:
+  pgdata:
+</pre>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="จัดการ Volume">
+    <div class="slide-inner">
+      <div class="eyebrow">CLI</div>
+      <h2>คำสั่งจัดการ Volume</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="bash">
+docker volume ls                       # รายการ volume
+docker volume inspect shop_pgdata      # ดูรายละเอียด (ชื่อ = project_volume)
+docker volume rm shop_pgdata           # ลบ (ข้อมูลหาย)
+docker compose down -v                 # ลบ container + volume ของ project
+
+# รีเซ็ต DB บนเครื่อง dev ให้เริ่มใหม่หมด
+docker compose down -v
+docker compose up -d
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4>ชื่อ volume จริง</h4><p class="small muted">Compose เติมชื่อ project ข้างหน้า เช่น <code>pgdata</code> → <code>shop_pgdata</code></p></div>
+          <div class="card"><h4>init script ทำงานครั้งเดียว</h4><p class="small muted">ไฟล์ใน <code>/docker-entrypoint-initdb.d</code> ของ Postgres รันเฉพาะตอน volume ว่าง ถ้าแก้ script ต้อง <code>down -v</code> ก่อน</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="Backup & Restore">
+    <div class="slide-inner">
+      <div class="eyebrow">สำรองข้อมูล</div>
+      <h2>Backup &amp; Restore ฐานข้อมูลใน Container</h2>
+      <div class="grid grid-2">
+        <div class="card good"><h3>PostgreSQL</h3>
+<pre class="code" data-lang="bash">
+# backup → ไฟล์บนเครื่องเรา
+docker compose exec -T db pg_dump -U shop -Fc shop &gt; backup.dump
+
+# restore
+docker compose exec -T db pg_restore -U shop -d shop --clean &lt; backup.dump
+</pre></div>
+        <div class="card gold"><h3>SQL Server</h3>
+<pre class="code" data-lang="bash">
+docker compose exec mssql /opt/mssql-tools18/bin/sqlcmd \
+  -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -C \
+  -Q "BACKUP DATABASE Shop TO DISK='/var/opt/mssql/backup/shop.bak'"
+docker compose cp mssql:/var/opt/mssql/backup/shop.bak ./
+</pre></div>
+      </div>
+      <div class="callout"><code>-T</code> ปิดการจำลอง terminal จำเป็นเมื่อส่งข้อมูลผ่าน <code>&gt;</code> หรือ <code>&lt;</code> ไม่งั้นไฟล์ backup จะเสีย</div>
+      <div class="callout warn">การ copy โฟลเดอร์ volume ขณะ DB กำลังทำงานไม่ใช่ backup ที่เชื่อถือได้ ให้ใช้เครื่องมือของ DB (<code>pg_dump</code>, <code>BACKUP DATABASE</code>) เสมอ</div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="Network พื้นฐาน">
+    <div class="slide-inner">
+      <div class="eyebrow">Networking</div>
+      <h2>Container คุยกันอย่างไร</h2>
+      <div class="diagram">
+        <p class="small muted center">network <code>shop_default</code> (Compose สร้างให้อัตโนมัติ)</p>
+        <div class="flow">
+          <div class="node gold">web<small>:3000</small></div><div class="arrow">→ http://api:8080 →</div>
+          <div class="node">api<small>:8080</small></div><div class="arrow">→ Host=db →</div>
+          <div class="node violet">db<small>:5432</small></div>
+        </div>
+        <div class="flow mt"><div class="node green">เครื่องเรา (browser)</div><div class="arrow">→ localhost:3000 (ผ่าน ports:) →</div><div class="node gold">web</div></div>
+      </div>
+      <div class="grid grid-3 mt">
+        <div class="card gold"><h4>ภายใน network</h4><p class="small muted">ใช้ <strong>ชื่อ service + port ภายใน</strong> (5432) ไม่ใช่ port ที่ map ออกมา</p></div>
+        <div class="card"><h4>จากเครื่องเรา</h4><p class="small muted">ใช้ <code>localhost</code> + port <strong>ฝั่งซ้าย</strong> ของ <code>ports:</code></p></div>
+        <div class="card bad"><h4><code>localhost</code> ใน container</h4><p class="small muted">หมายถึงตัว container เอง ไม่ใช่เครื่องเรา และไม่ใช่ service อื่น</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="ports vs expose">
+    <div class="slide-inner">
+      <div class="eyebrow">เปิด port เท่าที่จำเป็น</div>
+      <h2><code>ports:</code> = เปิดให้นอก Docker เข้าถึง</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="yaml">
+services:
+  web:
+    ports: ["3000:3000"]          # ผู้ใช้ต้องเข้าถึง
+  api:
+    ports: ["127.0.0.1:8080:8080"] # เปิดเฉพาะเครื่องนี้ ไม่เปิดสู่ LAN
+  db:
+    # ไม่มี ports: → เข้าถึงได้เฉพาะ service ใน network เดียวกัน
+    image: postgres:17-alpine
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4>ผูกกับ <code>127.0.0.1</code></h4><p class="small muted"><code>"8080:8080"</code> เปิดให้ทุกเครื่องในวง LAN/Internet เห็น ถ้าไม่ต้องการให้ใส่ <code>127.0.0.1:</code> ข้างหน้า</p></div>
+          <div class="card bad"><h4>Docker ข้าม firewall (Linux)</h4><p class="small muted">port ที่ publish ไม่ถูก <code>ufw</code> บล็อก เพราะ Docker แก้ iptables เอง ระวังบน server จริง</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="Container ต่อออกมาที่เครื่องเรา">
+    <div class="slide-inner">
+      <div class="eyebrow">กรณีพิเศษ</div>
+      <h2>Container ต้องเรียกโปรแกรมที่รันบนเครื่องเรา</h2>
+      <p class="lead">เช่น รัน .NET API ใน Visual Studio (นอก Docker) แต่ Next.js อยู่ใน container</p>
+<pre class="code" data-lang="yaml">
+services:
+  web:
+    environment:
+      API_URL: http://host.docker.internal:5080
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # จำเป็นบน Linux (Docker Desktop มีให้อยู่แล้ว)
+</pre>
+      <div class="grid grid-2 mt">
+        <div class="card gold"><h4><code>host.docker.internal</code></h4><p class="small muted">ชื่อพิเศษที่ชี้กลับมาที่เครื่องเรา ใช้ได้ทันทีบน Docker Desktop (Windows/Mac)</p></div>
+        <div class="card"><h4>แอปบนเครื่องต้องฟัง <code>0.0.0.0</code> หรือ interface ที่เข้าถึงได้</h4><p class="small muted">ถ้าฟังเฉพาะ <code>localhost</code> บางกรณี container จะเข้าไม่ได้</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="แยก Network">
+    <div class="slide-inner">
+      <div class="eyebrow">ขั้นสูง</div>
+      <h2>แยก Network: ให้ DB คุยได้เฉพาะ API</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="yaml">
+services:
+  web:
+    networks: [frontend]
+  api:
+    networks: [frontend, backend]
+  db:
+    networks: [backend]
+
+networks:
+  frontend:
+  backend:
+    internal: true     # ไม่มีทางออก internet
+</pre>
+        <div class="diagram">
+          <div class="flow"><div class="node gold">web</div><div class="arrow">↔ frontend ↔</div><div class="node">api</div></div>
+          <div class="flow mt"><div class="node">api</div><div class="arrow">↔ backend ↔</div><div class="node violet">db</div></div>
+          <p class="small muted center mt">web เข้าถึง db ไม่ได้เลย ลดความเสียหายถ้า web ถูกโจมตี</p>
+        </div>
+      </div>
+      <p class="muted small mt">สำหรับเครื่อง dev ใช้ network ค่าเริ่มต้นก็พอ การแยก network เหมาะกับ production</p>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title="Checklist">
+    <div class="slide-inner">
+      <div class="eyebrow">สรุป</div>
+      <h2>Checklist Volume &amp; Network</h2>
+      <div class="grid grid-2">
+        <div class="card good"><ul>
+          <li>☐ DB / Redis / ไฟล์อัปโหลด อยู่ใน named volume</li>
+          <li>☐ bind mount ใช้กับโค้ดตอน dev และ config แบบ <code>:ro</code></li>
+          <li>☐ มีคำสั่ง backup / restore ที่ทดสอบแล้ว</li>
+          <li>☐ รู้ว่า <code>down -v</code> ลบข้อมูล</li>
+        </ul></div>
+        <div class="card gold"><ul>
+          <li>☐ service คุยกันด้วยชื่อ service + port ภายใน</li>
+          <li>☐ ไม่ <code>ports:</code> ให้ DB ใน production</li>
+          <li>☐ ใช้ <code>127.0.0.1:</code> เมื่อไม่ต้องเปิดสู่ภายนอก</li>
+          <li>☐ เรียกเครื่องเราด้วย <code>host.docker.internal</code></li>
+        </ul></div>
+      </div>
+      <div class="tag-row"><span class="muted small">ตอนถัดไป →</span><a class="tag gold" href="docker-06-dev-workflow.html">ตอนที่ 6: Dev Workflow &amp; แก้ปัญหา</a><a class="tag" href="docker-04-env-config.html">← ตอนที่ 4</a></div>
+    </div>
+  </section>
+
+</main>
+<script>
+window.KV_GLOSSARY = {
+  volume: { title: "Named Volume", body: "พื้นที่เก็บข้อมูลที่ Docker สร้างและดูแลเอง แยกจากวงจรชีวิตของ container ลบ container แล้วข้อมูลยังอยู่ และทำงานเร็วบน Docker Desktop", example: "pgdata เก็บไฟล์ของ PostgreSQL ไว้ อัปเกรด image จาก 17.1 เป็น 17.2 ข้อมูลยังครบ" },
+  bind: { title: "Bind Mount", body: "การเชื่อมโฟลเดอร์บนเครื่องเราเข้าไปใน container โดยตรง แก้ไฟล์ฝั่งหนึ่งอีกฝั่งเห็นทันที", example: "./web:/app ทำให้แก้โค้ดใน VS Code แล้ว Next.js dev server ใน container reload ทันที" }
+};
+</script>
+<script src="../../assets/kv-deck.js"></script>
+</body>
+</html>

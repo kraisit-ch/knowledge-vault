@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>Docker 2: เขียน Dockerfile</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css">
+</head>
+<body data-title="Docker 2: เขียน Dockerfile" data-mark="D2">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">🐳 Docker สำหรับ Dev · ตอนที่ 2/7</div>
+      <h1><span class="grad">Dockerfile</span><br>สร้าง Image ของแอปเราเอง</h1>
+      <p class="lead">เข้าใจคำสั่งใน Dockerfile, Layer cache ที่ทำให้ build เร็ว, Multi-stage build ที่ทำให้ image เล็ก พร้อมตัวอย่างจริงสำหรับ Next.js และ .NET</p>
+      <div class="tag-row"><span class="tag gold">Dockerfile</span><span class="tag blue">Layer Cache</span><span class="tag">Multi-stage</span><span class="tag">.dockerignore</span><span class="tag">Next.js · .NET</span></div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="คำสั่งหลักใน Dockerfile">
+    <div class="slide-inner">
+      <div class="eyebrow">Instructions</div>
+      <h2>คำสั่งหลักใน Dockerfile</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>คำสั่ง</th><th>ทำอะไร</th><th>ตัวอย่าง</th></tr>
+        <tr><td><code>FROM</code></td><td>เลือก image ตั้งต้น</td><td><code>FROM node:22-alpine</code></td></tr>
+        <tr><td><code>WORKDIR</code></td><td>ตั้งโฟลเดอร์ทำงาน (สร้างให้ถ้าไม่มี)</td><td><code>WORKDIR /app</code></td></tr>
+        <tr><td><code>COPY</code></td><td>คัดลอกไฟล์จากเครื่องเข้า image</td><td><code>COPY package*.json ./</code></td></tr>
+        <tr><td><code>RUN</code></td><td>รันคำสั่งตอน <strong>build</strong></td><td><code>RUN npm ci</code></td></tr>
+        <tr><td><code>ENV</code></td><td>ตั้ง env ที่ติดไปกับ image</td><td><code>ENV NODE_ENV=production</code></td></tr>
+        <tr><td><code>ARG</code></td><td>ตัวแปรที่ใช้เฉพาะตอน build</td><td><code>ARG APP_VERSION</code></td></tr>
+        <tr><td><code>EXPOSE</code></td><td>บอกว่าแอปฟัง port ไหน (เอกสารเท่านั้น ไม่ได้เปิด port)</td><td><code>EXPOSE 3000</code></td></tr>
+        <tr><td><code>USER</code></td><td>เปลี่ยนผู้ใช้ที่รันแอป</td><td><code>USER node</code></td></tr>
+        <tr><td><code>CMD</code></td><td>คำสั่งที่รันตอน container <strong>เริ่ม</strong></td><td><code>CMD ["node", "server.js"]</code></td></tr>
+      </table></div>
+      <div class="callout"><code>RUN</code> ทำงานตอน build ครั้งเดียว · <code>CMD</code> ทำงานทุกครั้งที่ container start — สับสนสองตัวนี้บ่อยที่สุด</div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="Layer Cache">
+    <div class="slide-inner">
+      <div class="eyebrow">ทำให้ Build เร็ว</div>
+      <h2>Layer Cache<button class="term" data-term="layer"></button>: ลำดับคำสั่งมีผลมาก</h2>
+      <div class="grid grid-2">
+        <div class="dont"><h4>copy ทุกอย่างก่อน install</h4>
+<pre class="code" data-lang="dockerfile">
+FROM node:22-alpine
+WORKDIR /app
+# แก้โค้ด 1 บรรทัด
+COPY . .
+# → ติดตั้ง package ใหม่ทุกครั้ง (ช้า)
+RUN npm ci
+RUN npm run build
+</pre></div>
+        <div class="do"><h4>copy ไฟล์ dependency ก่อน</h4>
+<pre class="code" data-lang="dockerfile">
+FROM node:22-alpine
+WORKDIR /app
+COPY package.json package-lock.json ./
+# cache ไว้ จนกว่า lock file จะเปลี่ยน
+RUN npm ci
+# แก้โค้ด → build ใหม่แค่จากตรงนี้
+COPY . .
+RUN npm run build
+</pre></div>
+      </div>
+      <div class="quote">เรียงจาก “เปลี่ยนน้อย” ไป “เปลี่ยนบ่อย” — ถ้า layer ไหนเปลี่ยน ทุก layer หลังจากนั้นต้อง build ใหม่</div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title=".dockerignore">
+    <div class="slide-inner">
+      <div class="eyebrow">ต้องมีทุกโปรเจกต์</div>
+      <h2><code>.dockerignore</code>: ไม่ส่งของไม่จำเป็นเข้า build</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="text">
+# .dockerignore
+node_modules
+.next
+bin
+obj
+.git
+.vscode
+.idea
+*.log
+Dockerfile*
+docker-compose*.yml
+
+# สำคัญที่สุด: ไม่ให้ secret หลุดเข้า image
+.env
+.env.*
+!.env.example
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4>build เร็วขึ้น</h4><p class="small muted">ไม่ต้องส่ง <code>node_modules</code> หลายร้อย MB ไปให้ Docker</p></div>
+          <div class="card bad"><h4>กัน secret หลุด</h4><p class="small muted">ถ้าไม่ ignore <code>.env</code> คำสั่ง <code>COPY . .</code> จะฝังรหัสผ่านไว้ใน image ใครได้ image ไปก็อ่านได้</p></div>
+          <div class="card"><h4>กันพฤติกรรมแปลก</h4><p class="small muted"><code>node_modules</code> จาก Windows ใช้บน Linux ไม่ได้ (native module)</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="Multi-stage Build">
+    <div class="slide-inner">
+      <div class="eyebrow">ทำให้ Image เล็ก</div>
+      <h2>Multi-stage Build<button class="term" data-term="multistage"></button></h2>
+      <div class="diagram"><div class="flow">
+        <div class="node">Stage: deps<small>ติดตั้ง package</small></div><div class="arrow">→</div>
+        <div class="node gold">Stage: build<small>มี SDK / devDependencies</small></div><div class="arrow">→ copy เฉพาะผลลัพธ์ →</div>
+        <div class="node green">Stage: runtime<small>เล็ก ไม่มีเครื่องมือ build</small></div>
+      </div></div>
+      <div class="grid grid-3 mt">
+        <div class="card bad"><div class="big-number">~1.2 GB</div><p class="small muted">Next.js แบบ stage เดียว (มี node_modules ทั้งหมด)</p></div>
+        <div class="card good"><div class="big-number">~150 MB</div><p class="small muted">Next.js standalone + multi-stage</p></div>
+        <div class="card gold"><h4>ปลอดภัยขึ้น</h4><p class="small muted">image สุดท้ายไม่มี compiler, source code, หรือ devDependencies ให้โจมตี</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="Dockerfile: Next.js">
+    <div class="slide-inner">
+      <div class="eyebrow">ตัวอย่างจริง · Next.js</div>
+      <h2>Dockerfile สำหรับ Next.js (standalone)</h2>
+      <p class="muted small"><code>HOSTNAME=0.0.0.0</code> จำเป็น ไม่งั้น server ฟังแค่ใน container เอง เข้าจากข้างนอกไม่ได้</p>
+<pre class="code" data-lang="dockerfile">
+FROM node:22-alpine AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+# ค่า NEXT_PUBLIC_* ต้องมีตอน build (ดูตอนที่ 4)
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+# next.config: output: "standalone"
+RUN npm run build
+
+FROM node:22-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
+COPY --from=build --chown=node:node /app/.next/standalone ./
+COPY --from=build --chown=node:node /app/.next/static ./.next/static
+COPY --from=build --chown=node:node /app/public ./public
+USER node
+EXPOSE 3000
+CMD ["node", "server.js"]
+</pre>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="Dockerfile: .NET">
+    <div class="slide-inner">
+      <div class="eyebrow">ตัวอย่างจริง · .NET</div>
+      <h2>Dockerfile สำหรับ ASP.NET Core Web API</h2>
+      <p class="muted small">ใช้ <code>sdk</code> สำหรับ build และ <code>aspnet</code> (เล็กกว่ามาก) สำหรับรัน · เปลี่ยนเวอร์ชันให้ตรงกับ <code>TargetFramework</code> ของโปรเจกต์</p>
+<pre class="code" data-lang="dockerfile">
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+# copy เฉพาะไฟล์โปรเจกต์ก่อน เพื่อ cache ขั้น restore
+COPY Shop.sln Directory.Packages.props ./
+COPY src/Shop.Api/Shop.Api.csproj src/Shop.Api/
+COPY src/Shop.Application/Shop.Application.csproj src/Shop.Application/
+COPY src/Shop.Domain/Shop.Domain.csproj src/Shop.Domain/
+COPY src/Shop.Infrastructure/Shop.Infrastructure.csproj src/Shop.Infrastructure/
+RUN dotnet restore src/Shop.Api/Shop.Api.csproj
+
+COPY . .
+RUN dotnet publish src/Shop.Api/Shop.Api.csproj -c Release -o /app/publish --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+COPY --from=build /app/publish .
+# user ที่ไม่ใช่ root ซึ่งมีมากับ image ของ Microsoft
+USER $APP_UID
+# .NET 8+ ฟัง port 8080 เป็นค่าเริ่มต้น
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "Shop.Api.dll"]
+</pre>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="Build & Run">
+    <div class="slide-inner">
+      <div class="eyebrow">ลงมือ</div>
+      <h2>Build และรัน Image ของเรา</h2>
+<pre class="code" data-lang="bash">
+# build: -t ตั้งชื่อ:tag, . คือ build context (โฟลเดอร์ที่ส่งให้ Docker)
+docker build -t shop-web:dev .
+docker build -t shop-api:dev -f src/Shop.Api/Dockerfile .
+
+# ส่ง build arg
+docker build -t shop-web:dev --build-arg NEXT_PUBLIC_API_URL=http://localhost:8080 .
+
+# build เฉพาะบาง stage (เช่น ไว้ debug)
+docker build --target build -t shop-web:build .
+
+# รัน
+docker run --rm -p 3000:3000 shop-web:dev
+docker run --rm -p 8080:8080 -e ASPNETCORE_ENVIRONMENT=Development shop-api:dev
+
+# ดูว่าแต่ละ layer ใหญ่แค่ไหน
+docker history shop-web:dev
+</pre>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="CMD vs ENTRYPOINT">
+    <div class="slide-inner">
+      <div class="eyebrow">มักสับสน</div>
+      <h2>CMD vs ENTRYPOINT และรูปแบบ exec</h2>
+      <div class="grid grid-2">
+        <div class="card"><h3><code>CMD</code></h3><p class="muted">คำสั่งเริ่มต้น <strong>ถูกแทนที่ได้</strong> ตอน run</p><pre class="code" data-lang="bash">docker run shop-web:dev sh   # รัน sh แทน node server.js</pre></div>
+        <div class="card gold"><h3><code>ENTRYPOINT</code></h3><p class="muted">ตัวโปรแกรมหลัก <code>CMD</code> จะกลายเป็น argument ต่อท้าย</p><pre class="code" data-lang="dockerfile">ENTRYPOINT ["dotnet", "Shop.Api.dll"]
+CMD ["--urls", "http://+:8080"]</pre></div>
+      </div>
+      <div class="grid grid-2 mt">
+        <div class="do"><h4>ใช้รูปแบบ JSON (exec form)</h4><pre class="code" data-lang="dockerfile">CMD ["node", "server.js"]</pre><p class="small muted">แอปได้รับสัญญาณ stop โดยตรง ปิดตัวอย่างสุภาพได้</p></div>
+        <div class="dont"><h4>รูปแบบ shell form</h4><pre class="code" data-lang="dockerfile">CMD node server.js</pre><p class="small muted">รันผ่าน <code>sh -c</code> แอปไม่ได้รับ SIGTERM → ถูก kill หลัง 10 วินาที</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title="Checklist">
+    <div class="slide-inner">
+      <div class="eyebrow">สรุป</div>
+      <h2>Checklist Dockerfile ที่ดี</h2>
+      <div class="grid grid-2">
+        <div class="card good"><ul>
+          <li>☐ ระบุ tag ของ base image ชัดเจน (ไม่ใช้ <code>latest</code>)</li>
+          <li>☐ copy ไฟล์ dependency ก่อน แล้วค่อย copy โค้ด</li>
+          <li>☐ มี <code>.dockerignore</code> และ ignore <code>.env</code></li>
+          <li>☐ ใช้ multi-stage แยก build กับ runtime</li>
+        </ul></div>
+        <div class="card gold"><ul>
+          <li>☐ รันด้วย user ที่ไม่ใช่ root (<code>USER</code>)</li>
+          <li>☐ <code>CMD</code>/<code>ENTRYPOINT</code> แบบ JSON</li>
+          <li>☐ ไม่มีรหัสผ่านหรือ secret ใน Dockerfile / ARG</li>
+          <li>☐ เริ่มโปรเจกต์ใหม่ลอง <code>docker init</code> ช่วยสร้างไฟล์ตั้งต้น</li>
+        </ul></div>
+      </div>
+      <div class="tag-row"><span class="muted small">ตอนถัดไป →</span><a class="tag gold" href="docker-03-compose.html">ตอนที่ 3: Docker Compose</a><a class="tag" href="docker-01-basics.html">← ตอนที่ 1</a></div>
+    </div>
+  </section>
+
+</main>
+<script>
+window.KV_GLOSSARY = {
+  layer: { title: "Layer", body: "ทุกคำสั่ง FROM / COPY / RUN สร้าง layer หนึ่งชั้นซ้อนกัน Docker จะ cache แต่ละ layer ไว้ ถ้าไฟล์หรือคำสั่งไม่เปลี่ยน build ครั้งหน้าจะใช้ของเดิมทันที", example: "แก้แค่ไฟล์ page.tsx → layer npm ci ใช้ cache เดิม build เหลือไม่กี่วินาที" },
+  multistage: { title: "Multi-stage Build", body: "Dockerfile ที่มี FROM หลายครั้ง แต่ละ stage ทำหน้าที่ต่างกัน image สุดท้ายมีเฉพาะ stage สุดท้าย และ copy เฉพาะไฟล์ที่ต้องใช้มาจาก stage ก่อนหน้าด้วย COPY --from", example: "build ด้วย .NET SDK (~800MB) แต่ image ที่ deploy ใช้ aspnet runtime (~220MB)" }
+};
+</script>
+<script src="../../assets/kv-deck.js"></script>
+</body>
+</html>

@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>Docker 4: การจัดการ .env และ Config</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css">
+</head>
+<body data-title="Docker 4: การจัดการ .env และ Config" data-mark="D4">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">🐳 Docker สำหรับ Dev · ตอนที่ 4/7</div>
+      <h1><span class="grad">.env และ Config</span><br>ค่าไปถึงแอปได้อย่างไร</h1>
+      <p class="lead">ตอบคำถามที่ทีมเจอบ่อยที่สุด: ทำไมตั้งค่าใน <code>.env</code> แล้วแอปไม่เห็น, ค่าไหนชนะเมื่อตั้งหลายที่, <code>NEXT_PUBLIC_*</code> ทำไมเปลี่ยนไม่ได้ และเก็บรหัสผ่านอย่างไรให้ปลอดภัย</p>
+      <div class="tag-row"><span class="tag gold">.env</span><span class="tag blue">env_file</span><span class="tag">environment</span><span class="tag">ARG vs ENV</span><span class="tag">Secrets</span></div>
+      <div class="quote">กฎข้อเดียวที่ต้องจำ: config อยู่นอก image, secret อยู่นอก Git</div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="ภาพรวม: 2 จังหวะ">
+    <div class="slide-inner">
+      <div class="eyebrow">ภาพรวมที่ต้องเข้าใจก่อน</div>
+      <h2>ค่า env ถูกใช้ใน <span class="gold">2 จังหวะ</span> ที่ต่างกัน</h2>
+      <div class="diagram"><div class="flow">
+        <div class="node gold">ไฟล์ <code>.env</code><small>ข้าง compose.yaml</small></div><div class="arrow">→ ① แทนค่า ${VAR} →</div>
+        <div class="node">compose.yaml<small>ที่แทนค่าแล้ว</small></div><div class="arrow">→ ② ส่งเข้า container →</div>
+        <div class="node green">แอปอ่าน<small>process.env / IConfiguration</small></div>
+      </div></div>
+      <div class="grid grid-2 mt">
+        <div class="card gold"><h3>① Interpolation<button class="term" data-term="interpolation"></button></h3><p class="muted">Compose อ่าน <code>.env</code> เพื่อ <strong>เติมค่าในไฟล์ compose.yaml</strong></p><p class="small">ค่าจาก <code>.env</code> <strong class="red">ไม่ได้</strong>เข้า container อัตโนมัติ</p></div>
+        <div class="card good"><h3>② Container Environment</h3><p class="muted">ค่าที่แอป <strong>เห็นจริง</strong> มาจาก <code>environment:</code> และ <code>env_file:</code> เท่านั้น</p><p class="small">เช็คด้วย <code>docker compose exec api env</code></p></div>
+      </div>
+    </div>
+    <template class="note"><p>นี่คือต้นเหตุของคำถาม “ใส่ใน .env แล้วทำไมแอปไม่เห็น” อธิบายจุดนี้ให้ชัดก่อนไปต่อ</p></template>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="ไฟล์ .env ของ Compose">
+    <div class="slide-inner">
+      <div class="eyebrow">จังหวะ ① Interpolation</div>
+      <h2><code>.env</code> ข้าง compose.yaml ใช้ “เติมค่าในไฟล์”</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="env">
+# .env  (อยู่โฟลเดอร์เดียวกับ compose.yaml)
+DB_PASSWORD=dev-only-pass
+API_PORT=8080
+POSTGRES_TAG=17-alpine
+</pre>
+<pre class="code" data-lang="yaml">
+services:
+  db:
+    image: postgres:${POSTGRES_TAG}
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD}   # ✅ ส่งเข้า container เพราะเขียนไว้ตรงนี้
+  api:
+    ports: ["${API_PORT}:8080"]
+    # API_PORT ใช้แค่เติม ports — container api ไม่เห็นตัวแปรนี้
+</pre>
+      </div>
+      <div class="table-wrap mt"><table class="table">
+        <tr><th>รูปแบบ</th><th>ความหมาย</th></tr>
+        <tr><td><code>${VAR}</code></td><td>แทนด้วยค่า ถ้าไม่มีได้ค่าว่างพร้อม warning</td></tr>
+        <tr><td><code>${VAR:-default}</code></td><td>ถ้าไม่มีหรือว่าง ใช้ <code>default</code></td></tr>
+        <tr><td><code>${VAR:?ต้องตั้ง DB_PASSWORD}</code></td><td>ถ้าไม่มี <strong>หยุดทำงานพร้อมข้อความ error</strong> — เหมาะกับค่าบังคับ</td></tr>
+        <tr><td><code>$$</code></td><td>ใส่เครื่องหมาย <code>$</code> จริง ๆ (ไม่ให้ถูกแทนค่า)</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="environment vs env_file">
+    <div class="slide-inner">
+      <div class="eyebrow">จังหวะ ② ส่งเข้า Container</div>
+      <h2><code>environment:</code> vs <code>env_file:</code></h2>
+      <div class="grid grid-2">
+        <div class="card"><h3><code>environment:</code></h3>
+<pre class="code" data-lang="yaml">
+api:
+  environment:
+    ASPNETCORE_ENVIRONMENT: Development
+    ConnectionStrings__Default: Host=db;Password=${DB_PASSWORD}
+</pre>
+          <p class="small muted">เห็นชัดในไฟล์ compose ใช้กับค่าไม่กี่ตัว หรือค่าที่ประกอบจากตัวแปรอื่น</p></div>
+        <div class="card gold"><h3><code>env_file:</code></h3>
+<pre class="code" data-lang="yaml">
+api:
+  env_file:
+    - path: ./env/api.env
+      required: true
+    - path: ./env/api.local.env   # ค่าเฉพาะเครื่องตัวเอง
+      required: false             # ไม่มีไฟล์ก็ไม่ error
+</pre>
+          <p class="small muted">โหลด <strong>ทุกตัวแปร</strong>ในไฟล์เข้า container ใช้กับค่าจำนวนมากแยกตาม service</p></div>
+      </div>
+      <div class="callout">หลักทีม: ค่าที่ไม่ลับและเหมือนกันทุกคน → <code>environment:</code> · ค่าที่เยอะหรือต่างกันแต่ละเครื่อง → <code>env_file:</code></div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="ค่าไหนชนะ (Precedence)">
+    <div class="slide-inner">
+      <div class="eyebrow">ตั้งหลายที่ ค่าไหนชนะ?</div>
+      <h2>ลำดับความสำคัญ (บนสุด = ชนะ)</h2>
+      <div class="grid grid-2">
+        <div class="card good"><h3>ค่าที่ container ได้รับ</h3>
+          <ol class="steps">
+            <li><code>docker compose run -e KEY=...</code></li>
+            <li><code>environment:</code> ใน compose.yaml</li>
+            <li><code>env_file:</code></li>
+            <li><code>ENV</code> ใน Dockerfile (ค่าเริ่มต้นใน image)</li>
+          </ol></div>
+        <div class="card gold"><h3>ค่าที่ใช้แทน <code>${VAR}</code></h3>
+          <ol class="steps">
+            <li>ตัวแปรใน shell / terminal ตอนรันคำสั่ง</li>
+            <li>ไฟล์ที่ระบุด้วย <code>--env-file</code></li>
+            <li>ไฟล์ <code>.env</code> ข้าง compose.yaml</li>
+            <li>ค่า default ใน <code>${VAR:-default}</code></li>
+          </ol></div>
+      </div>
+      <div class="callout warn"><strong>กับดักบ่อย:</strong> เคย <code>export DB_PASSWORD=...</code> ไว้ใน terminal แล้วลืม → ค่าใน <code>.env</code> ถูกทับเงียบ ๆ ตรวจด้วย <code>docker compose config</code></div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="Build-time vs Runtime">
+    <div class="slide-inner">
+      <div class="eyebrow">ARG vs ENV</div>
+      <h2>ค่าตอน <span class="gold">build</span> กับค่าตอน <span class="green">run</span> ไม่เหมือนกัน</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th></th><th><code>ARG</code> (build-time)</th><th><code>ENV</code> / environment (runtime)</th></tr>
+        <tr><td>ส่งด้วย</td><td><code>--build-arg</code> / <code>build.args</code></td><td><code>-e</code> / <code>environment:</code> / <code>env_file:</code></td></tr>
+        <tr><td>ใช้ได้ตอน</td><td>คำสั่ง <code>RUN</code> ใน Dockerfile เท่านั้น</td><td>ตอนแอปทำงาน</td></tr>
+        <tr><td>เปลี่ยนค่า</td><td>ต้อง build image ใหม่</td><td>แค่ restart container</td></tr>
+        <tr><td>เหมาะกับ</td><td>เวอร์ชัน, ค่าที่ต้องฝังในไฟล์ build</td><td>URL, connection string, feature flag</td></tr>
+        <tr><td>ใส่ secret ได้ไหม</td><td><strong class="red">ไม่ได้</strong> — ดูได้จาก <code>docker history</code></td><td>ได้ แต่ควรใช้ secret แทน (สไลด์ 11)</td></tr>
+      </table></div>
+      <div class="quote">image เดียวควรใช้ได้ทุก environment (dev / staging / prod) ต่างกันแค่ค่าที่ส่งตอน run</div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="Next.js กับ NEXT_PUBLIC_">
+    <div class="slide-inner">
+      <div class="eyebrow">Next.js</div>
+      <h2><code>NEXT_PUBLIC_*</code> ถูกฝังตอน build</h2>
+      <div class="grid grid-2">
+        <div class="card bad"><h3>ปัญหา</h3><p class="muted"><code>NEXT_PUBLIC_API_URL</code> ถูกแทนเป็นข้อความตรง ๆ ใน JS ตอน <code>npm run build</code></p><p class="small">ตั้งค่าตอน <code>docker run</code> จะ <strong>ไม่มีผล</strong> กับฝั่ง browser → ได้ URL ของ dev ไปขึ้น production</p></div>
+        <div class="card good"><h3>ค่าที่ไม่มี prefix</h3><p class="muted"><code>API_URL</code>, <code>AUTH_SECRET</code> อ่านตอน runtime ฝั่ง server ได้ปกติ</p><p class="small">เปลี่ยนค่าตอน run ได้ ไม่ต้อง build ใหม่</p></div>
+      </div>
+      <h3 class="mt">ทางแก้ (เลือก 1)</h3>
+      <div class="grid grid-3">
+        <div class="card gold"><h4>1. ลดการใช้ NEXT_PUBLIC <span class="tag gold">แนะนำ</span></h4><p class="small muted">ให้ Server Component / Route Handler เรียก API ด้วย <code>API_URL</code> แล้วส่งข้อมูลให้ client</p></div>
+        <div class="card"><h4>2. Build แยกต่อ environment</h4><p class="small muted">ส่ง <code>--build-arg NEXT_PUBLIC_...</code> ต่างกัน ได้ image แยก <code>web:1.4-staging</code> / <code>web:1.4-prod</code></p></div>
+        <div class="card"><h4>3. ส่ง config จาก server</h4><p class="small muted">อ่าน env ใน root layout (server) แล้วส่งผ่าน Context ให้ client component ใช้</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title=".NET อ่าน Config จาก env">
+    <div class="slide-inner">
+      <div class="eyebrow">.NET / ASP.NET Core</div>
+      <h2>.NET อ่าน env อย่างไร: ใช้ <code>__</code> แทน <code>:</code></h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="json">
+// appsettings.json
+{
+  "ConnectionStrings": { "Default": "Host=localhost;..." },
+  "Jwt": { "Issuer": "shop", "SigningKey": "" }
+}
+</pre>
+<pre class="code" data-lang="env">
+# env ที่ส่งเข้า container (ทับค่าใน appsettings)
+ASPNETCORE_ENVIRONMENT=Production
+ConnectionStrings__Default=Host=db;Database=shop;Username=shop;Password=***
+Jwt__SigningKey=***
+</pre>
+      </div>
+      <div class="diagram mt"><p class="small muted center">ลำดับการอ่าน (ขวาสุดชนะ)</p><div class="flow">
+        <div class="node">appsettings.json</div><div class="arrow">→</div>
+        <div class="node">appsettings.{Environment}.json</div><div class="arrow">→</div>
+        <div class="node">User Secrets<small>Development เท่านั้น</small></div><div class="arrow">→</div>
+        <div class="node gold">Environment variables</div><div class="arrow">→</div>
+        <div class="node green">Command-line args</div>
+      </div></div>
+      <p class="muted small mt">ใน <code>appsettings.json</code> ที่ commit ให้ใส่ค่าว่างหรือค่า dev สำหรับ secret แล้วให้ env ทับตอน run</p>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="โครงสร้างไฟล์มาตรฐานทีม">
+    <div class="slide-inner">
+      <div class="eyebrow">Team Standard</div>
+      <h2>โครงสร้างไฟล์ env ที่ทีมใช้</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="text">
+project/
+├── compose.yaml
+├── compose.override.yaml     # dev
+├── .env.example              ✅ commit  (ตัวอย่าง, ไม่มีค่าจริง)
+├── .env                      ❌ ห้าม commit (ค่าของเครื่องเรา)
+└── env/
+    ├── api.env.example       ✅ commit
+    ├── api.env               ❌ ห้าม commit
+    ├── web.env.example       ✅ commit
+    └── web.env               ❌ ห้าม commit
+</pre>
+<pre class="code" data-lang="env">
+# .env.example — ทุก key ที่ต้องมี + คำอธิบาย
+# รหัสผ่าน DB สำหรับเครื่อง dev (ตั้งอะไรก็ได้)
+DB_PASSWORD=
+# port ของ API บนเครื่องเรา
+API_PORT=8080
+</pre>
+      </div>
+      <ol class="steps mt">
+        <li>คนใหม่: <code>cp .env.example .env</code> และ <code>cp env/api.env.example env/api.env</code> แล้วเติมค่า</li>
+        <li>เพิ่มตัวแปรใหม่: อัปเดต <code>*.example</code> ใน PR เดียวกันเสมอ และแจ้งทีม</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title=".gitignore และถ้าเผลอ commit">
+    <div class="slide-inner">
+      <div class="eyebrow">กันข้อมูลลับหลุด</div>
+      <h2><code>.gitignore</code> + <code>.dockerignore</code> และถ้าเผลอ commit secret</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="text">
+# .gitignore  และ  .dockerignore (ใส่ทั้งสองไฟล์)
+.env
+.env.*
+!.env.example
+env/*.env
+!env/*.env.example
+secrets/
+</pre>
+        <div class="card bad"><h3>🚨 ถ้าเผลอ commit / push secret</h3>
+          <ol>
+            <li><strong>เปลี่ยนรหัส/คีย์นั้นทันที</strong> (rotate) — สำคัญที่สุด</li>
+            <li>ลบไฟล์ออกจาก Git และเพิ่มใน <code>.gitignore</code></li>
+            <li>แจ้งหัวหน้าทีม</li>
+          </ol>
+          <p class="small muted">การลบ commit ไม่พอ เพราะประวัติ Git ถูก clone / cache ไปแล้ว ถือว่ารหัสนั้นรั่วไปแล้ว</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide" data-title="Secrets">
+    <div class="slide-inner">
+      <div class="eyebrow">เก็บรหัสผ่านให้ปลอดภัย</div>
+      <h2>Secret ไม่ควรอยู่ใน env ถ้าเลี่ยงได้</h2>
+      <div class="grid grid-2">
+        <div class="card gold"><h3>Runtime secret: Compose <code>secrets</code></h3>
+<pre class="code" data-lang="yaml">
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets: [db_password]
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+</pre>
+          <p class="small muted">ไฟล์ถูก mount ที่ <code>/run/secrets/</code> ไม่โผล่ใน <code>docker inspect</code> · .NET อ่านได้ด้วย <code>AddKeyPerFile("/run/secrets")</code></p></div>
+        <div class="card"><h3>Build secret: ไม่ฝังลง image</h3>
+<pre class="code" data-lang="dockerfile">
+RUN --mount=type=secret,id=npmrc,target=/root/.npmrc npm ci
+</pre>
+<pre class="code" data-lang="bash">
+docker build --secret id=npmrc,src=$HOME/.npmrc .
+</pre>
+          <p class="small muted">ใช้กับ token ของ private registry ตอนติดตั้ง package แทน <code>ARG NPM_TOKEN</code></p></div>
+      </div>
+      <div class="callout">Production บน Coolify / cloud: ตั้งค่า secret ผ่านหน้าจัดการ environment ของแพลตฟอร์ม หรือ Key Vault แทนการวางไฟล์บน server</div>
+    </div>
+  </section>
+
+  <!-- 12 -->
+  <section class="slide" data-title="ตรวจสอบและ Debug">
+    <div class="slide-inner">
+      <div class="eyebrow">Debug</div>
+      <h2>ค่าไม่ตรงที่คิด? ตรวจตามลำดับนี้</h2>
+      <ol class="steps">
+        <li><code>docker compose config</code> — ดูไฟล์หลังแทนค่า <code>${VAR}</code> แล้ว ค่าถูกไหม?</li>
+        <li><code>docker compose exec api env | sort</code> — container เห็นค่าอะไรจริง ๆ?</li>
+        <li>แก้ <code>.env</code> แล้ว ใช้ <code>docker compose up -d</code> (สร้าง container ใหม่) — <strong><code>restart</code> ไม่โหลดค่าใหม่</strong></li>
+        <li>เป็น <code>NEXT_PUBLIC_*</code> หรือ <code>ARG</code>? → ต้อง <code>up -d --build</code></li>
+        <li>แอป validate config ตอนเริ่ม: Zod (Next.js) / <code>ValidateOnStart()</code> (.NET) ค่าผิดต้องพังทันทีพร้อมบอกชื่อตัวแปร</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- 13 -->
+  <section class="slide" data-title="ข้อผิดพลาดที่พบบ่อย">
+    <div class="slide-inner">
+      <div class="eyebrow">Pitfalls</div>
+      <h2>ข้อผิดพลาดที่พบบ่อย</h2>
+      <div class="grid grid-2">
+        <div class="card bad"><h4>ใส่ใน <code>.env</code> แล้วคิดว่าแอปเห็น</h4><p class="small muted"><code>.env</code> ใช้แทนค่าในไฟล์ compose ต้องส่งต่อผ่าน <code>environment:</code> หรือ <code>env_file:</code></p></div>
+        <div class="card bad"><h4>เว้นวรรครอบ <code>=</code></h4><p class="small muted"><code>KEY = value</code> ผิด ต้องเป็น <code>KEY=value</code></p></div>
+        <div class="card bad"><h4>คอมเมนต์ท้ายบรรทัด / quote ซ้อน</h4><p class="small muted">เขียนคอมเมนต์บรรทัดของตัวเอง และใส่ quote เมื่อค่ามีช่องว่างหรือ <code>#</code></p></div>
+        <div class="card bad"><h4>ไฟล์ .env เป็น CRLF (Windows)</h4><p class="small muted">ค่ามี <code>\r</code> ติดท้าย รหัสผ่านผิดโดยมองไม่เห็น ตั้ง editor เป็น LF</p></div>
+        <div class="card bad"><h4>ใช้ <code>localhost</code> ใน connection string</h4><p class="small muted">ใน container ต้องใช้ชื่อ service เช่น <code>Host=db</code></p></div>
+        <div class="card bad"><h4>secret ใน <code>ARG</code> / <code>ENV</code> ของ Dockerfile</h4><p class="small muted">ติดไปกับ image อ่านได้ด้วย <code>docker history</code> / <code>inspect</code></p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 14 -->
+  <section class="slide" data-title="Checklist">
+    <div class="slide-inner">
+      <div class="eyebrow">สรุป</div>
+      <h2>Checklist การจัดการ env</h2>
+      <div class="grid grid-2">
+        <div class="card good"><ul>
+          <li>☐ มี <code>.env.example</code> ครบทุก key พร้อมคำอธิบาย</li>
+          <li>☐ <code>.env</code> อยู่ใน <code>.gitignore</code> และ <code>.dockerignore</code></li>
+          <li>☐ ค่าบังคับใช้ <code>${VAR:?message}</code></li>
+          <li>☐ image เดียวใช้ได้ทุก environment</li>
+          <li>☐ แยก <code>NEXT_PUBLIC_*</code> (build) ออกจากค่า runtime ชัดเจน</li>
+        </ul></div>
+        <div class="card gold"><ul>
+          <li>☐ ไม่มี secret ใน Dockerfile, <code>ARG</code>, หรือ Git</li>
+          <li>☐ production ใช้ secret / ระบบจัดการ env ของแพลตฟอร์ม</li>
+          <li>☐ แอป validate config ตอนเริ่ม</li>
+          <li>☐ รู้จัก <code>docker compose config</code> และ <code>exec env</code></li>
+          <li>☐ เผลอ commit secret → rotate ทันที</li>
+        </ul></div>
+      </div>
+      <div class="tag-row"><span class="muted small">ตอนถัดไป →</span><a class="tag gold" href="docker-05-volumes-network.html">ตอนที่ 5: Volume &amp; Network</a><a class="tag" href="docker-03-compose.html">← ตอนที่ 3</a></div>
+    </div>
+  </section>
+
+</main>
+<script>
+window.KV_GLOSSARY = {
+  interpolation: { title: "Variable Interpolation", body: "การที่ Compose แทนที่ ${ชื่อตัวแปร} ในไฟล์ compose.yaml ด้วยค่าจาก shell หรือไฟล์ .env ก่อนสร้าง container เกิดขึ้นที่เครื่องที่รันคำสั่ง ไม่ใช่ใน container", example: "image: postgres:${POSTGRES_TAG} กับ POSTGRES_TAG=17-alpine ใน .env → กลายเป็น image: postgres:17-alpine" }
+};
+</script>
+<script src="../../assets/kv-deck.js"></script>
+</body>
+</html>

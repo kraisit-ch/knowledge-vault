@@ -119,7 +119,9 @@
       re.lastIndex = 0;
       while ((m = re.exec(src))) {
         // '#' เป็นคอมเมนต์เฉพาะ bash/yaml
-        if (m[1] && m[1][0] === "#" && !/^(bash|sh|yaml|yml|env)$/.test(pre.dataset.lang || "")) continue;
+        if (m[1] && m[1][0] === "#" && !/^(bash|sh|yaml|yml|env|dockerfile)$/.test(pre.dataset.lang || "")) continue;
+        // keyword / ตัวเลข ไฮไลต์เฉพาะภาษาโปรแกรม (Dockerfile, YAML, bash มีคำอย่าง from/public ที่ไม่ใช่ keyword)
+        if ((m[3] || m[4]) && !/^(ts|tsx|js|jsx|csharp|cs|json)$/.test(pre.dataset.lang || "")) continue;
         out += esc(src.slice(last, m.index));
         const cls = m[1] ? "c" : m[2] ? "s" : m[3] ? "k" : "n";
         out += `<span class="${cls}">${esc(m[0])}</span>`;

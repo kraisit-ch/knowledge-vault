@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>Docker 6: Dev Workflow &amp; แก้ปัญหา</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css">
+</head>
+<body data-title="Docker 6: Dev Workflow &amp; แก้ปัญหา" data-mark="D6">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">🐳 Docker สำหรับ Dev · ตอนที่ 6/7</div>
+      <h1><span class="grad">Dev Workflow</span><br>&amp; แก้ปัญหาที่เจอบ่อย</h1>
+      <p class="lead">ใช้ Docker ตอนเขียนโค้ดทุกวันให้ลื่น: แก้โค้ดแล้วเห็นผลทันที, debug ได้, และรู้วิธีแก้ error ยอดฮิต โดยเฉพาะบน Windows</p>
+      <div class="tag-row"><span class="tag gold">Hot Reload</span><span class="tag blue">compose watch</span><span class="tag">Debug</span><span class="tag">Windows / WSL2</span><span class="tag">Troubleshooting</span></div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="เลือกรูปแบบการทำงาน">
+    <div class="slide-inner">
+      <div class="eyebrow">2 รูปแบบ</div>
+      <h2>รันอะไรใน Docker ตอน dev?</h2>
+      <div class="grid grid-2">
+        <div class="card gold"><h3>A. Infra ใน Docker, แอปบนเครื่อง <span class="tag gold">แนะนำ</span></h3>
+          <div class="diagram"><div class="flow"><div class="node">VS / Rider / VS Code<small>.NET API, Next.js dev</small></div><div class="arrow">→ localhost →</div><div class="node violet">Docker<small>Postgres, Redis, RabbitMQ</small></div></div></div>
+          <ul><li>debug, breakpoint, hot reload เร็วเต็มที่</li><li>ใช้ <code>compose.yaml</code> ที่มีแค่ DB / broker</li></ul></div>
+        <div class="card"><h3>B. ทุกอย่างใน Docker</h3>
+          <div class="diagram"><div class="flow"><div class="node">โค้ดบนเครื่อง</div><div class="arrow">→ watch / mount →</div><div class="node violet">Docker<small>web, api, db, redis</small></div></div></div>
+          <ul><li>สภาพแวดล้อมเหมือน production ที่สุด</li><li>เหมาะกับ QA, frontend dev ที่ไม่อยากลง .NET SDK</li></ul></div>
+      </div>
+      <p class="muted small mt">ทีมใช้ได้ทั้งคู่ด้วย profiles: <code>docker compose up -d</code> = infra · <code>docker compose --profile app up -d</code> = รวมแอป</p>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="Hot Reload: compose watch">
+    <div class="slide-inner">
+      <div class="eyebrow">แก้โค้ดแล้วเห็นผลทันที</div>
+      <h2>Compose Watch<button class="term" data-term="watch"></button></h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="yaml">
+services:
+  web:
+    build: { context: ./web, target: dev }   # stage dev ที่รัน "npm run dev"
+    ports: ["3000:3000"]
+    develop:
+      watch:
+        - action: sync              # แก้โค้ด → copy เข้า container
+          path: ./web/src
+          target: /app/src
+        - action: rebuild           # แก้ package.json → build image ใหม่
+          path: ./web/package.json
+</pre>
+<pre class="code" data-lang="bash">
+docker compose up --watch      # เปิด + เฝ้าดูไฟล์
+# หรือ
+docker compose watch
+</pre>
+      </div>
+      <div class="table-wrap mt"><table class="table">
+        <tr><th>action</th><th>เมื่อไฟล์เปลี่ยน</th><th>ใช้กับ</th></tr>
+        <tr><td><code>sync</code></td><td>copy ไฟล์เข้า container (dev server reload เอง)</td><td>source code</td></tr>
+        <tr><td><code>sync+restart</code></td><td>copy แล้ว restart container</td><td>ไฟล์ config</td></tr>
+        <tr><td><code>rebuild</code></td><td>build image ใหม่และสร้าง container ใหม่</td><td>package.json, *.csproj</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="Hot Reload: Bind Mount">
+    <div class="slide-inner">
+      <div class="eyebrow">อีกทางเลือก</div>
+      <h2>Hot Reload ด้วย Bind Mount</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="yaml">
+services:
+  web:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm ci &amp;&amp; npm run dev"
+    volumes:
+      - ./web:/app                 # โค้ดบนเครื่อง ↔ container
+      - web_node_modules:/app/node_modules   # แยก node_modules ของ Linux
+    environment:
+      WATCHPACK_POLLING: "true"    # ให้ตรวจจับไฟล์เปลี่ยนบน Windows
+    ports: ["3000:3000"]
+volumes:
+  web_node_modules:
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4>ทำไมต้องแยก node_modules</h4><p class="small muted">ไม่ให้ node_modules ของ Windows ทับของ Linux ใน container (native module ใช้ข้ามระบบไม่ได้)</p></div>
+          <div class="card"><h4>Polling</h4><p class="small muted">event แก้ไฟล์จาก Windows ส่งเข้า container ไม่ได้เสมอไป เปิด polling ให้ dev server ตรวจเอง (แลกกับ CPU)</p></div>
+          <div class="card violet"><h4>.NET</h4><p class="small muted">ใช้ image <code>sdk</code> + <code>dotnet watch run</code> ได้ แต่ debug สะดวกกว่ามากถ้ารัน API บนเครื่อง (รูปแบบ A)</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="Windows & WSL2">
+    <div class="slide-inner">
+      <div class="eyebrow">สำหรับเครื่อง Windows</div>
+      <h2>Docker Desktop บน Windows: ตั้งค่าให้ลื่น</h2>
+      <div class="grid grid-2">
+        <div class="card gold"><h3>1. ใช้ WSL2 backend</h3><p class="small muted">Settings → General → Use WSL 2 based engine (ค่าเริ่มต้นแล้ว)</p></div>
+        <div class="card gold"><h3>2. ถ้า bind mount ช้า: เก็บโค้ดใน WSL</h3><p class="small muted">clone ไว้ที่ <code>\\wsl$\Ubuntu\home\&lt;user&gt;\projects</code> แล้วเปิดด้วย VS Code (WSL) mount จาก <code>C:\</code> ช้ากว่าหลายเท่า</p></div>
+        <div class="card"><h3>3. จำกัด RAM ของ WSL</h3>
+<pre class="code" data-lang="text">
+# %UserProfile%\.wslconfig
+[wsl2]
+memory=8GB
+processors=4
+</pre>
+          <p class="small muted">แล้วรัน <code>wsl --shutdown</code> เพื่อให้มีผล</p></div>
+        <div class="card bad"><h3>4. Line ending (CRLF)</h3>
+<pre class="code" data-lang="text">
+# .gitattributes ที่ root ของ repo
+*.sh   text eol=lf
+*.env  text eol=lf
+Dockerfile text eol=lf
+</pre>
+          <p class="small muted">script ที่เป็น CRLF จะ error <code>no such file or directory</code> ทั้งที่ไฟล์มีอยู่</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="เครื่องมือ Debug">
+    <div class="slide-inner">
+      <div class="eyebrow">Debug Toolkit</div>
+      <h2>ลำดับการ Debug เมื่อมีปัญหา</h2>
+      <ol class="steps">
+        <li><code>docker compose ps</code> — service ไหนไม่ขึ้น / unhealthy / restart วน?</li>
+        <li><code>docker compose logs --tail 200 -f api</code> — อ่าน error บรรทัดแรกที่เกิด ไม่ใช่บรรทัดสุดท้าย</li>
+        <li><code>docker compose config</code> — ค่าใน compose หลังแทนตัวแปรถูกไหม</li>
+        <li><code>docker compose exec api sh</code> แล้ว <code>env</code>, <code>ls</code>, <code>wget -qO- http://db:5432</code> — ดูจากมุม container</li>
+        <li><code>docker inspect &lt;container&gt;</code> — mount, network, IP, exit code, health log</li>
+      </ol>
+<pre class="code mt" data-lang="bash">
+# ทดสอบ network จาก container เครื่องมือครบชุด (curl, dig, nc) แล้วลบทิ้งเมื่อออก
+docker run --rm -it --network shop_default nicolaka/netshoot
+</pre>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="Error ที่เจอบ่อย (1)">
+    <div class="slide-inner">
+      <div class="eyebrow">Troubleshooting</div>
+      <h2>Error ที่เจอบ่อย และวิธีแก้ (1/2)</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>อาการ / ข้อความ</th><th>สาเหตุ</th><th>วิธีแก้</th></tr>
+        <tr><td><code>port is already allocated</code></td><td>port ฝั่งเครื่องเราถูกใช้อยู่</td><td>ปิดโปรแกรมนั้น หรือเปลี่ยนเป็น <code>"15432:5432"</code></td></tr>
+        <tr><td><code>Cannot connect to the Docker daemon</code></td><td>Docker Desktop ยังไม่เปิด</td><td>เปิด Docker Desktop รอจนสถานะ Running</td></tr>
+        <tr><td>API ต่อ DB ไม่ได้ <code>Connection refused</code></td><td>ใช้ <code>localhost</code> หรือ DB ยังไม่พร้อม</td><td><code>Host=db</code> + <code>depends_on: service_healthy</code></td></tr>
+        <tr><td>container ขึ้นแล้วหยุดทันที</td><td>แอป error ตอนเริ่ม / config ขาด</td><td><code>docker compose logs api</code> ดูบรรทัดแรกของ error</td></tr>
+        <tr><td>แก้โค้ดแล้วไม่เปลี่ยน</td><td>ยังรัน image เก่า</td><td><code>up -d --build</code> หรือใช้ watch</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="Error ที่เจอบ่อย (2)">
+    <div class="slide-inner">
+      <div class="eyebrow">Troubleshooting</div>
+      <h2>Error ที่เจอบ่อย และวิธีแก้ (2/2)</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>อาการ / ข้อความ</th><th>สาเหตุ</th><th>วิธีแก้</th></tr>
+        <tr><td><code>exec ./entrypoint.sh: no such file or directory</code></td><td>script เป็น CRLF (Windows)</td><td><code>.gitattributes</code> <code>*.sh eol=lf</code> แล้ว checkout ใหม่</td></tr>
+        <tr><td><code>permission denied</code> เขียนไฟล์ใน volume</td><td>container รันเป็น non-root แต่โฟลเดอร์เป็นของ root</td><td><code>COPY --chown=</code> / สร้างโฟลเดอร์และ <code>chown</code> ใน Dockerfile</td></tr>
+        <tr><td>Exit code <code>137</code></td><td>RAM ไม่พอ (OOM killed)</td><td>เพิ่ม RAM ให้ WSL/Docker หรือหาจุด memory leak</td></tr>
+        <tr><td><code>no space left on device</code></td><td>image / cache สะสม</td><td><code>docker system df</code> → <code>docker system prune</code></td></tr>
+        <tr><td>build ใช้ cache เก่าผิด ๆ</td><td>cache ไม่ถูก invalidate</td><td><code>docker compose build --no-cache api</code></td></tr>
+        <tr><td>แก้ .env แล้วค่าไม่เปลี่ยน</td><td>ใช้ <code>restart</code></td><td><code>docker compose up -d</code> (สร้าง container ใหม่)</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="Cheat Sheet ประจำวัน">
+    <div class="slide-inner">
+      <div class="eyebrow">สรุป</div>
+      <h2>Cheat Sheet ประจำวันของ Dev</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>สถานการณ์</th><th>คำสั่ง</th></tr>
+        <tr><td>เริ่มวันทำงาน</td><td><code>docker compose up -d</code></td></tr>
+        <tr><td>เขียนโค้ดแบบ hot reload ใน Docker</td><td><code>docker compose up --watch</code></td></tr>
+        <tr><td>pull โค้ดใหม่ที่แก้ Dockerfile / package</td><td><code>docker compose up -d --build</code></td></tr>
+        <tr><td>ดู error ของ service</td><td><code>docker compose logs -f api</code></td></tr>
+        <tr><td>เข้า DB</td><td><code>docker compose exec db psql -U shop</code></td></tr>
+        <tr><td>อยากได้ DB ใหม่สะอาด</td><td><code>docker compose down -v &amp;&amp; docker compose up -d</code></td></tr>
+        <tr><td>เลิกงาน (คืน RAM)</td><td><code>docker compose stop</code></td></tr>
+        <tr><td>ดิสก์เต็ม</td><td><code>docker system prune</code></td></tr>
+      </table></div>
+      <div class="tag-row"><span class="muted small">ตอนถัดไป →</span><a class="tag gold" href="docker-07-production.html">ตอนที่ 7: Production &amp; Security</a><a class="tag" href="docker-05-volumes-network.html">← ตอนที่ 5</a></div>
+    </div>
+  </section>
+
+</main>
+<script>
+window.KV_GLOSSARY = {
+  watch: { title: "Compose Watch", body: "ฟีเจอร์ของ Docker Compose ที่เฝ้าดูไฟล์บนเครื่องเรา แล้ว sync เข้า container หรือ build ใหม่ให้อัตโนมัติตามกฎที่ตั้งไว้ใน develop.watch ทำงานได้ดีบน Windows กว่า bind mount", example: "แก้ src/app/page.tsx → ไฟล์ถูก sync เข้า /app/src → next dev reload หน้าเว็บทันที" }
+};
+</script>
+<script src="../../assets/kv-deck.js"></script>
+</body>
+</html>
