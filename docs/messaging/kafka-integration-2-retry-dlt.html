@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>Kafka Integration 2: Retry &amp; DLT</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css">
+</head>
+<body data-title="Kafka Integration 2: Retry &amp; DLT" data-mark="KI2">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">Kafka Integration Guide · ตอนที่ 2/4</div>
+      <h1><span class="grad">Retry &amp; DLT</span><br>พังแล้วต้องไปต่อได้ ไม่ค้าง ไม่ซ้ำ</h1>
+      <p class="lead">ออกแบบการลองใหม่ให้ถูกประเภท error, เว้นจังหวะด้วย backoff + jitter, เลือกระหว่าง retry ใน consumer กับ retry topic และทำให้ประมวลผลซ้ำได้โดยข้อมูลไม่เสีย</p>
+      <div class="tag-row"><span class="tag gold">Retry</span><span class="tag blue">Backoff + Jitter</span><span class="tag">Retry Topic</span><span class="tag">DLT</span><span class="tag">Idempotency</span></div>
+      <div class="quote">Retry ได้อย่างมั่นใจ ก็ต่อเมื่อ “ทำซ้ำแล้วข้อมูลไม่เสีย”</div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="Retry คืออะไร">
+    <div class="slide-inner">
+      <div class="eyebrow">แนวคิด</div>
+      <h2>Retry = ลองทำงานเดิมซ้ำเมื่อเกิด error</h2>
+      <div class="diagram"><div class="flow">
+        <div class="node">Payment worker<small>รับ ORD-1234</small></div><div class="arrow">→</div>
+        <div class="node" style="border-color:rgba(255,107,107,.5);background:rgba(255,107,107,.08)">gateway timeout</div><div class="arrow">→ รอ 1s →</div>
+        <div class="node gold">ลองใหม่</div><div class="arrow">→ ยัง fail → รอ 2s →</div>
+        <div class="node gold">ลองใหม่</div><div class="arrow">→ ครบ 3 ครั้ง →</div>
+        <div class="node violet">ส่ง DLT</div>
+      </div></div>
+      <div class="grid grid-3 mt">
+        <div class="card good"><h4>เหมาะกับ</h4><p class="small muted">error ที่ <strong>อาจหายเอง</strong>: network timeout, ปลายทาง busy, DB หลุดชั่วคราว</p></div>
+        <div class="card bad"><h4>ไม่ช่วยอะไรกับ</h4><p class="small muted">ข้อมูลผิด, สินค้าหมด, บัตรถูกปฏิเสธ — ลองกี่ครั้งก็ fail เหมือนเดิม</p></div>
+        <div class="card gold"><h4>ต้องจบเสมอ</h4><p class="small muted">มีจำนวนครั้งสูงสุด แล้วส่ง DLT เพื่อไม่ให้ message ค้างขวางตัวอื่น</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="Error แบบไหนควร Retry">
+    <div class="slide-inner">
+      <div class="eyebrow">แยกประเภท Error</div>
+      <h2>Error แบบไหนควร Retry</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>ประเภท</th><th>Retry?</th><th>ตัวอย่าง</th><th>เหตุผล / สิ่งที่ทำ</th></tr>
+        <tr><td><strong>Transient</strong></td><td><span class="status"><span class="dot good"></span>Yes</span></td><td>timeout, network error, HTTP 503</td><td>มีโอกาสหายเอง</td></tr>
+        <tr><td><strong>Rate limit</strong></td><td><span class="status"><span class="dot good"></span>Yes (รอนานขึ้น)</span></td><td>HTTP 429</td><td>รอตาม <code>Retry-After</code> หรือ backoff ยาวขึ้น</td></tr>
+        <tr><td><strong>Dependency down</strong></td><td><span class="status"><span class="dot medium"></span>จำกัดครั้ง</span></td><td>payment gateway ล่ม</td><td>retry ได้ แต่ห้ามถี่จนซ้ำเติมระบบปลายทาง</td></tr>
+        <tr><td><strong>Business rule</strong></td><td><span class="status"><span class="dot low"></span>No</span></td><td>สินค้าหมด, บัตรถูกปฏิเสธ</td><td>ส่ง DLT / ส่ง event ผลลัพธ์ “ไม่สำเร็จ”</td></tr>
+        <tr><td><strong>Invalid schema</strong></td><td><span class="status"><span class="dot low"></span>No</span></td><td>ขาด field บังคับ, JSON พัง</td><td>ส่ง DLT ทันทีให้คนตรวจ</td></tr>
+        <tr><td><strong>Permission / config</strong></td><td><span class="status"><span class="dot low"></span>No</span></td><td>auth failed, ACL denied</td><td>แจ้งเตือนทีม แก้ config ก่อน แล้วค่อย replay</td></tr>
+      </table></div>
+<pre class="code mt" data-lang="ts">
+// errors.ts — ให้ business logic โยน error ที่บอกประเภทได้ชัด
+export class RetryableError extends Error {}        // timeout, 503, 429
+export class NonRetryableError extends Error {}     // business rule, invalid data
+
+export const isRetryable = (err: unknown) =&gt; err instanceof RetryableError;
+</pre>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="หลักการออกแบบ Retry">
+    <div class="slide-inner">
+      <div class="eyebrow">Design Principles</div>
+      <h2>9 หลักการออกแบบ Retry</h2>
+      <div class="grid grid-3">
+        <div class="card gold"><h4>1. จำกัดจำนวนครั้ง</h4><p class="small muted"><code>maxRetries</code> 3–5 ครั้ง</p></div>
+        <div class="card gold"><h4>2. เว้นระยะก่อนลองใหม่</h4><p class="small muted">ไม่ retry ทันทีติด ๆ กัน</p></div>
+        <div class="card gold"><h4>3. Backoff</h4><p class="small muted">เพิ่มเวลารอ 1s → 2s → 4s</p></div>
+        <div class="card"><h4>4. Jitter</h4><p class="small muted">สุ่มเวลารอเล็กน้อย ไม่ให้ทุก worker ลองพร้อมกัน</p></div>
+        <div class="card"><h4>5. แยก transient / permanent</h4><p class="small muted">business error ไม่ retry</p></div>
+        <div class="card"><h4>6. ครบแล้วส่ง DLT</h4><p class="small muted">ไม่ให้ message ค้างขวางตัวอื่น</p></div>
+        <div class="card violet"><h4>7. เก็บ attempt count</h4><p class="small muted">รู้เสมอว่าลองไปกี่ครั้งแล้ว</p></div>
+        <div class="card violet"><h4>8. Idempotency</h4><p class="small muted">ทำซ้ำแล้วข้อมูลไม่เสีย</p></div>
+        <div class="card violet"><h4>9. Monitor retry rate</h4><p class="small muted">retry เยอะผิดปกติ = สัญญาณปัญหา</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="Backoff และ Jitter">
+    <div class="slide-inner">
+      <div class="eyebrow">เว้นจังหวะให้ถูก</div>
+      <h2>Backoff<button class="term" data-term="backoff"></button> และ Jitter<button class="term" data-term="jitter"></button></h2>
+      <div class="grid grid-2">
+        <div class="table-wrap"><table class="table">
+          <tr><th>attempt ที่ fail</th><th>Fixed delay</th><th>Exponential</th><th>Exponential + Jitter ±20%</th></tr>
+          <tr><td>1</td><td>1s</td><td>1s</td><td>0.8–1.2s</td></tr>
+          <tr><td>2</td><td>1s</td><td>2s</td><td>1.6–2.4s</td></tr>
+          <tr><td>3</td><td>1s</td><td>4s</td><td>3.2–4.8s</td></tr>
+          <tr><td>4</td><td>1s</td><td>8s</td><td>6.4–9.6s</td></tr>
+        </table></div>
+<pre class="code" data-lang="ts">
+// retry.ts
+export function backoffMs(attempt: number, baseMs = 1_000, maxMs = 30_000) {
+  const exp = Math.min(maxMs, baseMs * 2 ** (attempt - 1)); // 1s, 2s, 4s, ...
+  const jitter = 0.8 + Math.random() * 0.4;                 // ±20%
+  return Math.round(exp * jitter);
+}
+
+export const sleep = (ms: number) =&gt; new Promise((r) =&gt; setTimeout(r, ms));
+</pre>
+      </div>
+      <div class="callout"><strong>ทำไมต้อง jitter:</strong> gateway ล่ม 1 นาที worker 20 ตัวที่ fail พร้อมกันจะ retry พร้อมกันทุกรอบ แล้วถล่ม gateway ทันทีที่กลับมา การสุ่มช่วยกระจายจังหวะให้ห่างกัน</div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="เทคนิค Retry 4 แบบ">
+    <div class="slide-inner">
+      <div class="eyebrow">เลือกวิธี Retry</div>
+      <h2>4 เทคนิค Retry กับ Kafka</h2>
+      <div class="grid grid-2">
+        <div class="card gold"><h3>1. Retry ใน consumer เดิม <span class="tag gold">Demo ใช้</span></h3>
+          <div class="diagram"><div class="flow"><div class="node">consume</div><div class="arrow">→ fail → sleep →</div><div class="node">ลองใหม่</div><div class="arrow">→</div><div class="node green">สำเร็จ / DLT</div></div></div>
+          <p class="small"><strong class="green">ข้อดี:</strong> ง่าย ไม่ต้องสร้าง topic เพิ่ม · <strong class="red">ข้อเสีย:</strong> ระหว่างรอ partition นั้นหยุด lag เพิ่ม</p></div>
+        <div class="card"><h3>2. Retry Topic</h3>
+          <div class="diagram"><div class="flow"><div class="node">order-events</div><div class="arrow">→ fail →</div><div class="node gold">payment-retry-1m</div><div class="arrow">→</div><div class="node gold">-5m</div><div class="arrow">→</div><div class="node violet">DLT</div></div></div>
+          <p class="small"><strong class="green">ข้อดี:</strong> ไม่ขวาง consumer หลัก รอนานเป็นนาทีได้ · <strong class="red">ข้อเสีย:</strong> ซับซ้อน ต้องทำกลไกหน่วงเวลาเอง</p></div>
+        <div class="card violet"><h3>3. DLT หลัง Retry ครบ</h3><p class="small muted">fail → retry 1, 2, 3 → ยัง fail → publish DLT พร้อม payload เดิมและเหตุผล</p><p class="small">ทุกเทคนิคต้องจบที่ DLT เสมอ</p></div>
+        <div class="card good"><h3>4. Manual Retry / Replay</h3><p class="small muted">admin เห็นใน DLT Inspector ว่า fail เพราะ gateway ล่ม → gateway กลับมา → กด Retry → publish กลับ topic เดิม</p><p class="small"><strong>ต้อง:</strong> แก้ข้อมูลผิดก่อน, กันซ้ำ, audit ว่าใครกดเมื่อไร</p></div>
+      </div>
+      <p class="muted small mt">หลักเลือก: รอ <strong>ไม่กี่วินาที</strong> → retry ใน consumer · รอ <strong>เป็นนาที</strong> หรือห้ามขวางงานอื่น → retry topic</p>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="Worker: Retry + DLT">
+    <div class="slide-inner">
+      <div class="eyebrow">ตัวอย่างโค้ด (KafkaJS)</div>
+      <h2>Worker ที่ retry ถูกประเภทและจบที่ DLT</h2>
+<pre class="code" data-lang="ts">
+const MAX_RETRIES = 3;
+
+await consumer.run({
+  eachMessage: async ({ topic, partition, message }) =&gt; {
+    const meta = { topic, partition, offset: message.offset, key: message.key?.toString() };
+
+    // 1) ข้อมูลผิด → DLT ทันที ไม่ retry
+    const parsed = safeParseOrder(message.value);            // JSON.parse + Zod (ไม่ throw)
+    if (!parsed.success) return sendToDlt(message, meta, { type: "INVALID", reason: parsed.error, attempt: 0 });
+
+    for (let attempt = 1; attempt &lt;= MAX_RETRIES; attempt++) {
+      try {
+        await inventoryService.reserve(parsed.data);           // business logic (ตอนที่ 4)
+        await publish("order-confirmed", parsed.data, meta);
+        return;                                                // ✅ สำเร็จ → KafkaJS commit offset ให้
+      } catch (err) {
+        const last = attempt === MAX_RETRIES;
+        if (!isRetryable(err) || last) {
+          return sendToDlt(message, meta, { type: isRetryable(err) ? "TRANSIENT" : "BUSINESS", reason: String(err), attempt });
+        }
+        await sleep(backoffMs(attempt));                       // ⏳ 1s, 2s (+jitter)
+      }
+    }
+  },
+});
+</pre>
+      <div class="callout warn">อย่าปล่อยให้ error หลุดออกจาก <code>eachMessage</code> โดยไม่ตั้งใจ: KafkaJS จะไม่ commit และอ่าน message เดิมซ้ำวนไปเรื่อย ๆ ให้จัดการเองแล้วจบด้วยสำเร็จหรือ DLT</div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="DLT ควรเก็บอะไร">
+    <div class="slide-inner">
+      <div class="eyebrow">Dead Letter Topic</div>
+      <h2>ส่งเข้า DLT ต้องมีข้อมูลพอให้ “แก้แล้ว replay ได้”</h2>
+      <div class="grid grid-2">
+        <div class="table-wrap"><table class="table">
+          <tr><th>ข้อมูล</th><th>ตัวอย่าง</th></tr>
+          <tr><td>payload เดิม (ไม่แก้)</td><td>order JSON เดิม</td></tr>
+          <tr><td>service ที่ fail</td><td><code>payment-service</code></td></tr>
+          <tr><td>ประเภท + เหตุผล</td><td><code>BUSINESS</code> · Payment declined</td></tr>
+          <tr><td>retry count</td><td><code>3</code></td></tr>
+          <tr><td>topic / partition / offset ต้นทาง</td><td><code>order-confirmed / 1 / 42</code></td></tr>
+          <tr><td>correlation id</td><td><code>ORD-1234</code></td></tr>
+        </table></div>
+<pre class="code" data-lang="ts">
+// lib/dlt.ts
+export async function sendToDlt(msg: KafkaMessage, meta: Meta, f: Failure) {
+  await producer.send({
+    topic: "order-events-dlt",
+    messages: [{
+      key: msg.key,                       // key เดิม
+      value: msg.value,                   // payload เดิม
+      headers: {
+        ...msg.headers,                   // รวม correlation id เดิม
+        "x-failed-service": SERVICE_NAME,
+        "x-error-type": f.type,
+        "x-error-reason": f.reason.slice(0, 500),
+        "x-retry-count": String(f.attempt),
+        "x-original-topic": meta.topic,
+        "x-original-partition": String(meta.partition),
+        "x-original-offset": meta.offset,
+      },
+    }],
+  });
+  await trackingLog.write({ ...meta, event: "SENT_TO_DLT", ...f }); // ตอนที่ 3
+}
+</pre>
+      </div>
+      <p class="muted small mt">DLT ควรมี retention นานกว่า topic ปกติ (เช่น 14–30 วัน) และต้องมี alert เมื่อมี message ใหม่เข้า</p>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="Retry กับ Idempotency">
+    <div class="slide-inner">
+      <div class="eyebrow">สำคัญที่สุด</div>
+      <h2>Retry ทำให้ message เดิมถูกประมวลผล “มากกว่า 1 ครั้ง” ได้</h2>
+      <div class="diagram"><div class="flow">
+        <div class="node green">ตัดเงินสำเร็จ</div><div class="arrow">→</div>
+        <div class="node" style="border-color:rgba(255,107,107,.5);background:rgba(255,107,107,.08)">network หลุด<small>ก่อน commit offset</small></div><div class="arrow">→</div>
+        <div class="node">worker restart</div><div class="arrow">→</div>
+        <div class="node gold">อ่าน message เดิม</div><div class="arrow">→</div>
+        <div class="node" style="border-color:rgba(255,107,107,.5);background:rgba(255,107,107,.08)">ตัดเงินซ้ำ 💸</div>
+      </div></div>
+      <div class="grid grid-2 mt">
+        <div class="table-wrap"><table class="table">
+          <tr><th>งาน</th><th>วิธีกันทำซ้ำ</th></tr>
+          <tr><td>ตัด stock</td><td>บันทึก <code>orderId + productId</code> ว่า reserve แล้ว</td></tr>
+          <tr><td>ตัดเงิน</td><td>ส่ง idempotency key (<code>orderId</code>) ให้ payment gateway</td></tr>
+          <tr><td>ส่งอีเมล</td><td>บันทึกว่าแจ้งเตือนของ <code>orderId</code> ส่งแล้ว</td></tr>
+          <tr><td>สร้าง record</td><td>unique constraint ที่ <code>orderId</code></td></tr>
+        </table></div>
+<pre class="code" data-lang="ts">
+// pseudo-code: ทำงาน + บันทึกว่าทำแล้ว ใน transaction เดียวกัน
+await db.transaction(async (tx) =&gt; {
+  const isFirstTime = await tx.processedMessages.insertIfAbsent({
+    messageId: order.orderId, consumer: "inventory",
+  });                                       // unique (messageId, consumer)
+  if (!isFirstTime) return;                 // เคยทำแล้ว → ข้ามอย่างปลอดภัย
+  await inventoryRepo.reserve(tx, order);
+});
+</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title="Retry กับ Ordering">
+    <div class="slide-inner">
+      <div class="eyebrow">Trade-off</div>
+      <h2>Retry กับลำดับข้อมูล: ต้องเลือก</h2>
+      <div class="diagram">
+        <p class="small muted">partition 0</p>
+        <div class="flow">
+          <div class="node" style="border-color:rgba(255,107,107,.5);background:rgba(255,107,107,.08)">offset 10<small>order A · กำลัง retry</small></div><div class="arrow">←</div>
+          <div class="node gold">offset 11<small>order B · รอ</small></div><div class="arrow">←</div>
+          <div class="node gold">offset 12<small>order C · รอ</small></div>
+        </div>
+      </div>
+      <div class="grid grid-2 mt">
+        <div class="card"><h3>ลำดับสำคัญกว่า</h3><p class="muted">ใช้ retry ใน consumer เดิม ยอมให้ B, C รอ A</p><p class="small">เช่น event ของบัญชีเดียวกัน (ฝาก → ถอน) ห้ามสลับ</p></div>
+        <div class="card gold"><h3>ความเร็วสำคัญกว่า</h3><p class="muted">ใช้ retry topic ให้ B, C ไปต่อได้ทันที</p><p class="small">ยอมรับว่า A อาจถูกประมวลผลทีหลัง B — consumer ต้องรับมือ event มาไม่เรียงได้</p></div>
+      </div>
+      <p class="muted small mt">Kafka รับประกันลำดับ <strong>ภายใน partition เดียว</strong> เท่านั้น และลำดับจะถูกต้องก็ต่อเมื่อใส่ message key (ตอนที่ 1)</p>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide" data-title="Retry Policy Template">
+    <div class="slide-inner">
+      <div class="eyebrow">Template · ใช้ตกลงกับทีม</div>
+      <h2>Retry Policy Template</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>Policy</th><th>ค่าแนะนำ</th><th>หมายเหตุ</th></tr>
+        <tr><td>Retryable errors</td><td>timeout, 503, 429, connection reset</td><td>transient เท่านั้น</td></tr>
+        <tr><td>Non-retryable errors</td><td>invalid schema, out of stock, payment declined</td><td>ส่ง DLT หรือ event ผลลัพธ์ไม่สำเร็จ</td></tr>
+        <tr><td>Max retries</td><td>3</td><td>Demo ใช้ 3</td></tr>
+        <tr><td>Backoff</td><td>exponential 1s, 2s, 4s</td><td>สูงสุดไม่เกิน 30s ใน consumer</td></tr>
+        <tr><td>Jitter</td><td>±20%</td><td></td></tr>
+        <tr><td>Retry location</td><td>consumer (สั้น) / retry topic (ยาว)</td><td>เลือกตาม use case</td></tr>
+        <tr><td>DLT after retries</td><td>Yes</td><td>เก็บ reason + metadata ต้นทาง</td></tr>
+        <tr><td>Manual retry</td><td>Yes</td><td>ต้อง audit คนกด</td></tr>
+        <tr><td>Idempotency key</td><td><code>orderId</code></td><td>กันทำซ้ำ</td></tr>
+        <tr><td>Monitoring</td><td>retry count, DLT count, consumer lag</td><td>ต้องมี alert</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- 12 -->
+  <section class="slide" data-title="Demo ปัจจุบัน vs Production">
+    <div class="slide-inner">
+      <div class="eyebrow">สรุป</div>
+      <h2>Demo ปัจจุบัน vs สิ่งที่ควรมีใน Production</h2>
+      <div class="grid grid-2">
+        <div class="table-wrap"><table class="table">
+          <tr><th>ส่วน</th><th>Demo ตอนนี้</th></tr>
+          <tr><td>Inventory / Payment</td><td>retry 3 ครั้ง แล้ว DLT</td></tr>
+          <tr><td>Notification</td><td>ไม่มี retry</td></tr>
+          <tr><td>DLT</td><td>retry มือผ่าน <code>/api/retry</code></td></tr>
+          <tr><td>Retention</td><td>ค่า default ของ broker</td></tr>
+        </table></div>
+        <div class="card gold"><h3>Production ควรมี</h3><ul>
+          <li>☐ แยก retryable / non-retryable ด้วย error class</li>
+          <li>☐ exponential backoff + jitter</li>
+          <li>☐ Notification มี retry (ส่งอีเมลล้มบ่อย)</li>
+          <li>☐ DLT headers ครบ + retention 14–30 วัน</li>
+          <li>☐ หน้า DLT Inspector พร้อม audit การกด retry</li>
+          <li>☐ ทุก consumer idempotent</li>
+          <li>☐ alert: retry rate, DLT count, lag</li>
+        </ul></div>
+      </div>
+      <div class="tag-row"><span class="muted small">ตอนถัดไป →</span><a class="tag gold" href="kafka-integration-3-tracking.html">ตอนที่ 3: Message Status &amp; Tracking</a><a class="tag" href="kafka-integration-1-checklist.html">← ตอนที่ 1</a></div>
+    </div>
+  </section>
+
+</main>
+<script>
+window.KV_GLOSSARY = {
+  backoff: { title: "Backoff", body: "การเพิ่มเวลารอก่อนลองใหม่ในแต่ละรอบ (มักเพิ่มเป็น 2 เท่า) เพื่อให้ระบบปลายทางมีเวลาฟื้นตัว และไม่ส่งคำขอถี่จนซ้ำเติมปัญหา", example: "รอ 1s → 2s → 4s → 8s แล้วหยุดที่ค่าสูงสุดที่กำหนด" },
+  jitter: { title: "Jitter", body: "การสุ่มบวก/ลบเวลารอเล็กน้อยจากค่า backoff เพื่อไม่ให้ worker จำนวนมากที่ fail พร้อมกัน ลองใหม่พร้อมกันทุกรอบ (thundering herd)", example: "worker A รอ 1.1s, B รอ 0.9s, C รอ 1.2s แทนที่ทุกตัวรอ 1s เท่ากัน" }
+};
+</script>
+<script src="../../assets/kv-deck.js"></script>
+</body>
+</html>

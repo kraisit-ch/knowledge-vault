@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>Kafka Integration 4: โครงสร้างโค้ด &amp; Roadmap</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css">
+</head>
+<body data-title="Kafka Integration 4: โครงสร้างโค้ด &amp; Roadmap" data-mark="KI4">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">Kafka Integration Guide · ตอนที่ 4/4</div>
+      <h1><span class="grad">โครงสร้างโค้ด</span><br>แยก Controller, Business Logic และ Kafka</h1>
+      <p class="lead">จัดโค้ดให้ API route และ worker ใช้ business logic ชุดเดียวกัน, ทดสอบได้โดยไม่ต้องมี Kafka และเปลี่ยน library / provider ได้โดยไม่ต้องแก้กฎธุรกิจ พร้อมลำดับงานต่อยอด Demo</p>
+      <div class="tag-row"><span class="tag gold">Layered</span><span class="tag blue">Service / Use case</span><span class="tag">Kafka Adapter</span><span class="tag">Roadmap</span></div>
+      <div class="quote">Controller ไม่ควรรู้ว่ามี Kafka · Business logic ไม่ควรรู้ว่าถูกเรียกจาก API หรือจาก Worker</div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="ปัญหาของโค้ดที่รวมกัน">
+    <div class="slide-inner">
+      <div class="eyebrow">ปัญหา</div>
+      <h2>ถ้าทุกอย่างอยู่ใน route.ts / worker ไฟล์เดียว</h2>
+      <div class="grid grid-2">
+        <div class="dont"><h4>รวมทุกอย่างไว้ใน handler</h4>
+<pre class="code" data-lang="ts">
+export async function POST(req: Request) {
+  const body = await req.json();
+  if (!body.items?.length) return error(...);      // validate
+  const total = body.items.reduce(...);            // คำนวณราคา
+  const stock = await db.stock.find(...);          // เช็ค stock
+  await kafka.producer().send({ ... });            // ผูกกับ KafkaJS
+  return NextResponse.json(...);
+}
+</pre></div>
+        <div class="card bad"><h3>ผลที่ตามมา</h3><ul>
+          <li>worker ต้อง copy logic เช็ค stock ไปอีกชุด → แก้ที่หนึ่ง ลืมอีกที่</li>
+          <li>เขียน unit test ไม่ได้ ต้องเปิด Kafka + DB จริง</li>
+          <li>เปลี่ยน KafkaJS เป็น library อื่น ต้องแก้ทุกไฟล์</li>
+          <li>ไฟล์ยาว อ่านยาก review ยาก</li>
+        </ul></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="3 ชั้นที่ต้องแยก">
+    <div class="slide-inner">
+      <div class="eyebrow">Architecture</div>
+      <h2>แยกเป็น 3 ชั้น</h2>
+      <div class="grid grid-3">
+        <div class="card"><div class="icon">🚪</div><h3>Controller API / Worker</h3><p class="muted small">“ประตูทางเข้า”</p><ul>
+          <li>รับ request / message</li>
+          <li>validate รูปแบบขั้นต้น</li>
+          <li>เรียก service</li>
+          <li>แปลงผลเป็น response / commit</li>
+        </ul></div>
+        <div class="card gold"><div class="icon">🧠</div><h3>Business Logic (Service)</h3><p class="muted small">“สมอง” — ไม่รู้จัก HTTP หรือ Kafka</p><ul>
+          <li>เช็ค stock</li>
+          <li>คำนวณราคา</li>
+          <li>ตรวจกฎการชำระเงิน</li>
+          <li>ตัดสินใจ success / error</li>
+          <li>สร้าง event ที่ต้อง publish</li>
+        </ul></div>
+        <div class="card violet"><div class="icon">🔌</div><h3>Kafka Adapter</h3><p class="muted small">“ท่อส่ง”</p><ul>
+          <li>เชื่อมต่อ Kafka</li>
+          <li>publish / consume</li>
+          <li>map topic, key, headers</li>
+          <li>ส่ง DLT</li>
+        </ul></div>
+      </div>
+      <div class="diagram mt"><div class="flow">
+        <div class="node">route.ts / consumer-*.ts</div><div class="arrow">→ เรียก →</div>
+        <div class="node gold">*.service.ts</div><div class="arrow">→ ผ่าน interface →</div>
+        <div class="node violet">*.producer.ts / lib/kafka.ts</div>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="โครงสร้างโฟลเดอร์">
+    <div class="slide-inner">
+      <div class="eyebrow">Folder Structure</div>
+      <h2>โครงสร้างโฟลเดอร์ที่แนะนำ (Next.js + Worker)</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="text">
+src/
+├─ app/api/produce/route.ts      # Controller เท่านั้น
+├─ modules/
+│  ├─ orders/
+│  │  ├─ order.schema.ts         # Zod schema + type (ตอนที่ 1)
+│  │  ├─ order.service.ts        # use case: createOrder
+│  │  ├─ order.repository.ts     # DB จริง (แทน db.json)
+│  │  └─ order.producer.ts       # publish OrderCreated
+│  ├─ inventory/
+│  │  └─ inventory.service.ts    # กฎ stock
+│  └─ payment/
+│     └─ payment.service.ts      # กฎการชำระเงิน
+├─ lib/
+│  ├─ kafka.ts                   # client config (ตอนที่ 1)
+│  ├─ dlt.ts                     # sendToDlt (ตอนที่ 2)
+│  ├─ retry.ts                   # backoff + jitter
+│  └─ tracking.ts                # tracking log (ตอนที่ 3)
+└─ workers/
+   ├─ consumer-inventory.ts      # consume → inventory.service
+   └─ consumer-payment.ts        # consume → payment.service
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4>จัดตาม module ธุรกิจ</h4><p class="small muted">ทุกอย่างของ “order” อยู่ที่เดียว หาไฟล์ง่าย</p></div>
+          <div class="card"><h4><code>lib/</code> = ของใช้ร่วม</h4><p class="small muted">ไม่มีกฎธุรกิจ เป็นเครื่องมือทางเทคนิคล้วน</p></div>
+          <div class="card violet"><h4>worker บางมาก</h4><p class="small muted">อ่าน message → validate → เรียก service → จัดการผลลัพธ์</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="ตัวอย่างโค้ด: API">
+    <div class="slide-inner">
+      <div class="eyebrow">ตัวอย่างโค้ด</div>
+      <h2>Controller บาง → Service → Producer</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="ts">
+// app/api/produce/route.ts — Controller
+export async function POST(request: Request) {
+  const parsed = CreateOrderInput.safeParse(await request.json());
+  if (!parsed.success) {
+    return NextResponse.json({ errors: parsed.error.flatten() }, { status: 400 });
+  }
+  const result = await orderService.createOrder(parsed.data);
+  return NextResponse.json(result, { status: 202 }); // รับเรื่องแล้ว กำลังประมวลผล
+}
+</pre>
+<pre class="code" data-lang="ts">
+// modules/orders/order.service.ts — Business logic
+export function createOrderService(deps: {
+  repo: OrderRepository;
+  events: OrderEventPublisher;          // interface ไม่ใช่ KafkaJS
+}) {
+  return {
+    async createOrder(input: CreateOrderInput) {
+      const order = buildOrder(input);  // คำนวณราคา, ตรวจกฎ
+      await deps.repo.save({ ...order, status: "PRODUCED" });
+      await deps.events.orderCreated(order);
+      return { orderId: order.orderId, status: "PRODUCED" };
+    },
+  };
+}
+</pre>
+      </div>
+      <div class="callout">ตอบ <strong>202 Accepted</strong> แทน 200 เพราะ order ยังไม่เสร็จจริง ผลลัพธ์สุดท้ายดูได้จาก tracking / สถานะ order (ตอนที่ 3)</div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="ตัวอย่างโค้ด: Adapter + Worker">
+    <div class="slide-inner">
+      <div class="eyebrow">ตัวอย่างโค้ด</div>
+      <h2>Kafka Adapter และ Worker ที่ใช้ Service ชุดเดียวกัน</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="ts">
+// modules/orders/order.producer.ts — Kafka adapter
+export const kafkaOrderEvents: OrderEventPublisher = {
+  async orderCreated(order) {
+    await producer.send({
+      topic: "order-events",
+      messages: [{
+        key: order.orderId,
+        value: JSON.stringify(order),
+        headers: { "x-correlation-id": order.orderId, "x-event-type": "OrderCreated" },
+      }],
+    });
+  },
+};
+
+// ประกอบตอนเริ่มแอป (composition root)
+export const orderService = createOrderService({
+  repo: dbOrderRepository,
+  events: kafkaOrderEvents,
+});
+</pre>
+<pre class="code" data-lang="ts">
+// workers/consumer-inventory.ts — Worker
+eachMessage: async ({ topic, partition, message }) =&gt; {
+  const track = createTracker("Inventory", { topic, partition, message });
+  await track("RECEIVED");
+  const order = safeParseOrder(message.value);
+  if (!order.success) return sendToDlt(...);
+
+  // withRetry = loop retry + backoff ของตอนที่ 2 ห่อเป็น helper ใน lib/retry.ts
+  await withRetry(() =&gt; inventoryService.reserve(order.data), {
+    onRetry: (attempt, err) =&gt; track("RETRYING", { attempt, errorReason: String(err) }),
+  });
+  await track("PROCESS_SUCCESS");
+}
+
+// test: ไม่ต้องมี Kafka
+const events = { orderCreated: vi.fn() };
+const svc = createOrderService({ repo: memoryRepo, events });
+await svc.createOrder(input);
+expect(events.orderCreated).toHaveBeenCalledOnce();
+</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="ข้อดีที่ได้">
+    <div class="slide-inner">
+      <div class="eyebrow">ผลลัพธ์</div>
+      <h2>ได้อะไรจากการแยกชั้น</h2>
+      <div class="grid grid-2">
+        <div class="card good"><div class="icon">🧪</div><h3>Test ง่าย</h3><p class="muted">unit test business logic ด้วย mock ไม่ต้องเปิด Kafka / DB</p></div>
+        <div class="card gold"><div class="icon">♻️</div><h3>Reuse ได้</h3><p class="muted">API route และ worker เรียก service เดียวกัน กฎธุรกิจอยู่ที่เดียว</p></div>
+        <div class="card"><div class="icon">🔁</div><h3>เปลี่ยน provider ได้</h3><p class="muted">เปลี่ยน KafkaJS → <code>@confluentinc/kafka-javascript</code> หรือ RabbitMQ แก้แค่ adapter</p></div>
+        <div class="card violet"><div class="icon">📖</div><h3>อ่านและ review ง่าย</h3><p class="muted">แต่ละไฟล์มีหน้าที่เดียว PR เล็กลง bug จากการ copy logic ลดลง</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="Roadmap ต่อยอด Demo">
+    <div class="slide-inner">
+      <div class="eyebrow">ลำดับงานที่แนะนำ</div>
+      <h2>Roadmap ต่อยอด Demo สู่ Production</h2>
+      <ol class="steps">
+        <li><strong>ใส่ <code>key: orderId</code></strong> ตอน publish ใน <code>/api/produce</code> <span class="tag gold">ตอนที่ 1</span></li>
+        <li><strong>เพิ่ม <code>x-correlation-id</code></strong> ใน headers และส่งต่อทุก worker <span class="tag gold">ตอนที่ 3</span></li>
+        <li><strong>tracking log มี topic / partition / offset / key</strong> ใน <code>appendLog</code> <span class="tag gold">ตอนที่ 3</span></li>
+        <li><strong>retry log เป็น field</strong> <code>attempt</code>, <code>maxRetries</code> + backoff/jitter <span class="tag gold">ตอนที่ 2</span></li>
+        <li><strong>API ค้น tracking ตาม orderId</strong> (timeline) <span class="tag gold">ตอนที่ 3</span></li>
+        <li><strong>offset / lag ใน <code>/api/consumer-status</code></strong> <span class="tag gold">ตอนที่ 3</span></li>
+        <li><strong>สถานะ order เป็น lifecycle จริง</strong> PRODUCED → INVENTORY_OK → PAYMENT_OK → NOTIFIED / FAILED / DLT</li>
+        <li><strong>ย้าย tracking log ไป database</strong> หรือ log platform + แยก service ตามตอนนี้</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="สรุปทั้งซีรีส์">
+    <div class="slide-inner">
+      <div class="eyebrow">สรุปทั้งซีรีส์</div>
+      <h2>Kafka Integration ใน 4 ตอน</h2>
+      <div class="grid grid-2">
+        <div class="card gold"><h3>1. เตรียมข้อมูล &amp; Contract</h3><p class="small muted">ขอข้อมูลครบ 4 กลุ่ม, schema + validator, key, headers, SASL_SSL</p></div>
+        <div class="card"><h3>2. Retry &amp; DLT</h3><p class="small muted">retry เฉพาะ transient, backoff + jitter, จบที่ DLT, idempotent</p></div>
+        <div class="card violet"><h3>3. Status &amp; Tracking</h3><p class="small muted">Kafka ไม่มี status → tracking log + correlationId + lag</p></div>
+        <div class="card good"><h3>4. โครงสร้างโค้ด</h3><p class="small muted">Controller / Service / Adapter แยกกัน test ได้ reuse ได้</p></div>
+      </div>
+      <div class="tag-row">
+        <a class="tag gold" href="kafka-integration-1-checklist.html">ตอนที่ 1</a>
+        <a class="tag gold" href="kafka-integration-2-retry-dlt.html">ตอนที่ 2</a>
+        <a class="tag gold" href="kafka-integration-3-tracking.html">ตอนที่ 3</a>
+        <a class="tag blue" href="kafka-deep-dive.html">Kafka Deep Dive</a>
+        <a class="tag" href="../backend/dotnet-clean-architecture.html">.NET Clean Architecture</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+<script src="../../assets/kv-deck.js"></script>
+</body>
+</html>

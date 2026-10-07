@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>Kafka Integration 1: เตรียมข้อมูล &amp; Message Contract</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css">
+</head>
+<body data-title="Kafka Integration 1: เตรียมข้อมูล &amp; Message Contract" data-mark="KI1">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">Kafka Integration Guide · ตอนที่ 1/4</div>
+      <h1><span class="grad">Kafka Integration</span><br>เตรียมข้อมูลให้ครบก่อนเขียนโค้ด</h1>
+      <p class="lead">คู่มือสำหรับทีม dev ก่อนเริ่มเชื่อมระบบกับ Kafka: ต้องขออะไรจากทีม Kafka, ตกลง message หน้าตาแบบไหน และตั้งค่า security อย่างไร</p>
+      <div class="grid grid-3 mt">
+        <div class="card gold"><div class="icon">📋</div><h3>ต้องขอข้อมูลอะไร</h3><p class="muted small">Data Dictionary + Template DEV/UAT/PROD + คำถามสำเร็จรูป</p></div>
+        <div class="card"><div class="icon">🧾</div><h3>Message Contract</h3><p class="muted small">Format, Schema, Key, Headers ที่ producer และ consumer ต้องตรงกัน</p></div>
+        <div class="card violet"><div class="icon">🔐</div><h3>Security &amp; Network</h3><p class="muted small">SASL_SSL, ACL, VPN/Firewall และการเก็บรหัสผ่าน</p></div>
+      </div>
+      <div class="quote">ปัญหา Kafka ส่วนใหญ่ไม่ได้เกิดจากโค้ด แต่เกิดจาก “ข้อมูลที่ตกลงกันไม่ครบ” ตั้งแต่ก่อนเริ่ม</div>
+    </div>
+    <template class="note"><p>ซีรีส์นี้มี 4 ตอน: 1) เตรียมข้อมูล &amp; Contract 2) Retry &amp; DLT 3) Message Status &amp; Tracking 4) โครงสร้างโค้ด &amp; Roadmap</p></template>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="ภาพรวม Demo">
+    <div class="slide-inner">
+      <div class="eyebrow">ตัวอย่างที่ใช้ตลอดเอกสาร</div>
+      <h2>Demo: Order Flow แบบ Event-Driven</h2>
+      <div class="diagram">
+        <p class="small muted">✅ เส้นทางปกติ</p>
+        <div class="flow">
+          <div class="node">Browser<small>POST /api/produce</small></div><div class="arrow">→</div>
+          <div class="node gold">order-events</div><div class="arrow">→</div>
+          <div class="node green">Inventory<small>เช็ค / ตัด stock</small></div><div class="arrow">→</div>
+          <div class="node gold">order-confirmed</div><div class="arrow">→</div>
+          <div class="node green">Payment<small>ตัดเงิน</small></div><div class="arrow">→</div>
+          <div class="node gold">payment-result</div><div class="arrow">→</div>
+          <div class="node green">Notification<small>แจ้งลูกค้า</small></div>
+        </div>
+        <p class="small muted mt">❌ เมื่อ Inventory หรือ Payment ล้มเหลว</p>
+        <div class="flow">
+          <div class="node">Inventory / Payment fail</div><div class="arrow">→</div>
+          <div class="node violet">order-events-dlt</div><div class="arrow">→</div>
+          <div class="node">DLT worker<small>บันทึก + รอ retry มือ</small></div>
+        </div>
+      </div>
+      <p class="muted small mt">แต่ละ worker <strong>ไม่เรียกกันตรง ๆ</strong> แต่สื่อสารผ่าน topic ทำให้ service หนึ่งล่มก็ไม่ลากตัวอื่นล่มตาม<button class="term" data-term="eda"></button></p>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="ค่าในโปรเจกต์ Demo">
+    <div class="slide-inner">
+      <div class="eyebrow">Reference</div>
+      <h2>ค่าและไฟล์สำคัญใน Demo</h2>
+      <div class="grid grid-2">
+        <div class="table-wrap"><table class="table">
+          <tr><th>ส่วน</th><th>ค่า</th></tr>
+          <tr><td>Broker (แอปบนเครื่อง)</td><td><code>localhost:29092</code></td></tr>
+          <tr><td>Broker (แอปใน container)</td><td><code>kafka:9092</code></td></tr>
+          <tr><td>Input topic</td><td><code>order-events</code></td></tr>
+          <tr><td>Intermediate topic</td><td><code>order-confirmed</code></td></tr>
+          <tr><td>Payment result</td><td><code>payment-result</code></td></tr>
+          <tr><td>Dead Letter Topic</td><td><code>order-events-dlt</code></td></tr>
+        </table></div>
+        <div class="table-wrap"><table class="table">
+          <tr><th>หน้าที่</th><th>ไฟล์</th></tr>
+          <tr><td>Producer หลัก</td><td><code>src/app/api/produce/route.ts</code></td></tr>
+          <tr><td>Kafka config</td><td><code>src/lib/kafka.ts</code></td></tr>
+          <tr><td>สร้าง topic</td><td><code>src/lib/init-kafka.ts</code></td></tr>
+          <tr><td>Workers</td><td><code>src/workers/consumer-*.ts</code></td></tr>
+          <tr><td>DLT worker</td><td><code>src/workers/consumer-dlt.ts</code></td></tr>
+        </table></div>
+      </div>
+      <div class="callout"><strong>ทำไม broker มี 2 ค่า:</strong> แอปบนเครื่องเราต่อผ่าน port ที่ Docker เปิดออกมา (<code>29092</code>) ส่วนแอปใน container เดียวกันต่อผ่านชื่อ service (<code>kafka:9092</code>) — ดูเรื่องนี้ใน Docker ตอนที่ 5</div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="คำศัพท์สำคัญ">
+    <div class="slide-inner">
+      <div class="eyebrow">Glossary</div>
+      <h2>คำศัพท์ที่ต้องเข้าใจตรงกัน</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>คำ</th><th>ความหมาย</th><th>ใน Demo</th></tr>
+        <tr><td><strong>Producer</strong></td><td>โปรแกรมที่ส่ง message เข้า Kafka</td><td><code>/api/produce</code></td></tr>
+        <tr><td><strong>Publish</strong></td><td>การกระทำ “ส่ง” message เข้า topic</td><td><code>producer.send(...)</code></td></tr>
+        <tr><td><strong>Topic</strong></td><td>ช่องเก็บ message ประเภทเดียวกัน</td><td><code>order-events</code></td></tr>
+        <tr><td><strong>Message</strong></td><td>ข้อมูล 1 ก้อน = key + value + headers</td><td>JSON ของ order</td></tr>
+        <tr><td><strong>Message Key</strong><button class="term" data-term="key"></button></td><td>ตัวเลือก partition และรักษาลำดับ</td><td>แนะนำ <code>orderId</code></td></tr>
+        <tr><td><strong>Consumer</strong></td><td>โปรแกรมที่อ่าน message</td><td>Inventory อ่าน <code>order-events</code></td></tr>
+        <tr><td><strong>Consumer Group</strong><button class="term" data-term="group"></button></td><td>กลุ่ม consumer ที่แบ่งกันอ่าน และจำว่าอ่านถึงไหน</td><td><code>inventory-group</code></td></tr>
+        <tr><td><strong>Worker</strong></td><td>process ที่รัน consumer อยู่เบื้องหลังตลอดเวลา</td><td><code>consumer-payment.ts</code></td></tr>
+        <tr><td><strong>DLT</strong><button class="term" data-term="dlt"></button></td><td>topic เก็บ message ที่ประมวลผลไม่สำเร็จ</td><td><code>order-events-dlt</code></td></tr>
+        <tr><td><strong>Business Logic</strong></td><td>กฎธุรกิจ: เช็ค stock, คำนวณราคา, ตรวจการชำระเงิน</td><td>ควรแยกจาก Controller</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="ทำไมต้องขอข้อมูลก่อน">
+    <div class="slide-inner">
+      <div class="eyebrow">ก่อนเริ่มพัฒนา</div>
+      <h2>ข้อมูลที่ต้องขอแบ่งเป็น 4 กลุ่ม</h2>
+      <div class="grid grid-4">
+        <div class="card"><div class="icon">🔌</div><h3>Connection</h3><p class="small muted">Broker, Topic, Environment, Consumer Group, Partition</p><p class="small"><strong class="red">ถ้าขาด:</strong> ต่อไม่ได้ หรือไปอ่าน/เขียนผิด environment</p></div>
+        <div class="card violet"><div class="icon">🔐</div><h3>Security</h3><p class="small muted">Protocol, SASL, Certificate, ACL, Network</p><p class="small"><strong class="red">ถ้าขาด:</strong> DEV ผ่าน แต่ UAT/PROD ต่อไม่ได้ในวัน deploy</p></div>
+        <div class="card gold"><div class="icon">🧾</div><h3>Contract</h3><p class="small muted">Format, Schema, Key, Schema Registry</p><p class="small"><strong class="red">ถ้าขาด:</strong> parse ไม่ได้, ลำดับผิด, consumer พังเมื่อ schema เปลี่ยน</p></div>
+        <div class="card good"><div class="icon">🛠️</div><h3>Operations</h3><p class="small muted">Retention, Retry/DLT, Monitoring, Support</p><p class="small"><strong class="red">ถ้าขาด:</strong> มีปัญหาแล้วไม่รู้ ไม่มีคนช่วย กู้ข้อมูลไม่ได้</p></div>
+      </div>
+      <div class="quote">ใช้ตารางในสไลด์ถัดไปเป็น “ใบสั่งของ” ส่งให้ทีม Kafka และอย่าเริ่มเขียนโค้ด PROD จนกว่าจะได้ครบ</div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="Data Dictionary (1)">
+    <div class="slide-inner">
+      <div class="eyebrow">Data Dictionary · Connection &amp; Security</div>
+      <h2>รายการที่ต้องขอ (1/2)</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>รายการ</th><th>บังคับ</th><th>ตัวอย่าง</th><th>ใช้ทำอะไร</th></tr>
+        <tr><td>Bootstrap Servers</td><td><span class="status"><span class="dot good"></span>Yes</span></td><td><code>kafka01:9092,kafka02:9092</code></td><td>ใส่ใน <code>brokers</code> (PROD ควรมี 2–3 ตัวขึ้นไป)</td></tr>
+        <tr><td>Topic Name</td><td><span class="status"><span class="dot good"></span>Yes</span></td><td><code>customer-events</code></td><td>ปลายทาง produce / consume / DLT</td></tr>
+        <tr><td>Environment Endpoint</td><td><span class="status"><span class="dot good"></span>Yes</span></td><td>DEV=<code>kafka-dev:9092</code></td><td>deploy ให้ถูก environment</td></tr>
+        <tr><td>Consumer Group ID</td><td><span class="status"><span class="dot good"></span>Yes</span></td><td><code>inventory-group</code></td><td>จำ offset และแบ่ง partition</td></tr>
+        <tr><td>Partition Count</td><td><span class="status"><span class="dot medium"></span>แนะนำ</span></td><td><code>3</code></td><td>วางแผนจำนวน worker (ไม่เกินจำนวน partition)</td></tr>
+        <tr><td>Security Protocol / Credential</td><td><span class="status"><span class="dot good"></span>Yes (PROD)</span></td><td><code>SASL_SSL</code> + user/pass</td><td>ยืนยันตัวตนกับ broker</td></tr>
+        <tr><td>SASL Mechanism</td><td><span class="status"><span class="dot good"></span>ถ้ามี SASL</span></td><td><code>SCRAM-SHA-512</code></td><td>ต้องตรงกับที่ broker ตั้งไว้</td></tr>
+        <tr><td>SSL Certificate</td><td><span class="status"><span class="dot medium"></span>ถ้าใช้ TLS/mTLS</span></td><td><code>ca.pem</code>, <code>client.pem</code></td><td>เข้ารหัส / ยืนยันตัวตนสองฝั่ง</td></tr>
+        <tr><td>ACL / Permission</td><td><span class="status"><span class="dot good"></span>Yes (PROD)</span></td><td>write <code>order-events</code></td><td>ให้สิทธิ์เท่าที่จำเป็น (least privilege)</td></tr>
+        <tr><td>Network Requirement</td><td><span class="status"><span class="dot good"></span>Yes</span></td><td>allow subnet → 9092</td><td>VPN, firewall, IP whitelist</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="Data Dictionary (2)">
+    <div class="slide-inner">
+      <div class="eyebrow">Data Dictionary · Contract &amp; Operations</div>
+      <h2>รายการที่ต้องขอ (2/2)</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>รายการ</th><th>บังคับ</th><th>ตัวอย่าง</th><th>ใช้ทำอะไร</th></tr>
+        <tr><td>Message Format</td><td><span class="status"><span class="dot good"></span>Yes</span></td><td><code>JSON</code> / Avro / Protobuf</td><td>เลือก parser และ validator</td></tr>
+        <tr><td>Message Schema</td><td><span class="status"><span class="dot good"></span>Yes</span></td><td>field, type, required + ตัวอย่าง</td><td>validate message ทั้งสองฝั่ง</td></tr>
+        <tr><td>Message Key</td><td><span class="status"><span class="dot good"></span>Yes</span></td><td><code>orderId</code>, <code>customerId</code></td><td>ลำดับข้อมูลและการเลือก partition</td></tr>
+        <tr><td>Schema Registry</td><td><span class="status"><span class="dot medium"></span>ถ้าใช้ Avro/Protobuf</span></td><td><code>https://schema-registry:8081</code></td><td>encode / decode ตาม schema</td></tr>
+        <tr><td>Retention Policy</td><td><span class="status"><span class="dot medium"></span>แนะนำ</span></td><td><code>7 days</code></td><td>ย้อน replay ได้นานแค่ไหน, ใช้ดิสก์เท่าไร</td></tr>
+        <tr><td>Retry Policy</td><td><span class="status"><span class="dot medium"></span>แนะนำ</span></td><td>retry 3 ครั้ง → DLT</td><td>ออกแบบ error handling (ตอนที่ 2)</td></tr>
+        <tr><td>Monitoring / Alert</td><td><span class="status"><span class="dot medium"></span>แนะนำ</span></td><td>Grafana, Kafka UI</td><td>เห็น consumer lag, DLT</td></tr>
+        <tr><td>Contact Support</td><td><span class="status"><span class="dot good"></span>Yes</span></td><td>ทีม, อีเมล, on-call</td><td>ลดเวลาแก้ปัญหาตอน incident</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="Template DEV/UAT/PROD">
+    <div class="slide-inner">
+      <div class="eyebrow">Template · คัดลอกไปกรอกได้เลย</div>
+      <h2>รายละเอียดการเชื่อมต่อแยก Environment</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>Field</th><th>DEV</th><th>UAT</th><th>PROD</th><th>หมายเหตุ</th></tr>
+        <tr><td>Bootstrap Servers</td><td><code>localhost:29092</code></td><td>TBD</td><td><code>kafka01:9092,kafka02:9092</code></td><td>คั่นด้วย comma</td></tr>
+        <tr><td>Client ID</td><td><code>order-system</code></td><td>TBD</td><td>TBD</td><td>ชื่อแอป ใช้ดูใน log ของ broker</td></tr>
+        <tr><td>Input / Output Topic</td><td><code>order-events</code> / <code>order-confirmed</code></td><td>TBD</td><td>TBD</td><td></td></tr>
+        <tr><td>DLT Topic</td><td><code>order-events-dlt</code></td><td>TBD</td><td>TBD</td><td>แนะนำให้มีเสมอ</td></tr>
+        <tr><td>Consumer Group ID</td><td><code>inventory-group</code></td><td>TBD</td><td>TBD</td><td><strong class="red">ห้ามเปลี่ยนมั่ว</strong><button class="term" data-term="groupchange"></button></td></tr>
+        <tr><td>Format / Key</td><td>JSON / <code>orderId</code></td><td>TBD</td><td>TBD</td><td>ต้องตรงกันทุก environment</td></tr>
+        <tr><td>Security Protocol</td><td><code>PLAINTEXT</code></td><td><code>SASL_SSL</code></td><td><code>SASL_SSL</code></td><td>plaintext ได้เฉพาะ local</td></tr>
+        <tr><td>SASL / Username / Password</td><td>-</td><td>SCRAM-SHA-512 / TBD</td><td>SCRAM-SHA-512 / TBD</td><td>เก็บใน secret manager</td></tr>
+        <tr><td>CA / Client Cert</td><td>-</td><td><code>ca.pem</code></td><td><code>ca.pem</code> (+ client cert ถ้า mTLS)</td><td></td></tr>
+        <tr><td>Network</td><td>localhost</td><td>VPN</td><td>private subnet / firewall</td><td>ระบุ port + IP</td></tr>
+        <tr><td>Retention / Retry</td><td>default / 3→DLT</td><td>7 days / TBD</td><td>7–30 days / TBD</td><td>ตกลงกับทีม Kafka</td></tr>
+        <tr><td>Support Contact</td><td>Dev owner</td><td>Kafka team</td><td>Kafka on-call</td><td></td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="Checklist + คำถามสำเร็จรูป">
+    <div class="slide-inner">
+      <div class="eyebrow">ส่งให้ทีม Kafka</div>
+      <h2>Checklist ก่อนเริ่ม + ข้อความขอข้อมูล</h2>
+      <div class="grid grid-2">
+        <div class="card good"><h3>Checklist ก่อนเริ่มพัฒนา</h3><ul>
+          <li>☐ broker endpoint ครบทุก environment</li>
+          <li>☐ ชื่อ topic อ่าน / เขียน / DLT</li>
+          <li>☐ consumer group id</li>
+          <li>☐ security config + credential (ผ่านช่องทางลับ)</li>
+          <li>☐ ตัวอย่าง payload 3 แบบ: สำเร็จ, business error, ข้อมูลผิด</li>
+          <li>☐ message key ที่ตกลงร่วมกัน</li>
+          <li>☐ retry / DLT / retention policy</li>
+          <li>☐ ACL ว่า service นี้ read/write topic ไหน</li>
+          <li>☐ network access (VPN, whitelist, firewall)</li>
+          <li>☐ contact support + แผน monitor lag / DLT</li>
+        </ul></div>
+<pre class="code" data-lang="text">
+รบกวนขอข้อมูล Kafka สำหรับระบบ &lt;ชื่อระบบ&gt; ดังนี้ครับ
+
+1. Bootstrap servers ของ DEV/UAT/PROD
+2. Topic ที่ต้อง produce / consume / DLT
+3. แต่ละ topic มีกี่ partition
+4. Security protocol (PLAINTEXT, SSL, SASL_SSL)
+5. SASL mechanism และวิธีรับ username/password
+6. CA cert / client cert / key (ถ้าใช้ SSL/mTLS)
+7. Message format: JSON, Avro หรือ Protobuf
+8. Schema และ payload ตัวอย่าง
+9. Message key ที่ต้องใช้
+10. Schema Registry URL + credential (ถ้ามี)
+11. IP whitelist / VPN / firewall ที่ต้องขอ
+12. Retention policy ของแต่ละ topic
+13. Retry / DLT policy ที่ต้องการ
+14. Consumer group id ที่ควรใช้
+15. Contact support / on-call
+</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title="Message Format">
+    <div class="slide-inner">
+      <div class="eyebrow">Message Contract</div>
+      <h2>Message Format: เลือกแบบไหนดี</h2>
+      <div class="grid grid-3">
+        <div class="card gold"><h3>JSON</h3><p class="muted">อ่านง่าย เริ่มเร็ว debug สะดวก (Demo ใช้แบบนี้)</p><p class="small"><strong>ต้องทำเพิ่ม:</strong> validate ด้วย Zod / JSON Schema เองทั้ง producer และ consumer</p></div>
+        <div class="card"><h3>Avro</h3><p class="muted">มาตรฐานองค์กร รองรับการเปลี่ยน schema แบบมีกติกา</p><p class="small"><strong>ต้องมี:</strong> Schema Registry ใช้ร่วมกัน</p></div>
+        <div class="card violet"><h3>Protobuf</h3><p class="muted">ข้อมูลเล็ก เร็ว contract ชัด ใช้ข้ามภาษาได้ดี</p><p class="small"><strong>ต้องทำ:</strong> generate type/code จากไฟล์ .proto</p></div>
+      </div>
+      <div class="callout warn"><strong>Schema evolution<button class="term" data-term="evolution"></button>:</strong> เพิ่ม field ใหม่แบบ optional ได้ แต่ <strong>ห้ามลบ / เปลี่ยนชื่อ / เปลี่ยน type</strong> โดยไม่แจ้ง consumer ทุกทีม เพราะ message เก่าในคิวยังเป็นรูปแบบเดิม</div>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide" data-title="Order Event Schema">
+    <div class="slide-inner">
+      <div class="eyebrow">Message Contract</div>
+      <h2>Order Event: ตัวอย่าง + Data Dictionary</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="json">
+{
+  "orderId": "ORD-1234",
+  "customerEmail": "customer@example.com",
+  "items": [
+    { "productId": "PROD-001", "name": "iPhone 15 Pro", "qty": 1 }
+  ],
+  "timestamp": "2026-05-26T10:00:00.000Z"
+}
+</pre>
+        <div class="table-wrap"><table class="table">
+          <tr><th>Field</th><th>Type</th><th>บังคับ</th><th>คำอธิบาย</th></tr>
+          <tr><td><code>orderId</code></td><td>string</td><td>Yes</td><td>รหัส order = message key</td></tr>
+          <tr><td><code>customerEmail</code></td><td>string</td><td>Yes</td><td>อีเมลลูกค้า</td></tr>
+          <tr><td><code>items</code></td><td>array</td><td>Yes</td><td>รายการสินค้า (≥ 1)</td></tr>
+          <tr><td><code>items[].productId</code></td><td>string</td><td>Yes</td><td>รหัสสินค้า</td></tr>
+          <tr><td><code>items[].name</code></td><td>string</td><td>Yes</td><td>ชื่อสินค้า</td></tr>
+          <tr><td><code>items[].qty</code></td><td>number</td><td>Yes</td><td>จำนวน (&gt; 0)</td></tr>
+          <tr><td><code>timestamp</code></td><td>string</td><td>แนะนำ</td><td>ISO 8601 UTC</td></tr>
+        </table></div>
+      </div>
+<pre class="code" data-lang="ts">
+// order.schema.ts — schema เดียว ใช้ทั้ง producer (ก่อนส่ง) และ consumer (หลังอ่าน)
+export const OrderEventSchema = z.object({
+  orderId: z.string().min(1),
+  customerEmail: z.string().email(),
+  items: z.array(z.object({ productId: z.string(), name: z.string(), qty: z.number().int().positive() })).min(1),
+  timestamp: z.string().datetime().optional(),
+});
+export type OrderEvent = z.infer&lt;typeof OrderEventSchema&gt;;
+</pre>
+    </div>
+  </section>
+
+  <!-- 12 -->
+  <section class="slide" data-title="Message Key">
+    <div class="slide-inner">
+      <div class="eyebrow">Message Contract</div>
+      <h2>Message Key: เลือกตาม “ลำดับที่ต้องรักษา”</h2>
+      <div class="grid grid-2">
+        <div class="table-wrap"><table class="table">
+          <tr><th>ต้องการลำดับแบบไหน</th><th>Key ที่แนะนำ</th></tr>
+          <tr><td>event ของ order เดียวกันต้องเรียงกัน</td><td><code>orderId</code></td></tr>
+          <tr><td>event ของลูกค้าคนเดียวกันต้องเรียงกัน</td><td><code>customerId</code></td></tr>
+          <tr><td>ไม่สนลำดับ เน้นกระจายงานให้มากที่สุด</td><td>ไม่ใส่ key</td></tr>
+        </table></div>
+        <div class="diagram">
+          <div class="flow"><div class="node">Created<small>ORD-1</small></div><div class="node">Paid<small>ORD-1</small></div><div class="node">Shipped<small>ORD-1</small></div></div>
+          <div class="flow mt"><div class="arrow">↓ key เดียวกัน = partition เดียวกัน</div></div>
+          <div class="flow"><div class="node gold">Partition 2<small>ลำดับถูกต้องเสมอ</small></div></div>
+        </div>
+      </div>
+      <div class="callout bad mt"><strong>สิ่งที่ต้องแก้ใน Demo:</strong> <code>/api/produce</code> ยังส่งโดยไม่มี key (ส่วน <code>/api/retry</code> ใส่แล้ว) ทำให้ event ของ order เดียวกันอาจไปคนละ partition และถูกประมวลผลสลับลำดับ</div>
+<pre class="code" data-lang="ts">
+await producer.send({
+  topic: "order-events",
+  messages: [{
+    key: order.orderId,                                        // ✅ เพิ่มบรรทัดนี้
+    value: JSON.stringify(order),
+    headers: { "x-correlation-id": order.orderId, "x-event-type": "OrderCreated" },
+  }],
+});
+</pre>
+    </div>
+  </section>
+
+  <!-- 13 -->
+  <section class="slide" data-title="Headers & DLT Headers">
+    <div class="slide-inner">
+      <div class="eyebrow">Message Contract</div>
+      <h2>Headers: ข้อมูลประกอบที่ไม่ใช่ตัว payload</h2>
+      <div class="grid grid-2">
+        <div class="card"><h3>Headers ของ message ปกติ (แนะนำ)</h3><ul>
+          <li><code>x-correlation-id</code> — ตามงานข้าม service</li>
+          <li><code>x-event-type</code> — เช่น <code>OrderCreated</code></li>
+          <li><code>x-schema-version</code> — เช่น <code>1</code></li>
+          <li><code>x-produced-by</code> — service ที่ส่ง</li>
+        </ul></div>
+        <div class="card gold"><h3>Headers เมื่อส่งเข้า DLT</h3>
+          <div class="table-wrap"><table class="table">
+            <tr><th>Header</th><th>ตัวอย่าง</th></tr>
+            <tr><td><code>x-failed-service</code> <span class="tag gold">มีแล้ว</span></td><td><code>inventory-service</code></td></tr>
+            <tr><td><code>x-error-reason</code> <span class="tag gold">มีแล้ว</span></td><td>Product has 0 units</td></tr>
+            <tr><td><code>x-error-type</code> <span class="tag">เพิ่ม</span></td><td><code>BUSINESS</code> / <code>TRANSIENT</code> / <code>INVALID</code></td></tr>
+            <tr><td><code>x-retry-count</code> <span class="tag">เพิ่ม</span></td><td><code>3</code></td></tr>
+            <tr><td><code>x-original-topic/partition/offset</code> <span class="tag">เพิ่ม</span></td><td><code>order-events / 1 / 42</code></td></tr>
+            <tr><td><code>x-correlation-id</code> <span class="tag">เพิ่ม</span></td><td><code>ORD-1234</code></td></tr>
+          </table></div></div>
+      </div>
+      <p class="muted small mt">ใน DLT ให้เก็บ <strong>payload เดิมไม่แก้ไข</strong> และใส่สาเหตุไว้ใน headers เพื่อให้ replay กลับไปได้ทันทีหลังแก้ปัญหา</p>
+    </div>
+  </section>
+
+  <!-- 14 -->
+  <section class="slide" data-title="Security & Network">
+    <div class="slide-inner">
+      <div class="eyebrow">Security &amp; Network</div>
+      <h2>DEV ง่ายได้ แต่ UAT/PROD ต้องปลอดภัย</h2>
+      <div class="grid grid-2">
+        <div class="table-wrap"><table class="table">
+          <tr><th>หัวข้อ</th><th>DEV</th><th>UAT / PROD</th></tr>
+          <tr><td>Network</td><td>localhost / docker</td><td>private network, VPN, firewall</td></tr>
+          <tr><td>Protocol</td><td><code>PLAINTEXT</code></td><td><code>SASL_SSL</code></td></tr>
+          <tr><td>Authentication</td><td>ไม่มี</td><td>SASL/SCRAM หรือ OAUTHBEARER</td></tr>
+          <tr><td>Encryption</td><td>ไม่มี</td><td>TLS 1.2+</td></tr>
+          <tr><td>Authorization</td><td>ไม่มี</td><td>ACL แยก service / topic / group</td></tr>
+          <tr><td>เก็บรหัสผ่าน</td><td><code>.env</code> (local)</td><td>Secret Manager / Vault</td></tr>
+        </table></div>
+<pre class="code" data-lang="ts">
+// src/lib/kafka.ts
+import { Kafka, logLevel } from "kafkajs";
+
+const isSecure = process.env.KAFKA_SECURITY === "SASL_SSL";
+
+export const kafka = new Kafka({
+  clientId: process.env.KAFKA_CLIENT_ID ?? "order-system",
+  brokers: process.env.KAFKA_BROKERS!.split(","),
+  ssl: isSecure ? { ca: [process.env.KAFKA_CA_PEM!] } : false,
+  sasl: isSecure ? {
+    mechanism: "scram-sha-512",
+    username: process.env.KAFKA_USERNAME!,
+    password: process.env.KAFKA_PASSWORD!,
+  } : undefined,
+  logLevel: logLevel.WARN,
+});
+</pre>
+      </div>
+      <div class="callout warn">ใช้โค้ดชุดเดียวทุก environment ต่างกันแค่ค่า env · ห้าม commit รหัสผ่านหรือ cert ลง Git (ดู Docker ตอนที่ 4) · KafkaJS แทบไม่มีการพัฒนาต่อแล้ว โปรเจกต์ใหม่พิจารณา <code>@confluentinc/kafka-javascript</code></div>
+    </div>
+  </section>
+
+  <!-- 15 -->
+  <section class="slide" data-title="สรุปตอนที่ 1">
+    <div class="slide-inner">
+      <div class="eyebrow">สรุป</div>
+      <h2>ก่อนเขียนโค้ดบรรทัดแรก ต้องมีครบ</h2>
+      <div class="grid grid-3">
+        <div class="card gold"><div class="big-number">1</div><h3>เอกสารเชื่อมต่อ</h3><p class="small muted">Template DEV/UAT/PROD กรอกครบ ไม่มี TBD ใน environment ที่จะ deploy</p></div>
+        <div class="card"><div class="big-number">2</div><h3>Message Contract</h3><p class="small muted">Format + Schema (มี validator) + Key + Headers ตกลงร่วมกันเป็นลายลักษณ์อักษร</p></div>
+        <div class="card violet"><div class="big-number">3</div><h3>Security &amp; Support</h3><p class="small muted">credential ผ่านช่องทางลับ, ACL, network และรู้ว่าติดต่อใครเมื่อมีปัญหา</p></div>
+      </div>
+      <div class="tag-row"><span class="muted small">ตอนถัดไป →</span><a class="tag gold" href="kafka-integration-2-retry-dlt.html">ตอนที่ 2: Retry &amp; DLT</a><a class="tag blue" href="kafka-deep-dive.html">Kafka Deep Dive</a></div>
+    </div>
+  </section>
+
+</main>
+<script>
+window.KV_GLOSSARY = {
+  eda: { title: "Event-Driven Architecture", body: "สถาปัตยกรรมที่ service สื่อสารกันด้วยการประกาศเหตุการณ์ผ่านตัวกลาง (เช่น Kafka) แทนการเรียก API กันตรง ๆ แต่ละ service จึงทำงานและล่มแยกกันได้", example: "Payment ล่ม 10 นาที → order ยังรับได้ตามปกติ message รอใน order-confirmed แล้ว Payment มาทำต่อเมื่อกลับมา" },
+  key: { title: "Message Key", body: "ค่าที่ Kafka ใช้ hash เพื่อเลือก partition message ที่ key เดียวกันจะไป partition เดียวกันเสมอ จึงถูกอ่านตามลำดับที่ส่ง", example: "key = ORD-1234 → Created, Paid, Shipped ของ order นี้เรียงถูกเสมอ" },
+  group: { title: "Consumer Group", body: "กลุ่มของ consumer ที่ใช้ group id เดียวกัน Kafka จะแบ่ง partition ให้สมาชิกช่วยกันอ่าน และบันทึก offset ของกลุ่มไว้ว่าอ่านถึงไหนแล้ว", example: "inventory-group มี 3 worker กับ topic 3 partition → แต่ละ worker ได้คนละ partition" },
+  dlt: { title: "Dead Letter Topic (DLT)", body: "topic สำหรับเก็บ message ที่ประมวลผลไม่สำเร็จหลัง retry ครบหรือเป็น error ถาวร เพื่อไม่ให้ค้างขวาง message อื่น และให้คนตรวจสอบหรือ replay ภายหลัง", example: "order ที่สินค้าหมด stock ถูกส่งไป order-events-dlt พร้อมเหตุผลใน header" },
+  groupchange: { title: "ทำไมห้ามเปลี่ยน Consumer Group ID", body: "offset ที่อ่านไปแล้วถูกผูกกับ group id ถ้าเปลี่ยนชื่อ Kafka จะมองว่าเป็นกลุ่มใหม่ แล้วเริ่มอ่านตาม auto.offset.reset (ตั้งแต่ต้น หรือเฉพาะ message ใหม่)", example: "เปลี่ยนจาก inventory-group เป็น inventory-group-v2 → ประมวลผล order เก่าทั้ง 7 วันซ้ำ หรือข้าม message ที่ค้างอยู่" },
+  evolution: { title: "Schema Evolution", body: "การเปลี่ยนโครงสร้าง message โดยไม่ทำให้ consumer เดิมพัง กติกาหลักคือเพิ่มได้ (optional / มีค่า default) แต่ลบหรือเปลี่ยน type ต้องวางแผนและออกเวอร์ชันใหม่", example: "เพิ่ม field couponCode แบบ optional → consumer เก่าไม่สนใจ field นี้และทำงานได้ปกติ" }
+};
+</script>
+<script src="../../assets/kv-deck.js"></script>
+</body>
+</html>

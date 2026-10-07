@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>Kafka Integration 3: Message Status &amp; Tracking</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css">
+</head>
+<body data-title="Kafka Integration 3: Message Status &amp; Tracking" data-mark="KI3">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">Kafka Integration Guide · ตอนที่ 3/4</div>
+      <h1><span class="grad">Message Status &amp; Tracking</span><br>รู้ได้อย่างไรว่าสำเร็จหรือ fail</h1>
+      <p class="lead">Kafka ไม่มี status ให้ message แต่ละตัว ตอนนี้จะสร้าง Tracking Log ที่ตอบได้ว่า order นี้ไปถึงไหน, fail เพราะอะไร, retry กี่ครั้ง และงานค้างอยู่เท่าไร</p>
+      <div class="tag-row"><span class="tag gold">Offset</span><span class="tag blue">Tracking Log</span><span class="tag">Correlation ID</span><span class="tag">Consumer Lag</span><span class="tag">Audit</span></div>
+      <div class="quote">“ลูกค้าถามว่า order ORD-1234 ไปถึงไหนแล้ว” — ระบบต้องตอบได้ภายใน 1 นาที</div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="Kafka เก็บอะไรจริง ๆ">
+    <div class="slide-inner">
+      <div class="eyebrow">ความเข้าใจผิดที่พบบ่อย</div>
+      <h2>Kafka <span class="red">ไม่มี</span> field <code>status</code> แบบ PENDING / SUCCESS / FAILED</h2>
+      <div class="grid grid-2">
+        <div class="table-wrap"><table class="table">
+          <tr><th>สิ่งที่ Kafka เก็บ</th><th>ความหมาย</th></tr>
+          <tr><td><code>topic</code></td><td>message อยู่ใน stream ไหน</td></tr>
+          <tr><td><code>partition</code></td><td>อยู่ partition ไหน</td></tr>
+          <tr><td><code>offset</code></td><td>ลำดับภายใน partition</td></tr>
+          <tr><td>consumer group offset</td><td>group นี้อ่านถึง offset ไหนแล้ว</td></tr>
+          <tr><td>headers</td><td>metadata เช่น trace id, failed service</td></tr>
+          <tr><td>value</td><td>payload จริง เช่น order JSON</td></tr>
+        </table></div>
+        <div class="card gold"><h3>แปลว่าอะไร</h3><p class="muted">Kafka รู้แค่ว่า message “ถูกอ่านไปแล้วหรือยัง” แต่ไม่รู้ว่าอ่านแล้ว <strong>ทำงานสำเร็จหรือไม่</strong></p><p class="mt"><strong>ถ้าต้องการสถานะ → ต้องทำ Tracking Log เอง</strong> ในโค้ดของ worker แต่ละตัว</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="ทำไม Offset ไม่พอ">
+    <div class="slide-inner">
+      <div class="eyebrow">Offset ≠ Status</div>
+      <h2>ทำไม Offset ยังไม่พอ</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="text">
+topic:     order-events
+partition: 0
+offset:    42
+
+inventory-group commit offset 43 แล้ว
+→ แปลว่า: inventory-group อ่าน offset 42 ผ่านไปแล้ว
+</pre>
+        <div class="card bad"><h3>แต่ยังตอบไม่ได้ว่า…</h3><ul>
+          <li>ตัด stock สำเร็จไหม</li>
+          <li>ส่งต่อไป <code>order-confirmed</code> สำเร็จไหม</li>
+          <li>fail เพราะ business rule หรือ system error</li>
+          <li>retry ไปกี่ครั้ง</li>
+          <li>order นี้ไปถึง Payment / Notification หรือยัง</li>
+        </ul></div>
+      </div>
+      <div class="callout">offset ที่ commit แล้วอาจเป็น message ที่ <strong>ถูกส่งเข้า DLT</strong> ก็ได้ เพราะเมื่อส่ง DLT เสร็จ worker ก็ commit แล้วไปต่อ — offset จึงบอกได้แค่ “ผ่านมือแล้ว”</div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="คำถามที่ระบบควรตอบได้">
+    <div class="slide-inner">
+      <div class="eyebrow">Requirements</div>
+      <h2>คำถามที่ระบบควรตอบได้ และข้อมูลที่ต้องมี</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>คำถาม</th><th>ต้องใช้ข้อมูล</th></tr>
+        <tr><td>รับ message แล้วหรือยัง</td><td>log <code>RECEIVED</code> + topic / partition / offset</td></tr>
+        <tr><td>ประมวลผลสำเร็จไหม</td><td>log <code>PROCESS_SUCCESS</code> ของ service นั้น</td></tr>
+        <tr><td>fail เพราะอะไร</td><td>log <code>PROCESS_FAILED</code> + <code>errorReason</code> + DLT headers</td></tr>
+        <tr><td>retry กี่ครั้ง</td><td>field <code>attempt</code>, <code>maxRetries</code></td></tr>
+        <tr><td>trace ข้ามระบบได้ไหม</td><td><code>correlationId</code><button class="term" data-term="correlation"></button> ที่ส่งต่อทุก service</td></tr>
+        <tr><td>audit ย้อนหลังได้ไหม</td><td>เก็บ tracking log ถาวรใน DB / log platform</td></tr>
+        <tr><td>งานค้างอยู่เท่าไร</td><td>consumer lag (สไลด์ 11)</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="Event ที่ต้อง Log">
+    <div class="slide-inner">
+      <div class="eyebrow">Lifecycle ของ message ใน worker</div>
+      <h2>Event ที่ต้อง Log ในทุก Worker</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="node">RECEIVED<small>อ่านได้ + topic/partition/offset/key</small></div><div class="arrow">→</div>
+          <div class="node">PROCESSING<small>เริ่ม business logic</small></div><div class="arrow">→</div>
+          <div class="node green">PROCESS_SUCCESS</div><div class="arrow">→</div>
+          <div class="node green">PUBLISHED<small>ส่งต่อ topic ถัดไปแล้ว</small></div>
+        </div>
+        <div class="flow mt">
+          <div class="node">PROCESSING</div><div class="arrow">→ fail →</div>
+          <div class="node gold">RETRYING<small>attempt 1/3, 2/3</small></div><div class="arrow">→ ครบ →</div>
+          <div class="node" style="border-color:rgba(255,107,107,.5);background:rgba(255,107,107,.08)">PROCESS_FAILED</div><div class="arrow">→</div>
+          <div class="node violet">SENT_TO_DLT</div>
+        </div>
+      </div>
+      <p class="muted mt">หลัก: log <strong>ก่อนและหลัง</strong> ทุกจุดที่อาจ fail เพื่อให้รู้ว่าหยุดอยู่ตรงไหน</p>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="รูปแบบ Tracking Log">
+    <div class="slide-inner">
+      <div class="eyebrow">Tracking Log</div>
+      <h2>รูปแบบ Tracking Log ที่แนะนำ</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="json">
+{
+  "messageId": "ORD-1234",
+  "correlationId": "ORD-1234",
+  "orderId": "ORD-1234",
+  "service": "Payment",
+  "event": "PROCESS_FAILED",
+  "status": "FAILED",
+  "topic": "order-confirmed",
+  "partition": 1,
+  "offset": "42",
+  "messageKey": "ORD-1234",
+  "attempt": 3,
+  "maxRetries": 3,
+  "errorReason": "Payment declined - insufficient funds",
+  "nextTopic": "order-events-dlt",
+  "timestamp": "2026-05-26T10:00:00.000Z"
+}
+</pre>
+        <div class="table-wrap"><table class="table">
+          <tr><th>Field</th><th>บังคับ</th><th>ความหมาย</th></tr>
+          <tr><td><code>messageId</code></td><td>Yes</td><td>id ของ event นี้</td></tr>
+          <tr><td><code>correlationId</code></td><td>Yes</td><td>id เดียวตลอดทั้ง flow</td></tr>
+          <tr><td><code>orderId</code></td><td>Yes</td><td>business id ที่คนเข้าใจ</td></tr>
+          <tr><td><code>service</code></td><td>Yes</td><td>Inventory, Payment, …</td></tr>
+          <tr><td><code>event</code></td><td>Yes</td><td>RECEIVED … SENT_TO_DLT</td></tr>
+          <tr><td><code>status</code></td><td>Yes</td><td>สถานะที่เรากำหนดเอง</td></tr>
+          <tr><td><code>topic/partition/offset</code></td><td>Yes</td><td>ตำแหน่งใน Kafka</td></tr>
+          <tr><td><code>attempt/maxRetries</code></td><td>แนะนำ</td><td>retry ครั้งที่เท่าไร</td></tr>
+          <tr><td><code>errorReason</code></td><td>เมื่อ fail</td><td>สาเหตุ</td></tr>
+          <tr><td><code>nextTopic</code></td><td>ไม่บังคับ</td><td>ส่งต่อไปที่ไหน</td></tr>
+          <tr><td><code>timestamp</code></td><td>Yes</td><td>เวลา UTC</td></tr>
+        </table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="โค้ด Tracking ใน Worker">
+    <div class="slide-inner">
+      <div class="eyebrow">ตัวอย่างโค้ด</div>
+      <h2>ใส่ Tracking ใน Worker แบบไม่รก</h2>
+<pre class="code" data-lang="ts">
+// lib/tracking.ts
+export function createTracker(service: string, ctx: { topic: string; partition: number; message: KafkaMessage }) {
+  const base = {
+    service,
+    topic: ctx.topic,
+    partition: ctx.partition,
+    offset: ctx.message.offset,
+    messageKey: ctx.message.key?.toString(),
+    correlationId: ctx.message.headers?.["x-correlation-id"]?.toString(),
+  };
+  return (event: TrackingEvent, extra: Partial&lt;TrackingLog&gt; = {}) =&gt;
+    trackingLog.write({ ...base, ...extra, event, status: STATUS_OF[event], timestamp: new Date().toISOString() });
+}
+
+// workers/consumer-payment.ts
+eachMessage: async ({ topic, partition, message }) =&gt; {
+  const track = createTracker("Payment", { topic, partition, message });
+  await track("RECEIVED");
+  // ...
+  await track("RETRYING", { attempt, maxRetries: MAX_RETRIES, errorReason: String(err) });
+  // ...
+  await track("PUBLISHED", { nextTopic: "payment-result" });
+}
+</pre>
+      <div class="callout warn">การเขียน tracking log ล้มเหลว <strong>ต้องไม่ทำให้งานหลักล้ม</strong> — ห่อด้วย try/catch แล้ว log error แยก หรือเขียนแบบ async ลง buffer</div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="ตอบคำถามจาก Tracking Log">
+    <div class="slide-inner">
+      <div class="eyebrow">ใช้งาน</div>
+      <h2>ตอบคำถามจาก Tracking Log</h2>
+      <div class="grid grid-2">
+        <div class="table-wrap"><table class="table">
+          <tr><th>คำถาม</th><th>วิธีตอบ</th></tr>
+          <tr><td>รับแล้วหรือยัง</td><td>หา <code>event = RECEIVED</code> ด้วย orderId</td></tr>
+          <tr><td>สำเร็จไหม</td><td>log ล่าสุดของ service เป็น <code>PROCESS_SUCCESS</code> / <code>PUBLISHED</code></td></tr>
+          <tr><td>fail เพราะอะไร</td><td>อ่าน <code>errorReason</code> ของ <code>PROCESS_FAILED</code></td></tr>
+          <tr><td>retry กี่ครั้ง</td><td><code>attempt</code> สูงสุดของ message นั้น</td></tr>
+          <tr><td>ไปถึงไหนแล้ว</td><td>query ด้วย <code>correlationId</code> เรียงตามเวลา</td></tr>
+        </table></div>
+<pre class="code" data-lang="sql">
+-- timeline ของ order เดียว ข้ามทุก service
+SELECT timestamp, service, event, status, attempt, error_reason
+FROM tracking_log
+WHERE correlation_id = 'ORD-1234'
+ORDER BY timestamp;
+
+-- order ที่ค้าง: รับแล้วแต่ยังไม่มีผลลัพธ์เกิน 10 นาที
+SELECT correlation_id, service, MAX(timestamp) AS last_seen
+FROM tracking_log
+GROUP BY correlation_id, service
+HAVING SUM(CASE WHEN event IN ('PUBLISHED','SENT_TO_DLT') THEN 1 ELSE 0 END) = 0
+   AND MAX(timestamp) &lt; NOW() - INTERVAL '10 minutes';
+</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="เก็บ Tracking Log ที่ไหน">
+    <div class="slide-inner">
+      <div class="eyebrow">Storage</div>
+      <h2>เก็บ Tracking Log ที่ไหนดี</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>วิธี</th><th>เหมาะกับ</th><th>หมายเหตุ</th></tr>
+        <tr><td>JSON file</td><td>demo / local</td><td><span class="status"><span class="dot low"></span>เขียนชนกัน, หายง่าย, จำกัดจำนวน</span></td></tr>
+        <tr><td>Database table</td><td>business audit</td><td><span class="status"><span class="dot good"></span>query ตาม orderId ง่าย</span> · ใส่ index ที่ correlation_id</td></tr>
+        <tr><td>Elasticsearch / OpenSearch</td><td>log ปริมาณมาก</td><td>ค้นหาเร็ว, ทำ dashboard ได้</td></tr>
+        <tr><td>Kafka audit topic</td><td>event audit pipeline</td><td>ต่อยอด replay / analytics ได้</td></tr>
+        <tr><td>Observability platform</td><td>monitoring</td><td>Grafana Loki, Datadog, Splunk</td></tr>
+      </table></div>
+      <div class="callout bad"><strong>Demo:</strong> <code>activity-log.json</code> เก็บแค่ 200 รายการล่าสุด เหมาะกับการแสดงบนหน้า UI เท่านั้น Production ต้องย้ายไป database หรือ log platform</div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title="สถานะของ Demo ตอนนี้">
+    <div class="slide-inner">
+      <div class="eyebrow">Gap Analysis</div>
+      <h2>Demo ตอนนี้ทำได้แค่ไหน</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>ความสามารถ</th><th>สถานะ</th><th>รายละเอียด</th></tr>
+        <tr><td>รู้ว่า worker รับ message แล้ว</td><td><span class="status"><span class="dot medium"></span>บางส่วน</span></td><td>มี log แต่ยังไม่มี offset</td></tr>
+        <tr><td>รู้ว่าประมวลผลสำเร็จ</td><td><span class="status"><span class="dot good"></span>ได้</span></td><td>log <code>level: success</code></td></tr>
+        <tr><td>รู้ว่า fail เพราะอะไร</td><td><span class="status"><span class="dot good"></span>ได้</span></td><td>DLT headers</td></tr>
+        <tr><td>รู้ว่า retry กี่ครั้ง</td><td><span class="status"><span class="dot medium"></span>บางส่วน</span></td><td>อยู่ในข้อความ “Attempt 1/3” ยังไม่เป็น field</td></tr>
+        <tr><td>trace ข้าม service</td><td><span class="status"><span class="dot medium"></span>บางส่วน</span></td><td>ใช้ orderId ตาม ยังไม่มี correlationId</td></tr>
+        <tr><td>audit ย้อนหลัง</td><td><span class="status"><span class="dot medium"></span>บางส่วน</span></td><td>เก็บแค่ 200 รายการ</td></tr>
+        <tr><td>consumer online / offline</td><td><span class="status"><span class="dot good"></span>ได้</span></td><td><code>/api/consumer-status</code> (describeGroups)</td></tr>
+        <tr><td>offset / lag</td><td><span class="status"><span class="dot low"></span>ยังไม่มี</span></td><td>ยังไม่ query committed offset / high watermark</td></tr>
+      </table></div>
+      <div class="callout warn"><code>db.json.status</code> ไม่ใช่สถานะจริงทั้ง flow เพราะ <code>/api/produce</code> ตั้ง SUCCESS/ERROR ตั้งแต่ตอนรับ order ควรเปลี่ยนเป็น lifecycle: <code>PRODUCED → INVENTORY_OK → PAYMENT_OK → NOTIFIED</code> หรือ <code>FAILED / DLT</code></div>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide" data-title="Offset และ Lag">
+    <div class="slide-inner">
+      <div class="eyebrow">Monitoring</div>
+      <h2>Consumer Lag: งานค้างอยู่เท่าไร</h2>
+      <div class="grid grid-2">
+        <div>
+          <div class="table-wrap"><table class="table">
+            <tr><th>Metric</th><th>ความหมาย</th></tr>
+            <tr><td><code>committedOffset</code></td><td>group อ่านและ commit ถึงไหน</td></tr>
+            <tr><td><code>highWatermark</code></td><td>offset ล่าสุดของ partition</td></tr>
+            <tr><td><code>lag</code></td><td>จำนวน message ที่ยังอ่านไม่ถึง</td></tr>
+            <tr><td><code>memberId</code></td><td>worker instance ที่ดูแล partition</td></tr>
+          </table></div>
+          <div class="quote">lag = highWatermark − committedOffset</div>
+          <p class="small muted">lag เพิ่มต่อเนื่อง = producer ส่งเร็วกว่าที่ worker ทำทัน หรือ worker ล่ม/ช้า</p>
+        </div>
+<pre class="code" data-lang="ts">
+// ใช้ใน /api/consumer-status
+export async function getLag(groupId: string, topic: string) {
+  const admin = kafka.admin();
+  await admin.connect();
+  try {
+    const [committed] = await admin.fetchOffsets({ groupId, topics: [topic] });
+    const latest = await admin.fetchTopicOffsets(topic);
+
+    return latest.map(({ partition, high }) =&gt; {
+      const c = committed.partitions.find((p) =&gt; p.partition === partition)?.offset ?? "-1";
+      const done = c === "-1" ? 0 : Number(c);   // -1 = ยังไม่เคย commit
+      return { partition, committedOffset: done, highWatermark: Number(high), lag: Number(high) - done };
+    });
+  } finally {
+    await admin.disconnect();
+  }
+}
+</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 -->
+  <section class="slide" data-title="สรุปตอนที่ 3">
+    <div class="slide-inner">
+      <div class="eyebrow">สรุป</div>
+      <h2>สิ่งที่ต้องมีเพื่อ “รู้สถานะ” ของทุก message</h2>
+      <div class="grid grid-2">
+        <div class="card good"><ul>
+          <li>☐ <code>correlationId</code> ใน header ส่งต่อทุก service</li>
+          <li>☐ log ทุก event: RECEIVED → … → PUBLISHED / SENT_TO_DLT</li>
+          <li>☐ tracking log มี topic / partition / offset / key</li>
+          <li>☐ attempt และ maxRetries เป็น field ไม่ใช่ข้อความ</li>
+        </ul></div>
+        <div class="card gold"><ul>
+          <li>☐ เก็บใน DB / log platform ไม่ใช่ไฟล์ JSON</li>
+          <li>☐ API ค้น timeline ตาม orderId</li>
+          <li>☐ หน้าสถานะแสดง lag ต่อ partition + alert</li>
+          <li>☐ สถานะ order เป็น lifecycle จริงทั้ง flow</li>
+        </ul></div>
+      </div>
+      <div class="tag-row"><span class="muted small">ตอนถัดไป →</span><a class="tag gold" href="kafka-integration-4-architecture.html">ตอนที่ 4: โครงสร้างโค้ด &amp; Roadmap</a><a class="tag" href="kafka-integration-2-retry-dlt.html">← ตอนที่ 2</a></div>
+    </div>
+  </section>
+
+</main>
+<script>
+window.KV_GLOSSARY = {
+  correlation: { title: "Correlation ID", body: "รหัสที่สร้างครั้งเดียวตอนเริ่ม flow แล้วส่งต่อใน header ของทุก message ที่เกิดตามมา ทำให้ค้น log ของทุก service ที่เกี่ยวกับงานเดียวกันได้ด้วยค่าเดียว", example: "x-correlation-id: ORD-1234 อยู่ใน order-events, order-confirmed, payment-result และ DLT → query ครั้งเดียวเห็น timeline ทั้งหมด" }
+};
+</script>
+<script src="../../assets/kv-deck.js"></script>
+</body>
+</html>

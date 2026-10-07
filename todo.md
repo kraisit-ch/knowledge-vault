@@ -133,6 +133,7 @@ git add . && git commit -m "docs(backend): add ef-core performance" && git push
 - [x] Apache Kafka Deep Dive
 - [x] RabbitMQ Deep Dive
 - [x] BullMQ Deep Dive
+- [x] Kafka Integration Guide 4 ตอน (เตรียมข้อมูล & Contract · Retry & DLT · Status & Tracking · โครงสร้างโค้ด) — จาก kafka-integration-checklist.md ของทีม
 - [ ] Monolith vs Modular Monolith vs Microservices
 - [ ] Event-driven / Outbox pattern กับ .NET
 - [ ] Caching Strategy ระดับระบบ (CDN, Redis, HTTP cache)
@@ -156,6 +157,7 @@ git add . && git commit -m "docs(backend): add ef-core performance" && git push
 
 | งาน | Commit |
 |---|---|
+| เพิ่ม **Kafka Integration Guide** 4 ตอน (48 สไลด์) จากเอกสาร `kafka-integration-checklist.md` เดิม: ขยายความ + ตัวอย่างโค้ด KafkaJS (worker retry/DLT, backoff+jitter, idempotency, tracking, คำนวณ lag) · เปลี่ยนข้อมูลเฉพาะโปรเจกต์เป็นค่ากลางเพราะ repo เป็น Public | ดู `git log` |
 | เพิ่มหมวด **🐳 Docker สำหรับ Dev** ซีรีส์ 7 ตอน (70 สไลด์): พื้นฐาน · Dockerfile · Compose · **.env & Config** (14 สไลด์) · Volume & Network · Dev Workflow & แก้ปัญหา · Production & Security — ทุกตอนลิงก์ไปตอนถัดไป | `803190d` |
 | ธีม: ไฮไลต์ keyword/ตัวเลขเฉพาะภาษาโปรแกรม (Dockerfile/YAML/bash ไม่ระบายสีคำอย่าง `from`, `public` ผิด) · คอมเมนต์ `#` ใน Dockerfile แสดงเป็นคอมเมนต์ | `803190d` |
 | หน้าแรก: การ์ดหมวดหมู่ 7 หมวดพอดีแถวเดียว · กดเมนูแล้วหัวข้อไม่ถูกแถบด้านบนบัง | `803190d` |
