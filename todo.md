@@ -156,10 +156,10 @@ git add . && git commit -m "docs(backend): add ef-core performance" && git push
 
 | งาน | Commit |
 |---|---|
-| เพิ่มหมวด **🐳 Docker สำหรับ Dev** ซีรีส์ 7 ตอน (70 สไลด์): พื้นฐาน · Dockerfile · Compose · **.env & Config** (14 สไลด์) · Volume & Network · Dev Workflow & แก้ปัญหา · Production & Security — ทุกตอนลิงก์ไปตอนถัดไป | ดู `git log` |
-| ธีม: ไฮไลต์ keyword/ตัวเลขเฉพาะภาษาโปรแกรม (Dockerfile/YAML/bash ไม่ระบายสีคำอย่าง `from`, `public` ผิด) · คอมเมนต์ `#` ใน Dockerfile แสดงเป็นคอมเมนต์ | ดู `git log` |
-| หน้าแรก: การ์ดหมวดหมู่ 7 หมวดพอดีแถวเดียว · กดเมนูแล้วหัวข้อไม่ถูกแถบด้านบนบัง | ดู `git log` |
-| `todo.md`: เพิ่ม roadmap ซีรีส์ Docker + ตอนเสริมที่ควรทำต่อ | ดู `git log` |
+| เพิ่มหมวด **🐳 Docker สำหรับ Dev** ซีรีส์ 7 ตอน (70 สไลด์): พื้นฐาน · Dockerfile · Compose · **.env & Config** (14 สไลด์) · Volume & Network · Dev Workflow & แก้ปัญหา · Production & Security — ทุกตอนลิงก์ไปตอนถัดไป | `803190d` |
+| ธีม: ไฮไลต์ keyword/ตัวเลขเฉพาะภาษาโปรแกรม (Dockerfile/YAML/bash ไม่ระบายสีคำอย่าง `from`, `public` ผิด) · คอมเมนต์ `#` ใน Dockerfile แสดงเป็นคอมเมนต์ | `803190d` |
+| หน้าแรก: การ์ดหมวดหมู่ 7 หมวดพอดีแถวเดียว · กดเมนูแล้วหัวข้อไม่ถูกแถบด้านบนบัง | `803190d` |
+| `todo.md`: เพิ่ม roadmap ซีรีส์ Docker + ตอนเสริมที่ควรทำต่อ | `803190d` |
 
 ### 2026-10-06
 
