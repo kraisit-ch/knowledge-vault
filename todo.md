@@ -42,7 +42,14 @@
 - เนื้อหาที่ผู้นำเสนอต้องพูดเพิ่ม ใส่ใน `<template class="note">` (กด N เพื่อเปิด)
 - โค้ดใน `<pre class="code" data-lang="ts|tsx|csharp|json|bash|yaml|text">`
   ต้อง escape `<` เป็น `&lt;`, `>` เป็น `&gt;` และ `&` เป็น `&amp;`
-- ลิงก์ไปหน้าอื่นในเนื้อหา (เช่น "อ่านเจาะลึก →") จะเปิดแท็บใหม่อัตโนมัติโดย `kv-deck.js` ไม่ต้องใส่ `target` เอง ส่วนปุ่ม 🏠 และการ์ดหน้าแรกเปิดแท็บเดิม
+- **ลิงก์ไปหน้าอื่นในเนื้อหา ต้องเปิดแท็บใหม่เสมอ** (เช่น “อ่านเต็ม →”, “อ่านต่อ →”, “ตอนถัดไป →”, “อ่านเจาะลึก →”)
+  ใส่ใน HTML ทุกครั้ง: `<a class="tag gold" href="..." target="_blank" rel="noopener">อ่านเต็ม</a>`
+  (`kv-deck.js` ใส่ให้อัตโนมัติเป็นตัวสำรองด้วย แต่ห้ามพึ่งอย่างเดียว เพราะ browser อาจ cache JS ตัวเก่า)
+  ยกเว้น: ลิงก์ `#เลขสไลด์` ในหน้าเดียวกัน, ปุ่ม 🏠 / โลโก้ และการ์ดเอกสารในหน้าแรก → เปิดแท็บเดิม
+- **แก้ `assets/kv-deck.css` หรือ `kv-deck.js` แล้วต้องเปลี่ยนเลขเวอร์ชัน** `?v=YYYYMMDD` ในทุกไฟล์ ไม่งั้นผู้ใช้จะเห็นของเก่าจาก cache
+  ```bash
+  python -c "import pathlib,re;[p.write_text(re.sub(r'kv-deck\.(css|js)\?v=\d+',r'kv-deck.?v=YYYYMMDD',p.read_text(encoding='utf-8')),encoding='utf-8') for p in pathlib.Path('docs').rglob('*.html')]"
+  ```
 - อ้างอิงเวอร์ชันให้ชัด เช่น "Next.js 15+" หรือ ".NET 10" เพราะเทคโนโลยีเปลี่ยนเร็ว
 
 ## 3. Class ที่ใช้บ่อย (สรุปจาก `assets/kv-deck.css`)
@@ -159,6 +166,7 @@ git add . && git commit -m "docs(backend): add ef-core performance" && git push
 
 | งาน | Commit |
 |---|---|
+| ลิงก์ “อ่านเต็ม / อ่านต่อ / ตอนถัดไป” ทุกจุด (43 ลิงก์ใน 25 ไฟล์) ใส่ `target="_blank"` ใน HTML โดยตรง ไม่พึ่ง JS อย่างเดียว · เพิ่มเลขเวอร์ชัน `?v=20261008` ให้ `kv-deck.css/js` ทุกไฟล์ กัน browser ใช้ไฟล์เก่าจาก cache · อัปเดตกฎใน `todo.md` + ตัวอย่างลิงก์ใน template | ดู `git log` |
 | เพิ่มเอกสาร **Background Jobs: ไม่ใช้ Redis ได้ไหม & งานแบบอื่น** (15 สไลด์): Redis-compatible (Valkey, Dragonfly…), ทางเลือกแทน BullMQ (pg-boss, Graphile, Inngest, Hangfire, Quartz.NET) พร้อมโค้ด, Queue vs Batch vs Cron vs Fire-and-forget vs Workflow vs Stream · เพิ่มสไลด์สรุปใน Kafka vs RabbitMQ vs BullMQ (→ 20 สไลด์) และลิงก์จาก BullMQ Deep Dive | `4191e81` |
 | **Kafka vs RabbitMQ vs BullMQ** (12 → 19 สไลด์): เพิ่มสไลด์ “คำศัพท์ที่ต้องเข้าใจตรงกัน” ก่อนเข้าเรื่องแต่ละตัว (ตารางรูปแบบเดียวกับ Kafka Integration #4) · ตัวอย่างระบบที่เหมาะ ตัวละ 3 ระบบ พร้อมอธิบาย “ทำงานอย่างไร / ทำไมต้องใช้ตัวนี้” · สไลด์เปรียบเทียบ DLT vs DLQ ของ 3 ตัว | `2f77fd9` |
 | เพิ่มเอกสาร **DLT / DLQ อธิบายละเอียด** (10 สไลด์): ทำไมต้องมี, DLT vs DLQ, ส่งเข้าเมื่อไร, โค้ด Kafka / RabbitMQ / BullMQ, Runbook, Replay อย่างปลอดภัย, Checklist | `2f77fd9` |

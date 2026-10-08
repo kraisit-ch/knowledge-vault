@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#050f22">
   <title>Background Jobs: ไม่ใช้ Redis ได้ไหม และงานแบบอื่น</title>
-  <link rel="stylesheet" href="../../assets/kv-deck.css">
+  <link rel="stylesheet" href="../../assets/kv-deck.css?v=20261008">
 </head>
 <body data-title="Background Jobs: ไม่ใช้ Redis ได้ไหม &amp; งานแบบอื่น" data-mark="JOB">
 <main class="slides">
@@ -306,7 +306,7 @@ await _channel.Writer.WriteAsync(new TrackEvent(order.Id), ct);
         <div class="card violet"><div class="big-number">3</div><h3>แยกให้ออกว่าเป็นงานแบบไหน</h3><p class="small muted">Queue / Scheduled / Batch / Fire-and-forget / Workflow / Stream</p></div>
         <div class="card bad"><div class="big-number">4</div><h3>งานที่ห้ามหาย ห้าม fire-and-forget</h3><p class="small muted">ต้องอยู่ในระบบที่เก็บงานถาวรและ retry ได้</p></div>
       </div>
-      <div class="tag-row"><span class="muted small">อ่านต่อ →</span><a class="tag gold" href="bullmq-deep-dive.html">BullMQ Deep Dive</a><a class="tag" href="kafka-rabbitmq-bullmq-presentation.html">Kafka vs RabbitMQ vs BullMQ</a><a class="tag blue" href="dlt-dlq-explained.html">DLT / DLQ</a></div>
+      <div class="tag-row"><span class="muted small">อ่านต่อ →</span><a class="tag gold" href="bullmq-deep-dive.html" target="_blank" rel="noopener">BullMQ Deep Dive</a><a class="tag" href="kafka-rabbitmq-bullmq-presentation.html" target="_blank" rel="noopener">Kafka vs RabbitMQ vs BullMQ</a><a class="tag blue" href="dlt-dlq-explained.html" target="_blank" rel="noopener">DLT / DLQ</a></div>
     </div>
   </section>
 
@@ -320,6 +320,6 @@ window.KV_GLOSSARY = {
   etl: { title: "ETL (Extract–Transform–Load)", body: "กระบวนการดึงข้อมูลจากหลายแหล่ง แปลงให้อยู่ในรูปแบบเดียวกัน แล้วโหลดเข้าที่เก็บสำหรับวิเคราะห์ มักรันเป็น batch ตามรอบ", example: "ดึงยอดขายจากระบบหน้าร้านและออนไลน์ รวมกัน แล้วโหลดเข้า Data Warehouse ทุกคืน" }
 };
 </script>
-<script src="../../assets/kv-deck.js"></script>
+<script src="../../assets/kv-deck.js?v=20261008"></script>
 </body>
 </html>

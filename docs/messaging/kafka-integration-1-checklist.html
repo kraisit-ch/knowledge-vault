@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#050f22">
   <title>Kafka Integration 1: เตรียมข้อมูล &amp; Message Contract</title>
-  <link rel="stylesheet" href="../../assets/kv-deck.css">
+  <link rel="stylesheet" href="../../assets/kv-deck.css?v=20261008">
 </head>
 <body data-title="Kafka Integration 1: เตรียมข้อมูล &amp; Message Contract" data-mark="KI1">
 <main class="slides">
@@ -382,7 +382,7 @@ export const kafka = new Kafka({
         <div class="card"><div class="big-number">2</div><h3>Message Contract</h3><p class="small muted">Format + Schema (มี validator) + Key + Headers ตกลงร่วมกันเป็นลายลักษณ์อักษร</p></div>
         <div class="card violet"><div class="big-number">3</div><h3>Security &amp; Support</h3><p class="small muted">credential ผ่านช่องทางลับ, ACL, network และรู้ว่าติดต่อใครเมื่อมีปัญหา</p></div>
       </div>
-      <div class="tag-row"><span class="muted small">ตอนถัดไป →</span><a class="tag gold" href="kafka-integration-2-retry-dlt.html">ตอนที่ 2: Retry &amp; DLT</a><a class="tag blue" href="kafka-deep-dive.html">Kafka Deep Dive</a></div>
+      <div class="tag-row"><span class="muted small">ตอนถัดไป →</span><a class="tag gold" href="kafka-integration-2-retry-dlt.html" target="_blank" rel="noopener">ตอนที่ 2: Retry &amp; DLT</a><a class="tag blue" href="kafka-deep-dive.html" target="_blank" rel="noopener">Kafka Deep Dive</a></div>
     </div>
   </section>
 
@@ -397,6 +397,6 @@ window.KV_GLOSSARY = {
   evolution: { title: "Schema Evolution", body: "การเปลี่ยนโครงสร้าง message โดยไม่ทำให้ consumer เดิมพัง กติกาหลักคือเพิ่มได้ (optional / มีค่า default) แต่ลบหรือเปลี่ยน type ต้องวางแผนและออกเวอร์ชันใหม่", example: "เพิ่ม field couponCode แบบ optional → consumer เก่าไม่สนใจ field นี้และทำงานได้ปกติ" }
 };
 </script>
-<script src="../../assets/kv-deck.js"></script>
+<script src="../../assets/kv-deck.js?v=20261008"></script>
 </body>
 </html>

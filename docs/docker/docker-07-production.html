@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#050f22">
   <title>Docker 7: Production &amp; Security</title>
-  <link rel="stylesheet" href="../../assets/kv-deck.css">
+  <link rel="stylesheet" href="../../assets/kv-deck.css?v=20261008">
 </head>
 <body data-title="Docker 7: Production &amp; Security" data-mark="D7">
 <main class="slides">
@@ -203,7 +203,7 @@ trivy image --severity HIGH,CRITICAL --exit-code 1 \
         </ul></div>
       </div>
       <div class="quote">🎉 จบซีรีส์ Docker สำหรับ Dev — กลับไปทบทวนตอนไหนก็ได้จากหมวด 🐳 ในหน้าแรก</div>
-      <div class="tag-row"><a class="tag" href="docker-01-basics.html">ตอนที่ 1: พื้นฐาน</a><a class="tag gold" href="docker-04-env-config.html">ตอนที่ 4: .env &amp; Config</a><a class="tag blue" href="../devops/docker-coolify-aapanel.html">aaPanel vs Coolify</a><a class="tag" href="docker-06-dev-workflow.html">← ตอนที่ 6</a></div>
+      <div class="tag-row"><a class="tag" href="docker-01-basics.html" target="_blank" rel="noopener">ตอนที่ 1: พื้นฐาน</a><a class="tag gold" href="docker-04-env-config.html" target="_blank" rel="noopener">ตอนที่ 4: .env &amp; Config</a><a class="tag blue" href="../devops/docker-coolify-aapanel.html" target="_blank" rel="noopener">aaPanel vs Coolify</a><a class="tag" href="docker-06-dev-workflow.html" target="_blank" rel="noopener">← ตอนที่ 6</a></div>
     </div>
   </section>
 
@@ -213,6 +213,6 @@ window.KV_GLOSSARY = {
   immutable: { title: "Immutable Tag", body: "tag ที่เมื่อ push แล้วจะไม่ถูกเขียนทับด้วย image อื่นอีก ทำให้ tag หนึ่งชี้ไปที่โค้ดชุดเดียวตลอดไป ตรวจสอบย้อนหลังและ rollback ได้แน่นอน", example: "sha-3f9c2a1 = image ที่ build จาก commit 3f9c2a1 เสมอ ต่างจาก latest ที่เปลี่ยนทุกครั้งที่ build" }
 };
 </script>
-<script src="../../assets/kv-deck.js"></script>
+<script src="../../assets/kv-deck.js?v=20261008"></script>
 </body>
 </html>

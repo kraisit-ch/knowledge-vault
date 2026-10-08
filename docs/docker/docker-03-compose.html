@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#050f22">
   <title>Docker 3: Docker Compose</title>
-  <link rel="stylesheet" href="../../assets/kv-deck.css">
+  <link rel="stylesheet" href="../../assets/kv-deck.css?v=20261008">
 </head>
 <body data-title="Docker 3: Docker Compose" data-mark="D3">
 <main class="slides">
@@ -240,7 +240,7 @@ docker compose --profile tools up -d     # db + pgadmin + mailpit
         <div class="card bad"><h4>port ซ้ำกับโปรแกรมในเครื่อง</h4><p class="small muted">"port is already allocated" → เปลี่ยนฝั่งซ้าย เช่น <code>"15432:5432"</code></p></div>
         <div class="card bad"><h4>เปิด port DB ใน production</h4><p class="small muted">ให้ service คุยกันใน network ภายใน ไม่ต้อง <code>ports:</code> สำหรับ DB</p></div>
       </div>
-      <div class="tag-row"><span class="muted small">ตอนถัดไป →</span><a class="tag gold" href="docker-04-env-config.html">ตอนที่ 4: การจัดการ .env และ Config</a><a class="tag" href="docker-02-dockerfile.html">← ตอนที่ 2</a></div>
+      <div class="tag-row"><span class="muted small">ตอนถัดไป →</span><a class="tag gold" href="docker-04-env-config.html" target="_blank" rel="noopener">ตอนที่ 4: การจัดการ .env และ Config</a><a class="tag" href="docker-02-dockerfile.html" target="_blank" rel="noopener">← ตอนที่ 2</a></div>
     </div>
   </section>
 
@@ -250,6 +250,6 @@ window.KV_GLOSSARY = {
   dns: { title: "Service Discovery (DNS ภายใน)", body: "Compose สร้าง network ให้ทุก service ใน project และตั้งชื่อ service เป็น hostname อัตโนมัติ container จึงเรียกกันด้วยชื่อได้ ไม่ต้องรู้ IP", example: "api เชื่อม PostgreSQL ด้วย Host=db และ Next.js เรียก API ด้วย http://api:8080" }
 };
 </script>
-<script src="../../assets/kv-deck.js"></script>
+<script src="../../assets/kv-deck.js?v=20261008"></script>
 </body>
 </html>

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#050f22">
   <title>Kafka Integration 3: Message Status &amp; Tracking</title>
-  <link rel="stylesheet" href="../../assets/kv-deck.css">
+  <link rel="stylesheet" href="../../assets/kv-deck.css?v=20261008">
 </head>
 <body data-title="Kafka Integration 3: Message Status &amp; Tracking" data-mark="KI3">
 <main class="slides">
@@ -313,7 +313,7 @@ export async function getLag(groupId: string, topic: string) {
           <li>☐ สถานะ order เป็น lifecycle จริงทั้ง flow</li>
         </ul></div>
       </div>
-      <div class="tag-row"><span class="muted small">ตอนถัดไป →</span><a class="tag gold" href="kafka-integration-4-architecture.html">ตอนที่ 4: โครงสร้างโค้ด &amp; Roadmap</a><a class="tag" href="kafka-integration-2-retry-dlt.html">← ตอนที่ 2</a></div>
+      <div class="tag-row"><span class="muted small">ตอนถัดไป →</span><a class="tag gold" href="kafka-integration-4-architecture.html" target="_blank" rel="noopener">ตอนที่ 4: โครงสร้างโค้ด &amp; Roadmap</a><a class="tag" href="kafka-integration-2-retry-dlt.html" target="_blank" rel="noopener">← ตอนที่ 2</a></div>
     </div>
   </section>
 
@@ -323,6 +323,6 @@ window.KV_GLOSSARY = {
   correlation: { title: "Correlation ID", body: "รหัสที่สร้างครั้งเดียวตอนเริ่ม flow แล้วส่งต่อใน header ของทุก message ที่เกิดตามมา ทำให้ค้น log ของทุก service ที่เกี่ยวกับงานเดียวกันได้ด้วยค่าเดียว", example: "x-correlation-id: ORD-1234 อยู่ใน order-events, order-confirmed, payment-result และ DLT → query ครั้งเดียวเห็น timeline ทั้งหมด" }
 };
 </script>
-<script src="../../assets/kv-deck.js"></script>
+<script src="../../assets/kv-deck.js?v=20261008"></script>
 </body>
 </html>

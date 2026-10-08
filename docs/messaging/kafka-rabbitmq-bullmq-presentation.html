@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#050f22">
   <title>Apache Kafka vs RabbitMQ vs BullMQ</title>
-  <link rel="stylesheet" href="../../assets/kv-deck.css">
+  <link rel="stylesheet" href="../../assets/kv-deck.css?v=20261008">
 </head>
 <body data-title="Kafka vs RabbitMQ vs BullMQ" data-mark="MQ">
 <main class="slides">
@@ -154,7 +154,7 @@
           <li>ทีมเล็กและไม่มีคนดูแล cluster</li>
         </ul></div>
       </div>
-      <div class="callout">หัวใจของ Kafka: <strong>เขียนครั้งเดียว อ่านได้หลายทีม และอ่านซ้ำได้</strong> · <a href="kafka-deep-dive.html">อ่านเจาะลึก Kafka →</a></div>
+      <div class="callout">หัวใจของ Kafka: <strong>เขียนครั้งเดียว อ่านได้หลายทีม และอ่านซ้ำได้</strong> · <a href="kafka-deep-dive.html" target="_blank" rel="noopener">อ่านเจาะลึก Kafka →</a></div>
     </div>
   </section>
 
@@ -217,7 +217,7 @@
           <li>ใช้เป็นที่เก็บข้อมูลระยะยาว (คิวบวม = ช้า)</li>
         </ul></div>
       </div>
-      <div class="callout">หัวใจของ RabbitMQ: <strong>ส่งให้ถูกคน และรู้ว่าทำสำเร็จแล้ว</strong> · <a href="rabbitmq-deep-dive.html">อ่านเจาะลึก RabbitMQ →</a></div>
+      <div class="callout">หัวใจของ RabbitMQ: <strong>ส่งให้ถูกคน และรู้ว่าทำสำเร็จแล้ว</strong> · <a href="rabbitmq-deep-dive.html" target="_blank" rel="noopener">อ่านเจาะลึก RabbitMQ →</a></div>
     </div>
   </section>
 
@@ -280,7 +280,7 @@
           <li>ต้องเก็บประวัติไว้อ่านซ้ำ</li>
         </ul></div>
       </div>
-      <div class="callout">หัวใจของ BullMQ: <strong>งานต้องเสร็จ — ถ้าพังลองใหม่ ถ้าต้องรอก็ตั้งเวลาได้</strong> · งานเบื้องหลังฝั่ง .NET ล้วนใช้ Hangfire / Hosted Service แทนได้ · <a href="bullmq-deep-dive.html">อ่านเจาะลึก BullMQ →</a></div>
+      <div class="callout">หัวใจของ BullMQ: <strong>งานต้องเสร็จ — ถ้าพังลองใหม่ ถ้าต้องรอก็ตั้งเวลาได้</strong> · งานเบื้องหลังฝั่ง .NET ล้วนใช้ Hangfire / Hosted Service แทนได้ · <a href="bullmq-deep-dive.html" target="_blank" rel="noopener">อ่านเจาะลึก BullMQ →</a></div>
     </div>
   </section>
 
@@ -321,7 +321,7 @@
         <tr><td><strong>Fire-and-forget</strong></td><td>รันในแอปเดียวกัน restart แล้วงานหาย</td><td>ส่ง analytics ด้วย <code>after()</code></td></tr>
         <tr><td><strong>Workflow</strong></td><td>หลายขั้น รอเป็นวันได้ จำว่าถึงขั้นไหน</td><td>คืนเงิน: รอสินค้า 7 วัน → โอน</td></tr>
       </table></div>
-      <div class="tag-row"><span class="muted small">อ่านเต็ม →</span><a class="tag gold" href="background-jobs-options.html">Background Jobs: ไม่ใช้ Redis ได้ไหม &amp; งานแบบอื่น</a></div>
+      <div class="tag-row"><span class="muted small">อ่านเต็ม →</span><a class="tag gold" href="background-jobs-options.html" target="_blank" rel="noopener">Background Jobs: ไม่ใช้ Redis ได้ไหม &amp; งานแบบอื่น</a></div>
     </div>
   </section>
 
@@ -339,7 +339,7 @@
         <tr><td>ดูสาเหตุจาก</td><td>headers ที่เราใส่</td><td>header <code>x-death</code> (อัตโนมัติ)</td><td><code>failedReason</code>, stacktrace</td></tr>
         <tr><td>สั่งทำใหม่</td><td>publish กลับ topic เดิม</td><td>ย้ายข้อความกลับคิวเดิม (Shovel / UI)</td><td><code>job.retry()</code> / ปุ่ม Retry ใน Bull Board</td></tr>
       </table></div>
-      <div class="tag-row"><span class="muted small">อ่านเต็ม →</span><a class="tag gold" href="dlt-dlq-explained.html">DLT / DLQ อธิบายละเอียด</a></div>
+      <div class="tag-row"><span class="muted small">อ่านเต็ม →</span><a class="tag gold" href="dlt-dlq-explained.html" target="_blank" rel="noopener">DLT / DLQ อธิบายละเอียด</a></div>
     </div>
   </section>
 
@@ -422,9 +422,9 @@
       </div>
       <div class="tag-row">
         <span class="muted small">อ่านต่อแบบเจาะลึก →</span>
-        <a class="tag blue" href="kafka-deep-dive.html">Kafka Deep Dive</a>
-        <a class="tag gold" href="rabbitmq-deep-dive.html">RabbitMQ Deep Dive</a>
-        <a class="tag" href="bullmq-deep-dive.html">BullMQ Deep Dive</a>
+        <a class="tag blue" href="kafka-deep-dive.html" target="_blank" rel="noopener">Kafka Deep Dive</a>
+        <a class="tag gold" href="rabbitmq-deep-dive.html" target="_blank" rel="noopener">RabbitMQ Deep Dive</a>
+        <a class="tag" href="bullmq-deep-dive.html" target="_blank" rel="noopener">BullMQ Deep Dive</a>
       </div>
     </div>
     <template class="note"><p>ปิดด้วยหลัก “เลือกเครื่องมือที่ง่ายที่สุดที่ตอบโจทย์ครบ” และใช้ของที่องค์กรมีอยู่ก่อนถ้าพอใช้ได้</p></template>
@@ -463,6 +463,6 @@ window.KV_GLOSSARY = {
   consumerLag: { title: "Consumer Lag / งานค้าง", body: "จำนวนข้อความหรืองานที่เข้ามาแล้วแต่ยังไม่ถูกประมวลผล ถ้าเพิ่มต่อเนื่องแปลว่าทำไม่ทัน", example: "ช่วงแคมเปญอีเมลค้าง 50,000 ฉบับ → เพิ่ม worker" }
 };
 </script>
-<script src="../../assets/kv-deck.js"></script>
+<script src="../../assets/kv-deck.js?v=20261008"></script>
 </body>
 </html>

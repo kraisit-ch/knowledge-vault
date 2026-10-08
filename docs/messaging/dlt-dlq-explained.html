@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#050f22">
   <title>DLT / DLQ อธิบายละเอียด</title>
-  <link rel="stylesheet" href="../../assets/kv-deck.css">
+  <link rel="stylesheet" href="../../assets/kv-deck.css?v=20261008">
 </head>
 <body data-title="DLT / DLQ อธิบายละเอียด" data-mark="DLQ">
 <main class="slides">
@@ -243,7 +243,7 @@ await emailQueue.retryJobs({ state: "failed" }); // ทำใหม่ทั้�
           <li>☐ ทดสอบแล้วว่าข้อความไปถึง DLQ จริง</li>
         </ul></div>
       </div>
-      <div class="tag-row"><span class="muted small">อ่านต่อ →</span><a class="tag" href="kafka-rabbitmq-bullmq-presentation.html">Kafka vs RabbitMQ vs BullMQ</a><a class="tag gold" href="kafka-integration-2-retry-dlt.html">Kafka Integration 2: Retry &amp; DLT</a><a class="tag blue" href="rabbitmq-deep-dive.html">RabbitMQ Deep Dive</a><a class="tag" href="bullmq-deep-dive.html">BullMQ Deep Dive</a></div>
+      <div class="tag-row"><span class="muted small">อ่านต่อ →</span><a class="tag" href="kafka-rabbitmq-bullmq-presentation.html" target="_blank" rel="noopener">Kafka vs RabbitMQ vs BullMQ</a><a class="tag gold" href="kafka-integration-2-retry-dlt.html" target="_blank" rel="noopener">Kafka Integration 2: Retry &amp; DLT</a><a class="tag blue" href="rabbitmq-deep-dive.html" target="_blank" rel="noopener">RabbitMQ Deep Dive</a><a class="tag" href="bullmq-deep-dive.html" target="_blank" rel="noopener">BullMQ Deep Dive</a></div>
     </div>
   </section>
 
@@ -253,6 +253,6 @@ window.KV_GLOSSARY = {
   poison: { title: "Poison Message", body: "ข้อความที่ประมวลผลไม่สำเร็จไม่ว่าจะลองกี่ครั้ง เช่น ข้อมูลผิดรูปแบบ ถ้าไม่มี DLQ มันจะถูกส่งกลับมาทำซ้ำเรื่อย ๆ และขวางข้อความอื่น", example: "order ที่ field total เป็นข้อความ \"abc\" → parse ไม่ได้ทุกครั้ง ต้องย้ายออกไป DLQ ทันที" }
 };
 </script>
-<script src="../../assets/kv-deck.js"></script>
+<script src="../../assets/kv-deck.js?v=20261008"></script>
 </body>
 </html>

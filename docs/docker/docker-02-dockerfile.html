@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#050f22">
   <title>Docker 2: เขียน Dockerfile</title>
-  <link rel="stylesheet" href="../../assets/kv-deck.css">
+  <link rel="stylesheet" href="../../assets/kv-deck.css?v=20261008">
 </head>
 <body data-title="Docker 2: เขียน Dockerfile" data-mark="D2">
 <main class="slides">
@@ -253,7 +253,7 @@ CMD ["--urls", "http://+:8080"]</pre></div>
           <li>☐ เริ่มโปรเจกต์ใหม่ลอง <code>docker init</code> ช่วยสร้างไฟล์ตั้งต้น</li>
         </ul></div>
       </div>
-      <div class="tag-row"><span class="muted small">ตอนถัดไป →</span><a class="tag gold" href="docker-03-compose.html">ตอนที่ 3: Docker Compose</a><a class="tag" href="docker-01-basics.html">← ตอนที่ 1</a></div>
+      <div class="tag-row"><span class="muted small">ตอนถัดไป →</span><a class="tag gold" href="docker-03-compose.html" target="_blank" rel="noopener">ตอนที่ 3: Docker Compose</a><a class="tag" href="docker-01-basics.html" target="_blank" rel="noopener">← ตอนที่ 1</a></div>
     </div>
   </section>
 
@@ -264,6 +264,6 @@ window.KV_GLOSSARY = {
   multistage: { title: "Multi-stage Build", body: "Dockerfile ที่มี FROM หลายครั้ง แต่ละ stage ทำหน้าที่ต่างกัน image สุดท้ายมีเฉพาะ stage สุดท้าย และ copy เฉพาะไฟล์ที่ต้องใช้มาจาก stage ก่อนหน้าด้วย COPY --from", example: "build ด้วย .NET SDK (~800MB) แต่ image ที่ deploy ใช้ aspnet runtime (~220MB)" }
 };
 </script>
-<script src="../../assets/kv-deck.js"></script>
+<script src="../../assets/kv-deck.js?v=20261008"></script>
 </body>
 </html>

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#050f22">
   <title>Docker 1: พื้นฐานที่ Dev ต้องรู้</title>
-  <link rel="stylesheet" href="../../assets/kv-deck.css">
+  <link rel="stylesheet" href="../../assets/kv-deck.css?v=20261008">
 </head>
 <body data-title="Docker 1: พื้นฐานที่ Dev ต้องรู้" data-mark="D1">
 <main class="slides">
@@ -202,7 +202,7 @@ docker system prune              # ลบทั้งหมดข้างบน
         <tr><td>ดาวน์โหลด image</td><td><code>docker pull postgres:17-alpine</code></td></tr>
         <tr><td>ดูพื้นที่ / ล้าง</td><td><code>docker system df</code> / <code>docker system prune</code></td></tr>
       </table></div>
-      <div class="tag-row"><span class="muted small">ตอนถัดไป →</span><a class="tag gold" href="docker-02-dockerfile.html">ตอนที่ 2: เขียน Dockerfile</a></div>
+      <div class="tag-row"><span class="muted small">ตอนถัดไป →</span><a class="tag gold" href="docker-02-dockerfile.html" target="_blank" rel="noopener">ตอนที่ 2: เขียน Dockerfile</a></div>
     </div>
   </section>
 
@@ -214,6 +214,6 @@ window.KV_GLOSSARY = {
   port: { title: "Port Mapping", body: "container มีเครือข่ายแยกของตัวเอง ต้องเปิดทางจาก port ของเครื่องเราเข้าไปยัง port ใน container ด้วย -p ฝั่งซ้ายคือเครื่องเรา ฝั่งขวาคือใน container", example: "-p 15432:5432 → ต่อ DB จากเครื่องเราที่ localhost:15432 เหมาะเมื่อ 5432 ถูกใช้อยู่แล้ว" }
 };
 </script>
-<script src="../../assets/kv-deck.js"></script>
+<script src="../../assets/kv-deck.js?v=20261008"></script>
 </body>
 </html>

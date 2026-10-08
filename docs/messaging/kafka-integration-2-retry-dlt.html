@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#050f22">
   <title>Kafka Integration 2: Retry &amp; DLT</title>
-  <link rel="stylesheet" href="../../assets/kv-deck.css">
+  <link rel="stylesheet" href="../../assets/kv-deck.css?v=20261008">
 </head>
 <body data-title="Kafka Integration 2: Retry &amp; DLT" data-mark="KI2">
 <main class="slides">
@@ -309,7 +309,7 @@ await db.transaction(async (tx) =&gt; {
           <li>☐ alert: retry rate, DLT count, lag</li>
         </ul></div>
       </div>
-      <div class="tag-row"><span class="muted small">ตอนถัดไป →</span><a class="tag gold" href="kafka-integration-3-tracking.html">ตอนที่ 3: Message Status &amp; Tracking</a><a class="tag" href="kafka-integration-1-checklist.html">← ตอนที่ 1</a></div>
+      <div class="tag-row"><span class="muted small">ตอนถัดไป →</span><a class="tag gold" href="kafka-integration-3-tracking.html" target="_blank" rel="noopener">ตอนที่ 3: Message Status &amp; Tracking</a><a class="tag" href="kafka-integration-1-checklist.html" target="_blank" rel="noopener">← ตอนที่ 1</a></div>
     </div>
   </section>
 
@@ -320,6 +320,6 @@ window.KV_GLOSSARY = {
   jitter: { title: "Jitter", body: "การสุ่มบวก/ลบเวลารอเล็กน้อยจากค่า backoff เพื่อไม่ให้ worker จำนวนมากที่ fail พร้อมกัน ลองใหม่พร้อมกันทุกรอบ (thundering herd)", example: "worker A รอ 1.1s, B รอ 0.9s, C รอ 1.2s แทนที่ทุกตัวรอ 1s เท่ากัน" }
 };
 </script>
-<script src="../../assets/kv-deck.js"></script>
+<script src="../../assets/kv-deck.js?v=20261008"></script>
 </body>
 </html>

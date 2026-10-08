@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#050f22">
   <title>Docker 4: การจัดการ .env และ Config</title>
-  <link rel="stylesheet" href="../../assets/kv-deck.css">
+  <link rel="stylesheet" href="../../assets/kv-deck.css?v=20261008">
 </head>
 <body data-title="Docker 4: การจัดการ .env และ Config" data-mark="D4">
 <main class="slides">
@@ -335,7 +335,7 @@ docker build --secret id=npmrc,src=$HOME/.npmrc .
           <li>☐ เผลอ commit secret → rotate ทันที</li>
         </ul></div>
       </div>
-      <div class="tag-row"><span class="muted small">ตอนถัดไป →</span><a class="tag gold" href="docker-05-volumes-network.html">ตอนที่ 5: Volume &amp; Network</a><a class="tag" href="docker-03-compose.html">← ตอนที่ 3</a></div>
+      <div class="tag-row"><span class="muted small">ตอนถัดไป →</span><a class="tag gold" href="docker-05-volumes-network.html" target="_blank" rel="noopener">ตอนที่ 5: Volume &amp; Network</a><a class="tag" href="docker-03-compose.html" target="_blank" rel="noopener">← ตอนที่ 3</a></div>
     </div>
   </section>
 
@@ -345,6 +345,6 @@ window.KV_GLOSSARY = {
   interpolation: { title: "Variable Interpolation", body: "การที่ Compose แทนที่ ${ชื่อตัวแปร} ในไฟล์ compose.yaml ด้วยค่าจาก shell หรือไฟล์ .env ก่อนสร้าง container เกิดขึ้นที่เครื่องที่รันคำสั่ง ไม่ใช่ใน container", example: "image: postgres:${POSTGRES_TAG} กับ POSTGRES_TAG=17-alpine ใน .env → กลายเป็น image: postgres:17-alpine" }
 };
 </script>
-<script src="../../assets/kv-deck.js"></script>
+<script src="../../assets/kv-deck.js?v=20261008"></script>
 </body>
 </html>
