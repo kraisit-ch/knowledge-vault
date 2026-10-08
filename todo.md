@@ -133,6 +133,7 @@ git add . && git commit -m "docs(backend): add ef-core performance" && git push
 - [x] Apache Kafka Deep Dive
 - [x] RabbitMQ Deep Dive
 - [x] BullMQ Deep Dive
+- [x] DLT / DLQ อธิบายละเอียด
 - [x] Kafka Integration Guide 4 ตอน (เตรียมข้อมูล & Contract · Retry & DLT · Status & Tracking · โครงสร้างโค้ด) — จาก kafka-integration-checklist.md ของทีม
 - [ ] Monolith vs Modular Monolith vs Microservices
 - [ ] Event-driven / Outbox pattern กับ .NET
@@ -152,6 +153,13 @@ git add . && git commit -m "docs(backend): add ef-core performance" && git push
 ## 7. บันทึกงาน (Work Log)
 
 > เพิ่มรายการใหม่ไว้ **บนสุด** ทุกครั้งที่ push งาน ระบุวันที่, สิ่งที่ทำ และ commit
+
+### 2026-10-08
+
+| งาน | Commit |
+|---|---|
+| **Kafka vs RabbitMQ vs BullMQ** (12 → 19 สไลด์): เพิ่มสไลด์ “คำศัพท์ที่ต้องเข้าใจตรงกัน” ก่อนเข้าเรื่องแต่ละตัว (ตารางรูปแบบเดียวกับ Kafka Integration #4) · ตัวอย่างระบบที่เหมาะ ตัวละ 3 ระบบ พร้อมอธิบาย “ทำงานอย่างไร / ทำไมต้องใช้ตัวนี้” · สไลด์เปรียบเทียบ DLT vs DLQ ของ 3 ตัว | ดู `git log` |
+| เพิ่มเอกสาร **DLT / DLQ อธิบายละเอียด** (10 สไลด์): ทำไมต้องมี, DLT vs DLQ, ส่งเข้าเมื่อไร, โค้ด Kafka / RabbitMQ / BullMQ, Runbook, Replay อย่างปลอดภัย, Checklist | ดู `git log` |
 
 ### 2026-10-07
 

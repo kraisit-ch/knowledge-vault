@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>DLT / DLQ อธิบายละเอียด</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css">
+</head>
+<body data-title="DLT / DLQ อธิบายละเอียด" data-mark="DLQ">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">Messaging · Error Handling</div>
+      <h1><span class="grad">DLT / DLQ</span><br>“กล่องพัสดุตีกลับ” ของระบบคิว</h1>
+      <p class="lead">เมื่อข้อความหรืองานทำไม่สำเร็จ ต้องมีที่พักไว้ให้คนตรวจและสั่งทำใหม่ได้ เรื่องนี้อธิบายว่า DLT กับ DLQ ต่างกันอย่างไร, Kafka / RabbitMQ / BullMQ ทำอย่างไร และทีมควรจัดการอย่างไรเมื่อมีของเข้า</p>
+      <div class="tag-row"><span class="tag gold">Dead Letter</span><span class="tag blue">DLT · Kafka</span><span class="tag">DLQ · RabbitMQ</span><span class="tag">Failed jobs · BullMQ</span><span class="tag">Replay</span></div>
+      <div class="quote">ข้อความที่ล้มเหลวต้อง “ไม่หาย” และ “ไม่ขวาง” — DLQ ทำให้ได้ทั้งสองอย่าง</div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="ทำไมต้องมี">
+    <div class="slide-inner">
+      <div class="eyebrow">ปัญหา</div>
+      <h2>ถ้าไม่มี DLQ จะเกิดอะไรขึ้น</h2>
+      <div class="grid grid-3">
+        <div class="card bad"><h3>🔁 วนไม่จบ</h3><p class="muted">ข้อความเสีย 1 ตัว (poison message<button class="term" data-term="poison"></button>) ถูกส่งกลับมาทำซ้ำไม่สิ้นสุด กิน CPU และ log เต็ม</p></div>
+        <div class="card bad"><h3>🚧 ขวางงานอื่น</h3><p class="muted">ใน Kafka ข้อความที่ค้างทำให้ทุกข้อความหลังจากนั้นใน partition เดียวกันรอทั้งแถว</p></div>
+        <div class="card bad"><h3>🗑️ ข้อมูลหาย</h3><p class="muted">ถ้าเลือก “ทิ้ง” ข้อความที่พังแทน → ออเดอร์หายเงียบ ๆ ไม่มีใครรู้</p></div>
+      </div>
+      <div class="diagram mt"><div class="flow">
+        <div class="node">ข้อความล้มเหลว</div><div class="arrow">→ ลองใหม่ตามกำหนด →</div>
+        <div class="node gold">ยังไม่สำเร็จ</div><div class="arrow">→ ย้ายไป →</div>
+        <div class="node violet">DLQ / DLT<small>เก็บไว้ครบ ไม่ขวางใคร</small></div><div class="arrow">→</div>
+        <div class="node green">คนตรวจ → แก้ → ทำใหม่</div>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="DLT vs DLQ">
+    <div class="slide-inner">
+      <div class="eyebrow">ชื่อต่างกัน แนวคิดเดียวกัน</div>
+      <h2>DLT vs DLQ</h2>
+      <div class="grid grid-2">
+        <div class="card"><h3 class="blue">DLT — Dead Letter <u>Topic</u></h3><p class="muted">ใช้กับ <strong>Kafka</strong> เพราะ Kafka เก็บข้อมูลเป็น topic</p><ul>
+          <li>Kafka <strong>ไม่มีให้ในตัว</strong> โค้ดเราต้อง publish เข้าเอง</li>
+          <li>อ่านแล้วไม่หาย อยู่ตาม retention</li>
+          <li>หลายทีมอ่าน DLT เดียวกันได้ (เช่น ทีม support + dashboard)</li>
+        </ul></div>
+        <div class="card gold"><h3 class="gold">DLQ — Dead Letter <u>Queue</u></h3><p class="muted">ใช้กับระบบที่เป็น <strong>คิว</strong> เช่น RabbitMQ, SQS, Azure Service Bus</p><ul>
+          <li>มักมี <strong>ในตัว</strong> แค่ตั้งค่าที่คิว</li>
+          <li>รับไปแล้ว ack ก็หายจากคิว</li>
+          <li>RabbitMQ ทำผ่าน DLX → DLQ</li>
+        </ul></div>
+      </div>
+      <div class="callout">ในทีมพูดว่า “DLQ” แทนทั้งสองแบบได้ แต่ในโค้ดและเอกสารของ Kafka ให้ใช้คำว่า <strong>DLT</strong> และตั้งชื่อ topic ลงท้าย <code>-dlt</code> เพื่อไม่สับสน · BullMQ ใช้สถานะ <strong>failed</strong> ทำหน้าที่แทน DLQ</div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="ส่งเข้าเมื่อไร">
+    <div class="slide-inner">
+      <div class="eyebrow">กติกา</div>
+      <h2>ข้อความแบบไหนควรเข้า DLQ</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>สถานการณ์</th><th>ตัวอย่าง</th><th>ส่งเข้า DLQ</th></tr>
+        <tr><td>Retry ครบแล้วยังล้ม (error ชั่วคราวที่ไม่หาย)</td><td>payment gateway ล่มนาน</td><td><span class="status"><span class="dot good"></span>หลัง retry ครบ</span></td></tr>
+        <tr><td>ข้อมูลผิดรูปแบบ</td><td>JSON พัง, ขาด field บังคับ</td><td><span class="status"><span class="dot good"></span>ทันที ไม่ต้อง retry</span></td></tr>
+        <tr><td>ผิดกฎธุรกิจ (ทางเลือก)</td><td>สินค้าหมด, บัตรถูกปฏิเสธ</td><td><span class="status"><span class="dot medium"></span>ทันที หรือส่ง event “ไม่สำเร็จ” แทน</span></td></tr>
+        <tr><td>หมดอายุ (RabbitMQ TTL)</td><td>โปรโมชั่นที่หมดเวลาแล้ว</td><td><span class="status"><span class="dot good"></span>อัตโนมัติ</span></td></tr>
+        <tr><td>คิวเต็ม (RabbitMQ max-length)</td><td>ช่วงแคมเปญ งานล้น</td><td><span class="status"><span class="dot good"></span>อัตโนมัติ (ถ้าตั้งไว้)</span></td></tr>
+        <tr><td>ไม่มีสิทธิ์ / config ผิด</td><td>ACL denied, รหัสผ่านผิด</td><td><span class="status"><span class="dot low"></span>อย่าเพิ่ง — แจ้งเตือนและหยุด consumer ก่อน</span></td></tr>
+      </table></div>
+      <div class="callout warn"><strong>ผิดกฎธุรกิจไม่ใช่ “บั๊ก”:</strong> ถ้าธุรกิจต้องการแจ้งลูกค้าว่าสินค้าหมด ให้ส่ง event <code>OrderRejected</code> ตามปกติ ใช้ DLQ กับสิ่งที่ “ต้องมีคนเข้ามาดู” เท่านั้น ไม่งั้น DLQ จะเต็มไปด้วยเรื่องปกติจนมองไม่เห็นปัญหาจริง</div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="Kafka: ทำ DLT เอง">
+    <div class="slide-inner">
+      <div class="eyebrow blue">Kafka · DLT</div>
+      <h2>Kafka: โค้ดเราต้องส่งเข้า DLT เอง</h2>
+<pre class="code" data-lang="ts">
+// เมื่อ retry ครบหรือข้อมูลผิด → ส่ง message เดิมไป DLT พร้อมสาเหตุ แล้วทำข้อความถัดไปต่อ
+await producer.send({
+  topic: "order-events-dlt",
+  messages: [{
+    key: message.key,                      // key เดิม (รักษาลำดับเมื่อ replay)
+    value: message.value,                  // payload เดิม ห้ามแก้
+    headers: {
+      ...message.headers,                  // correlation id เดิม
+      "x-failed-service": "payment-service",
+      "x-error-type": "TRANSIENT",         // TRANSIENT / BUSINESS / INVALID
+      "x-error-reason": "gateway timeout after 3 attempts",
+      "x-retry-count": "3",
+      "x-original-topic": topic,
+      "x-original-partition": String(partition),
+      "x-original-offset": message.offset,
+      "x-failed-at": new Date().toISOString(),
+    },
+  }],
+});
+</pre>
+      <div class="grid grid-3 mt">
+        <div class="card"><h4>สร้าง DLT ล่วงหน้า</h4><p class="small muted">partition / replication เหมือน topic หลัก ปิด auto-create ใน production</p></div>
+        <div class="card gold"><h4>Retention นานกว่า</h4><p class="small muted">14–30 วัน ให้มีเวลาตรวจและ replay</p></div>
+        <div class="card"><h4>ส่ง DLT สำเร็จก่อน commit</h4><p class="small muted">ถ้าส่ง DLT ไม่ได้ อย่า commit offset ไม่งั้นข้อความหายจริง</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="RabbitMQ: DLX → DLQ">
+    <div class="slide-inner">
+      <div class="eyebrow gold">RabbitMQ · DLX / DLQ</div>
+      <h2>RabbitMQ: ตั้งค่าครั้งเดียว ทำงานอัตโนมัติ</h2>
+      <div class="diagram"><div class="flow">
+        <div class="node">payment queue<small>x-dead-letter-exchange = payment.dlx</small></div><div class="arrow">→ nack / เกิน delivery-limit / TTL →</div>
+        <div class="node gold">payment.dlx<small>Dead Letter Exchange</small></div><div class="arrow">→</div>
+        <div class="node violet">payment.dlq<small>รอคนตรวจ</small></div>
+      </div></div>
+<pre class="code mt" data-lang="csharp">
+// 1) สร้าง DLX + DLQ
+await ch.ExchangeDeclareAsync("payment.dlx", ExchangeType.Fanout, durable: true);
+await ch.QueueDeclareAsync("payment.dlq", durable: true, exclusive: false, autoDelete: false,
+    arguments: new Dictionary&lt;string, object?&gt; { ["x-queue-type"] = "quorum" });
+await ch.QueueBindAsync("payment.dlq", "payment.dlx", routingKey: "");
+
+// 2) คิวหลักชี้ไปที่ DLX
+await ch.QueueDeclareAsync("payment", durable: true, exclusive: false, autoDelete: false,
+    arguments: new Dictionary&lt;string, object?&gt;
+    {
+        ["x-queue-type"] = "quorum",
+        ["x-dead-letter-exchange"] = "payment.dlx",
+        ["x-delivery-limit"] = 5,          // ส่งซ้ำเกิน 5 ครั้ง → DLQ
+    });
+
+// 3) ข้อมูลผิด → ไม่ต้องรอ ส่ง DLQ ทันที
+await ch.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: false);
+</pre>
+      <p class="muted small">RabbitMQ เติม header <code>x-death</code> ให้เอง (คิวต้นทาง, สาเหตุ เช่น <code>rejected</code> / <code>expired</code> / <code>delivery_limit</code>, จำนวนครั้ง) แต่ไม่รู้ข้อความ error ของแอป — log สาเหตุจริงไว้ใน tracking log ด้วย</p>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="BullMQ: Failed jobs">
+    <div class="slide-inner">
+      <div class="eyebrow violet-text">BullMQ · Failed jobs</div>
+      <h2>BullMQ: สถานะ failed ทำหน้าที่เป็น DLQ</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="ts">
+// ลองครบ attempts แล้วยังล้ม → job อยู่ในสถานะ failed อัตโนมัติ
+await emailQueue.add("order-confirmation", data, {
+  attempts: 5,
+  backoff: { type: "exponential", delay: 2_000 },
+  removeOnFail: { age: 14 * 24 * 3600 },    // เก็บงานพังไว้ 14 วัน
+});
+
+// ข้อมูลผิด → ข้าม retry ไป failed ทันที
+throw new UnrecoverableError("Order not found");
+
+// ดูและสั่งทำใหม่
+const failed = await emailQueue.getFailed(0, 50);
+failed[0].failedReason;                      // สาเหตุ
+await failed[0].retry();                     // ทำใหม่ทีละงาน
+await emailQueue.retryJobs({ state: "failed" }); // ทำใหม่ทั้งหมด
+</pre>
+        <div class="grid">
+          <div class="card violet"><h4>ต้องการ DLQ แยกจริง ๆ</h4><p class="small muted">ฟัง event <code>failed</code> เมื่อ <code>job.attemptsMade &gt;= job.opts.attempts</code> แล้ว add งานเข้า queue <code>email-dead</code> สำหรับทีม support</p></div>
+          <div class="card gold"><h4>ห้ามลบงาน failed เร็วเกินไป</h4><p class="small muted"><code>removeOnFail: true</code> = ลบทิ้งทันที ไม่เหลือให้ตรวจ</p></div>
+          <div class="card"><h4>ดูผ่านหน้าเว็บ</h4><p class="small muted">Bull Board แสดงงาน failed พร้อม stacktrace และปุ่ม Retry</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="ขั้นตอนจัดการเมื่อมีของเข้า">
+    <div class="slide-inner">
+      <div class="eyebrow">Runbook</div>
+      <h2>ขั้นตอนจัดการเมื่อมีข้อความเข้า DLQ</h2>
+      <ol class="steps">
+        <li><strong>แจ้งเตือน:</strong> มีข้อความใหม่เข้า DLQ หรือเกินเกณฑ์ (เช่น &gt; 10 ใน 5 นาที) → แจ้ง LINE / Teams ของทีม</li>
+        <li><strong>ตรวจสอบ:</strong> เปิดหน้า DLQ Inspector ดูสาเหตุ, service ที่ล้ม, จำนวนครั้ง, correlation id</li>
+        <li><strong>จัดกลุ่มสาเหตุ:</strong> ระบบปลายทางล่ม / ข้อมูลผิด / บั๊กในโค้ด / ผิดกฎธุรกิจ</li>
+        <li><strong>แก้ต้นเหตุก่อน:</strong> รอระบบกลับมา, แก้ข้อมูล, deploy แก้บั๊ก</li>
+        <li><strong>ตัดสินใจ:</strong> replay กลับคิว/topic เดิม · แก้ข้อมูลแล้ว replay · หรือปิดงานพร้อมบันทึกเหตุผล</li>
+        <li><strong>บันทึก audit:</strong> ใครทำ, เมื่อไร, ทำอะไรกับข้อความไหน</li>
+      </ol>
+      <div class="callout">ตั้งผู้รับผิดชอบดู DLQ ให้ชัด (เช่น เวรประจำสัปดาห์) — DLQ ที่ไม่มีใครดู ไม่ต่างจากถังขยะ</div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="Replay อย่างปลอดภัย">
+    <div class="slide-inner">
+      <div class="eyebrow">Replay</div>
+      <h2>ส่งกลับไปทำใหม่อย่างปลอดภัย</h2>
+      <div class="grid grid-2">
+        <div class="do"><h4>ควรทำ</h4><ul>
+          <li>แก้ต้นเหตุก่อน replay ทุกครั้ง</li>
+          <li>consumer ต้อง idempotent (ทำซ้ำแล้วไม่ตัดเงินซ้ำ)</li>
+          <li>replay ทีละน้อย / จำกัดความเร็ว ไม่ให้ถล่มระบบปลายทาง</li>
+          <li>ใส่ header <code>x-replayed-by</code>, <code>x-replayed-at</code></li>
+          <li>ทดลอง replay 1 รายการก่อน แล้วค่อยทำทั้งหมด</li>
+        </ul></div>
+        <div class="dont"><h4>ไม่ควรทำ</h4><ul>
+          <li>replay ทั้ง DLQ ทันทีโดยไม่ดูสาเหตุ → กลับมาเข้า DLQ ใหม่หมด</li>
+          <li>แก้ payload เองโดยไม่บันทึกว่าแก้อะไร</li>
+          <li>ลบ DLQ ทิ้งเพื่อให้ dashboard เขียว</li>
+          <li>replay ข้อความเก่ามากที่สถานะธุรกิจเปลี่ยนไปแล้ว (เช่น order ถูกยกเลิก)</li>
+        </ul></div>
+      </div>
+      <div class="table-wrap mt"><table class="table">
+        <tr><th>เครื่องมือ replay</th><th>Kafka</th><th>RabbitMQ</th><th>BullMQ</th></tr>
+        <tr><td>วิธี</td><td>หน้า admin / script อ่าน DLT แล้ว publish กลับ topic เดิม</td><td>Management UI “Move messages” (Shovel) หรือ script</td><td><code>job.retry()</code> / Bull Board</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title="Checklist">
+    <div class="slide-inner">
+      <div class="eyebrow">สรุป</div>
+      <h2>Checklist DLT / DLQ</h2>
+      <div class="grid grid-2">
+        <div class="card good"><ul>
+          <li>☐ ทุก consumer มีปลายทางเมื่อล้มเหลว (DLT / DLQ / failed)</li>
+          <li>☐ ข้อมูลผิดไปทันที ไม่ต้อง retry</li>
+          <li>☐ เก็บ payload เดิม + สาเหตุ + ต้นทาง + จำนวนครั้ง</li>
+          <li>☐ retention ของ DLQ นานพอให้ตรวจ (14–30 วัน)</li>
+          <li>☐ ผิดกฎธุรกิจที่เป็นเรื่องปกติ → ส่ง event ผลลัพธ์ ไม่ใช่ DLQ</li>
+        </ul></div>
+        <div class="card gold"><ul>
+          <li>☐ แจ้งเตือนเมื่อมีของเข้า + มีผู้รับผิดชอบ</li>
+          <li>☐ มีหน้าจอหรือ script สำหรับตรวจและ replay</li>
+          <li>☐ consumer idempotent ก่อนเปิดให้ replay</li>
+          <li>☐ audit ทุกการ replay / ปิดงาน</li>
+          <li>☐ ทดสอบแล้วว่าข้อความไปถึง DLQ จริง</li>
+        </ul></div>
+      </div>
+      <div class="tag-row"><span class="muted small">อ่านต่อ →</span><a class="tag" href="kafka-rabbitmq-bullmq-presentation.html">Kafka vs RabbitMQ vs BullMQ</a><a class="tag gold" href="kafka-integration-2-retry-dlt.html">Kafka Integration 2: Retry &amp; DLT</a><a class="tag blue" href="rabbitmq-deep-dive.html">RabbitMQ Deep Dive</a><a class="tag" href="bullmq-deep-dive.html">BullMQ Deep Dive</a></div>
+    </div>
+  </section>
+
+</main>
+<script>
+window.KV_GLOSSARY = {
+  poison: { title: "Poison Message", body: "ข้อความที่ประมวลผลไม่สำเร็จไม่ว่าจะลองกี่ครั้ง เช่น ข้อมูลผิดรูปแบบ ถ้าไม่มี DLQ มันจะถูกส่งกลับมาทำซ้ำเรื่อย ๆ และขวางข้อความอื่น", example: "order ที่ field total เป็นข้อความ \"abc\" → parse ไม่ได้ทุกครั้ง ต้องย้ายออกไป DLQ ทันที" }
+};
+</script>
+<script src="../../assets/kv-deck.js"></script>
+</body>
+</html>

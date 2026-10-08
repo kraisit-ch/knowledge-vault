@@ -116,8 +116,28 @@
     </div>
   </section>
 
-  <!-- 6 -->
-  <section class="slide" data-title="Kafka เหมาะ / ไม่เหมาะ">
+  <!-- ===== Kafka ===== -->
+  <section class="slide" data-title="Kafka: คำศัพท์">
+    <div class="slide-inner">
+      <div class="eyebrow blue">📜 Apache Kafka · คำศัพท์ก่อนเข้าเรื่อง</div>
+      <h2>คำศัพท์ Kafka ที่ต้องเข้าใจตรงกัน</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>คำ</th><th>ความหมาย (ภาษาง่าย)</th><th>ตัวอย่างในระบบ Order</th></tr>
+        <tr><td><strong>Broker</strong></td><td>เครื่อง server ของ Kafka ที่เก็บและรับส่งข้อมูล (production มัก 3 เครื่อง)</td><td><code>kafka01:9092</code></td></tr>
+        <tr><td><strong>Producer</strong> / <strong>Publish</strong></td><td>โปรแกรมที่ส่งข้อมูลเข้า / การกระทำ “ส่ง”</td><td>Order API ส่ง <code>OrderCreated</code></td></tr>
+        <tr><td><strong>Topic</strong><button class="term" data-term="topic"></button></td><td>ช่องเก็บ event ประเภทเดียวกัน เหมือนสมุดหนึ่งเล่ม</td><td><code>order-events</code></td></tr>
+        <tr><td><strong>Partition</strong><button class="term" data-term="partition"></button></td><td>สมุดเล่มเดียวแบ่งเป็นหลายเล่มย่อย ให้หลายคนอ่านพร้อมกันได้</td><td>topic มี 3 partition</td></tr>
+        <tr><td><strong>Offset</strong><button class="term" data-term="offset"></button></td><td>เลขหน้าของข้อมูลในแต่ละ partition</td><td>offset 42</td></tr>
+        <tr><td><strong>Message Key</strong><button class="term" data-term="key"></button></td><td>ตัวกำหนดว่าไป partition ไหน key เดียวกัน = เรียงลำดับเสมอ</td><td><code>orderId</code></td></tr>
+        <tr><td><strong>Consumer Group</strong><button class="term" data-term="consumerGroup"></button></td><td>ทีมผู้อ่าน แต่ละทีมมีที่คั่นหนังสือของตัวเอง</td><td><code>payment-group</code>, <code>analytics-group</code></td></tr>
+        <tr><td><strong>Retention</strong><button class="term" data-term="retention"></button></td><td>เก็บข้อมูลไว้นานเท่าไร (อ่านแล้วไม่ลบ)</td><td>7 วัน</td></tr>
+        <tr><td><strong>Consumer Lag</strong><button class="term" data-term="consumerLag"></button></td><td>งานที่ค้าง = ข้อมูลล่าสุด − ที่อ่านแล้ว</td><td>lag 5,000</td></tr>
+        <tr><td><strong>DLT</strong><button class="term" data-term="dlt"></button></td><td>topic เก็บ message ที่ประมวลผลไม่สำเร็จ (ต้องสร้างและส่งเอง)</td><td><code>order-events-dlt</code></td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Kafka: เหมาะ / ไม่เหมาะ">
     <div class="slide-inner">
       <div class="eyebrow blue">📜 Apache Kafka</div>
       <h2>Kafka: “สมุดบันทึกเหตุการณ์” ขององค์กร</h2>
@@ -134,12 +154,53 @@
           <li>ทีมเล็กและไม่มีคนดูแล cluster</li>
         </ul></div>
       </div>
-      <div class="callout">ศัพท์ที่จะเจอ: Topic<button class="term" data-term="topic"></button> · Partition<button class="term" data-term="partition"></button> · Consumer Group<button class="term" data-term="consumerGroup"></button> · <a href="kafka-deep-dive.html">อ่านเจาะลึก Kafka →</a></div>
+      <div class="callout">หัวใจของ Kafka: <strong>เขียนครั้งเดียว อ่านได้หลายทีม และอ่านซ้ำได้</strong> · <a href="kafka-deep-dive.html">อ่านเจาะลึก Kafka →</a></div>
     </div>
   </section>
 
-  <!-- 7 -->
-  <section class="slide" data-title="RabbitMQ เหมาะ / ไม่เหมาะ">
+  <section class="slide" data-title="Kafka: ตัวอย่างระบบที่เหมาะ">
+    <div class="slide-inner">
+      <div class="eyebrow blue">📜 Apache Kafka · ตัวอย่างระบบจริง</div>
+      <h2>ระบบแบบไหนควรใช้ Kafka</h2>
+      <div class="grid grid-3">
+        <div class="card"><h3>🛒 ศูนย์กลาง Event ของออเดอร์</h3>
+          <div class="diagram"><div class="node">Order API → <code>order-events</code></div><div class="branch-grid"><div class="node green">Payment</div><div class="node green">Stock</div><div class="node green">บัญชี</div><div class="node green">สะสมแต้ม</div></div></div>
+          <p class="small mt"><strong>ทำงานอย่างไร:</strong> ส่ง <code>OrderCreated</code> ครั้งเดียว key = <code>orderId</code> แต่ละระบบเป็น consumer group ของตัวเอง ต่างคนต่างอ่านครบ</p>
+          <p class="small muted"><strong>ทำไมต้อง Kafka:</strong> เดือนหน้าเพิ่มระบบสะสมแต้ม ก็ให้อ่านย้อนหลัง 30 วันได้เลย ไม่ต้องแก้ Order API</p></div>
+        <div class="card"><h3>📊 ติดตามพฤติกรรมบนเว็บ</h3>
+          <div class="diagram"><div class="node">เว็บ/แอป → <code>web-clicks</code><small>หลายล้าน event/วัน</small></div><div class="branch-grid"><div class="node green">แนะนำสินค้า</div><div class="node green">Dashboard</div></div></div>
+          <p class="small mt"><strong>ทำงานอย่างไร:</strong> ทุกคลิก/ค้นหา/ดูสินค้า ส่งเป็น event key = <code>userId</code> แบ่ง 12 partition ให้หลาย consumer ช่วยอ่าน</p>
+          <p class="small muted"><strong>ทำไมต้อง Kafka:</strong> ข้อมูลไหลเข้ามหาศาลและต่อเนื่อง ปรับสูตรแนะนำสินค้าแล้วคำนวณใหม่จากข้อมูลเดิมได้</p></div>
+        <div class="card"><h3>🔄 Sync ข้อมูลข้ามระบบ (CDC<button class="term" data-term="cdc"></button>)</h3>
+          <div class="diagram"><div class="node">SQL Server → Debezium → Kafka</div><div class="branch-grid"><div class="node green">ระบบค้นหา</div><div class="node green">Data Warehouse</div></div></div>
+          <p class="small mt"><strong>ทำงานอย่างไร:</strong> ทุกครั้งที่ตารางสินค้าเปลี่ยน ระบบดักการเปลี่ยนแปลงจากฐานข้อมูลแล้วส่งเป็น event</p>
+          <p class="small muted"><strong>ทำไมต้อง Kafka:</strong> แอปเดิมไม่ต้องแก้โค้ดเลย และระบบปลายทางตามทันข้อมูลจริงภายในไม่กี่วินาที</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== RabbitMQ ===== -->
+  <section class="slide" data-title="RabbitMQ: คำศัพท์">
+    <div class="slide-inner">
+      <div class="eyebrow gold">📮 RabbitMQ · คำศัพท์ก่อนเข้าเรื่อง</div>
+      <h2>คำศัพท์ RabbitMQ ที่ต้องเข้าใจตรงกัน</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>คำ</th><th>ความหมาย (ภาษาง่าย)</th><th>ตัวอย่างในระบบ Order</th></tr>
+        <tr><td><strong>Publisher</strong></td><td>โปรแกรมที่ส่งข้อความ (เหมือน Producer)</td><td>.NET Order API</td></tr>
+        <tr><td><strong>Exchange</strong><button class="term" data-term="exchange"></button></td><td>ศูนย์คัดแยก รับข้อความแล้วตัดสินใจว่าส่งไปคิวไหน</td><td><code>shipping</code> (topic)</td></tr>
+        <tr><td><strong>Routing Key</strong><button class="term" data-term="routing"></button></td><td>“ที่อยู่” บนข้อความ ใช้คัดแยก</td><td><code>ship.th.bkk</code></td></tr>
+        <tr><td><strong>Binding</strong><button class="term" data-term="binding"></button></td><td>กฎที่ผูก exchange กับคิว เช่น “ที่อยู่ขึ้นต้น ship.th ส่งคิวนี้”</td><td><code>ship.th.*</code> → <code>th-warehouse</code></td></tr>
+        <tr><td><strong>Queue</strong></td><td>คิวที่ข้อความรอจนมีคนมารับ</td><td><code>th-warehouse</code></td></tr>
+        <tr><td><strong>Consumer</strong></td><td>โปรแกรมที่รับข้อความจากคิว</td><td>Warehouse worker</td></tr>
+        <tr><td><strong>Ack / Nack</strong><button class="term" data-term="ack"></button></td><td>ตอบกลับว่าทำสำเร็จ (ลบได้) / ไม่สำเร็จ (ส่งใหม่หรือทิ้ง)</td><td>ack หลังบันทึกคำสั่งจัดส่ง</td></tr>
+        <tr><td><strong>Prefetch</strong><button class="term" data-term="prefetch"></button></td><td>จำนวนงานที่ worker ถือไว้ได้พร้อมกัน</td><td><code>prefetch = 10</code></td></tr>
+        <tr><td><strong>DLX / DLQ</strong><button class="term" data-term="dlq"></button></td><td>exchange และคิวพักข้อความที่ล้มเหลว (RabbitMQ ทำให้อัตโนมัติ)</td><td><code>shipping.dlx</code> → <code>shipping.dlq</code></td></tr>
+        <tr><td><strong>Virtual Host</strong></td><td>แบ่งพื้นที่และสิทธิ์ภายใน server เดียวกัน</td><td><code>/shop-prod</code></td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="RabbitMQ: เหมาะ / ไม่เหมาะ">
     <div class="slide-inner">
       <div class="eyebrow gold">📮 RabbitMQ</div>
       <h2>RabbitMQ: “ศูนย์คัดแยกพัสดุ”</h2>
@@ -156,12 +217,53 @@
           <li>ใช้เป็นที่เก็บข้อมูลระยะยาว (คิวบวม = ช้า)</li>
         </ul></div>
       </div>
-      <div class="callout">ศัพท์ที่จะเจอ: Exchange<button class="term" data-term="exchange"></button> · Ack<button class="term" data-term="ack"></button> · Dead Letter<button class="term" data-term="deadLetter"></button> · <a href="rabbitmq-deep-dive.html">อ่านเจาะลึก RabbitMQ →</a></div>
+      <div class="callout">หัวใจของ RabbitMQ: <strong>ส่งให้ถูกคน และรู้ว่าทำสำเร็จแล้ว</strong> · <a href="rabbitmq-deep-dive.html">อ่านเจาะลึก RabbitMQ →</a></div>
     </div>
   </section>
 
-  <!-- 8 -->
-  <section class="slide" data-title="BullMQ เหมาะ / ไม่เหมาะ">
+  <section class="slide" data-title="RabbitMQ: ตัวอย่างระบบที่เหมาะ">
+    <div class="slide-inner">
+      <div class="eyebrow gold">📮 RabbitMQ · ตัวอย่างระบบจริง</div>
+      <h2>ระบบแบบไหนควรใช้ RabbitMQ</h2>
+      <div class="grid grid-3">
+        <div class="card gold"><h3>🚚 ส่งงานจัดส่งไปคลังตามภูมิภาค</h3>
+          <div class="diagram"><div class="node gold">Exchange <code>shipping</code></div><div class="branch-grid"><div class="node">คลังกรุงเทพ<small>ship.th.bkk</small></div><div class="node">คลังเชียงใหม่<small>ship.th.cnx</small></div><div class="node">คลังเวียดนาม<small>ship.vn.*</small></div><div class="node">Audit<small>ship.#</small></div></div></div>
+          <p class="small mt"><strong>ทำงานอย่างไร:</strong> แปะ routing key ตามปลายทาง exchange คัดแยกเข้าคิวของแต่ละคลังเอง</p>
+          <p class="small muted"><strong>ทำไมต้อง RabbitMQ:</strong> เปิดคลังใหม่แค่เพิ่มคิว + binding ไม่ต้องแก้โค้ดฝั่งส่ง</p></div>
+        <div class="card gold"><h3>💳 สั่งตัดเงิน / คำสั่งที่ห้ามหาย</h3>
+          <div class="diagram"><div class="node">.NET API → <code>ChargePayment</code></div><div class="branch-grid"><div class="node green">Payment worker<small>ack เมื่อสำเร็จ</small></div><div class="node violet">payment.dlq<small>ล้ม 5 ครั้ง</small></div></div></div>
+          <p class="small mt"><strong>ทำงานอย่างไร:</strong> worker ack หลังตัดเงินสำเร็จเท่านั้น ถ้า worker ดับกลางทาง ข้อความกลับเข้าคิวให้ตัวอื่นทำ</p>
+          <p class="small muted"><strong>ทำไมต้อง RabbitMQ:</strong> ack + quorum queue + DLQ ในตัว ฝ่ายการเงินตรวจรายการที่ล้มได้ทันที</p></div>
+        <div class="card gold"><h3>📄 แจกงานหนักให้ worker หลายตัว</h3>
+          <div class="diagram"><div class="node">Next.js → คิว <code>reports</code></div><div class="branch-grid"><div class="node">.NET worker 1</div><div class="node">.NET worker 2</div><div class="node">.NET worker 3</div><div class="node">…</div></div></div>
+          <p class="small mt"><strong>ทำงานอย่างไร:</strong> หน้าเว็บ Node ส่งงานสร้างรายงาน worker .NET หลายตัวแบ่งกันทำ ตั้ง prefetch = 1 ให้ได้ทีละงาน</p>
+          <p class="small muted"><strong>ทำไมต้อง RabbitMQ:</strong> ข้ามภาษาได้ (Node ส่ง .NET ทำ) และเพิ่ม worker ได้ทันทีเมื่องานล้น</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== BullMQ ===== -->
+  <section class="slide" data-title="BullMQ: คำศัพท์">
+    <div class="slide-inner">
+      <div class="eyebrow violet-text">📋 BullMQ · คำศัพท์ก่อนเข้าเรื่อง</div>
+      <h2>คำศัพท์ BullMQ ที่ต้องเข้าใจตรงกัน</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>คำ</th><th>ความหมาย (ภาษาง่าย)</th><th>ตัวอย่างในระบบ Order</th></tr>
+        <tr><td><strong>Redis</strong></td><td>ฐานข้อมูลในหน่วยความจำ ที่ BullMQ ใช้เก็บงานทั้งหมด</td><td><code>redis:6379</code></td></tr>
+        <tr><td><strong>Queue</strong></td><td>กระดานงานแต่ละประเภท ใช้เพิ่มงาน</td><td><code>email</code>, <code>reports</code></td></tr>
+        <tr><td><strong>Job</strong><button class="term" data-term="job"></button></td><td>งาน 1 ชิ้น มีข้อมูล + สถานะ + จำนวนครั้งที่ลองแล้ว</td><td>ส่งอีเมลยืนยัน ORD-1234</td></tr>
+        <tr><td><strong>Worker</strong></td><td>process ที่หยิบงานจากกระดานไปทำ</td><td><code>email.worker.ts</code></td></tr>
+        <tr><td><strong>Job State</strong><button class="term" data-term="jobState"></button></td><td>สถานะงาน: delayed → waiting → active → completed / failed</td><td>active = กำลังส่งอีเมล</td></tr>
+        <tr><td><strong>Attempts + Backoff</strong><button class="term" data-term="backoff"></button></td><td>ลองใหม่ได้กี่ครั้ง และเว้นนานขึ้นเรื่อย ๆ</td><td>5 ครั้ง: 2s, 4s, 8s…</td></tr>
+        <tr><td><strong>Delay</strong></td><td>หน่วงก่อนเริ่มงาน</td><td>เตือนตะกร้าค้างหลัง 1 ชม.</td></tr>
+        <tr><td><strong>Job Scheduler</strong></td><td>งานตั้งเวลาซ้ำแบบ cron</td><td>สรุปยอดขาย 08:00 ทุกวัน</td></tr>
+        <tr><td><strong>Concurrency / Rate limit</strong><button class="term" data-term="rateLimit"></button></td><td>ทำพร้อมกันได้กี่งาน / จำกัดกี่งานต่อวินาที</td><td>10 งานพร้อมกัน, ≤ 100 SMS/วินาที</td></tr>
+        <tr><td><strong>Failed jobs</strong><button class="term" data-term="failedJobs"></button></td><td>งานที่ลองครบแล้วยังพัง เก็บไว้ให้ตรวจ (ทำหน้าที่คล้าย DLQ)</td><td>อีเมลที่ส่งไม่ได้ 5 ครั้ง</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="BullMQ: เหมาะ / ไม่เหมาะ">
     <div class="slide-inner">
       <div class="eyebrow violet-text">📋 BullMQ</div>
       <h2>BullMQ: “กระดานมอบหมายงาน”</h2>
@@ -170,7 +272,7 @@
           <li>งานเบื้องหลังในแอป Node.js / Next.js</li>
           <li>ส่งอีเมล, สร้าง PDF, import/export ไฟล์</li>
           <li>ต้องการ retry อัตโนมัติ, หน่วงเวลา, ตั้งเวลา (cron)</li>
-          <li>เรียก API ภายนอกที่จำกัดจำนวนครั้ง (rate limit<button class="term" data-term="rateLimit"></button>)</li>
+          <li>เรียก API ภายนอกที่จำกัดจำนวนครั้ง</li>
         </ul></div>
         <div class="dont"><h4>ไม่เหมาะเมื่อ</h4><ul>
           <li>ระบบฝั่ง .NET ต้องรับงาน (ไม่มี client .NET ทางการ)</li>
@@ -178,7 +280,46 @@
           <li>ต้องเก็บประวัติไว้อ่านซ้ำ</li>
         </ul></div>
       </div>
-      <div class="callout">งานเบื้องหลังฝั่ง <strong>.NET</strong> ที่ไม่ต้องข้ามระบบ ใช้ Hangfire / Hosted Service ได้ ไม่จำเป็นต้องใช้ BullMQ · <a href="bullmq-deep-dive.html">อ่านเจาะลึก BullMQ →</a></div>
+      <div class="callout">หัวใจของ BullMQ: <strong>งานต้องเสร็จ — ถ้าพังลองใหม่ ถ้าต้องรอก็ตั้งเวลาได้</strong> · งานเบื้องหลังฝั่ง .NET ล้วนใช้ Hangfire / Hosted Service แทนได้ · <a href="bullmq-deep-dive.html">อ่านเจาะลึก BullMQ →</a></div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="BullMQ: ตัวอย่างระบบที่เหมาะ">
+    <div class="slide-inner">
+      <div class="eyebrow violet-text">📋 BullMQ · ตัวอย่างระบบจริง</div>
+      <h2>ระบบแบบไหนควรใช้ BullMQ</h2>
+      <div class="grid grid-3">
+        <div class="card violet"><h3>✉️ แจ้งเตือนหลังสั่งซื้อ</h3>
+          <div class="diagram"><div class="node">Server Action → queue <code>notify</code></div><div class="branch-grid"><div class="node green">อีเมล</div><div class="node green">LINE / SMS</div></div></div>
+          <p class="small mt"><strong>ทำงานอย่างไร:</strong> กดสั่งซื้อแล้วตอบลูกค้าทันที เพิ่ม job ส่งอีเมล ถ้าผู้ให้บริการอีเมลล่มก็ลองใหม่ 5 ครั้งแบบเว้นระยะ และจำกัด 100 ข้อความ/วินาที</p>
+          <p class="small muted"><strong>ทำไมต้อง BullMQ:</strong> retry + rate limit มีในตัว เขียนไม่กี่บรรทัด มี Redis อยู่แล้วก็ใช้ได้ทันที</p></div>
+        <div class="card violet"><h3>⏰ รายงานยอดขายทุกเช้า</h3>
+          <div class="diagram"><div class="node">Job Scheduler<small>0 8 * * * · Asia/Bangkok</small></div><div class="branch-grid"><div class="node green">สร้าง PDF</div><div class="node green">ส่งผู้บริหาร</div></div></div>
+          <p class="small mt"><strong>ทำงานอย่างไร:</strong> ตั้งเวลาครั้งเดียว BullMQ สร้าง job ทุกเช้า 08:00 แม้มี worker 3 ตัวก็ทำแค่ครั้งเดียว</p>
+          <p class="small muted"><strong>ทำไมต้อง BullMQ:</strong> ดีกว่า cron ในเครื่อง เพราะมี retry, ดูประวัติได้ และไม่ซ้ำเมื่อ scale</p></div>
+        <div class="card violet"><h3>📥 นำเข้า Excel 50,000 แถว</h3>
+          <div class="diagram"><div class="node">อัปโหลดไฟล์ → job <code>import</code></div><div class="branch-grid"><div class="node green">ทำทีละชุด</div><div class="node gold">แถบ % บนหน้าเว็บ</div></div></div>
+          <p class="small mt"><strong>ทำงานอย่างไร:</strong> worker อ่านไฟล์ทีละ 1,000 แถว แล้วอัปเดต progress หน้าเว็บอ่านค่า % มาแสดงผู้ใช้</p>
+          <p class="small muted"><strong>ทำไมต้อง BullMQ:</strong> งานยาวไม่ทำให้ request หมดเวลา ผู้ใช้เห็นความคืบหน้า และพังกลางทางก็ทำต่อได้</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== DLT / DLQ ===== -->
+  <section class="slide" data-title="DLT / DLQ ของแต่ละตัว">
+    <div class="slide-inner">
+      <div class="eyebrow">เมื่องานล้มเหลว</div>
+      <h2>DLT vs DLQ: แนวคิดเดียวกัน ต่างกันที่ชื่อและวิธีทำ</h2>
+      <p class="lead">ทั้งคู่คือ <strong class="gold">“กล่องพัสดุตีกลับ”</strong> ที่พักข้อความ/งานที่ทำไม่สำเร็จ ไว้ให้คนตรวจและสั่งทำใหม่ ไม่ให้ค้างขวางงานอื่น</p>
+      <div class="table-wrap"><table class="table">
+        <tr><th></th><th class="blue">Kafka</th><th class="gold">RabbitMQ</th><th class="violet-text">BullMQ</th></tr>
+        <tr><td>เรียกว่า</td><td><strong>DLT</strong> (Dead Letter <u>Topic</u>)</td><td><strong>DLQ</strong> (Dead Letter <u>Queue</u>) ผ่าน DLX</td><td><strong>Failed jobs</strong> (ไม่มีชื่อ DLQ ทางการ)</td></tr>
+        <tr><td>มีในตัวไหม</td><td><span class="status"><span class="dot low"></span>ไม่มี — โค้ดเราส่งเอง</span></td><td><span class="status"><span class="dot good"></span>มี — ตั้งค่าที่คิว</span></td><td><span class="status"><span class="dot good"></span>มี — ครบ attempts แล้วเป็น failed</span></td></tr>
+        <tr><td>ส่งเข้าเมื่อ</td><td>retry ครบ / ข้อมูลผิด (ตามที่เราเขียน)</td><td>nack ไม่ requeue, ส่งซ้ำเกินกำหนด, หมดอายุ, คิวเต็ม</td><td>ลองครบ attempts หรือ <code>UnrecoverableError</code></td></tr>
+        <tr><td>ดูสาเหตุจาก</td><td>headers ที่เราใส่</td><td>header <code>x-death</code> (อัตโนมัติ)</td><td><code>failedReason</code>, stacktrace</td></tr>
+        <tr><td>สั่งทำใหม่</td><td>publish กลับ topic เดิม</td><td>ย้ายข้อความกลับคิวเดิม (Shovel / UI)</td><td><code>job.retry()</code> / ปุ่ม Retry ใน Bull Board</td></tr>
+      </table></div>
+      <div class="tag-row"><span class="muted small">อ่านเต็ม →</span><a class="tag gold" href="dlt-dlq-explained.html">DLT / DLQ อธิบายละเอียด</a></div>
     </div>
   </section>
 
@@ -273,6 +414,16 @@
 
 <script>
 window.KV_GLOSSARY = {
+  offset: { title: "Offset (Kafka)", body: "เลขลำดับของ message ภายใน partition consumer group จดไว้ว่าอ่านถึงเลขไหนแล้ว เพื่อ restart แล้วอ่านต่อจากเดิมได้", example: "เหมือนที่คั่นหนังสือ อ่านถึงหน้า 120 พรุ่งนี้เปิดต่อหน้า 121" },
+  key: { title: "Message Key (Kafka)", body: "ค่าที่ใช้เลือก partition message ที่ key เดียวกันไป partition เดียวกันเสมอ จึงถูกอ่านตามลำดับที่ส่ง", example: "key = ORD-1234 → Created, Paid, Shipped ของ order นี้เรียงถูกเสมอ" },
+  retention: { title: "Retention (Kafka)", body: "ระยะเวลาหรือขนาดที่ Kafka เก็บข้อมูลไว้ ข้อมูลไม่ถูกลบหลังอ่าน แต่ถูกลบเมื่อครบกำหนด", example: "retention 7 วัน → ระบบใหม่อ่านย้อนหลังได้สูงสุด 7 วัน" },
+  dlt: { title: "DLT (Dead Letter Topic)", body: "topic ใน Kafka สำหรับพัก message ที่ประมวลผลไม่สำเร็จ Kafka ไม่มีกลไกนี้ในตัว โค้ดของเราต้อง publish เข้า DLT เองพร้อมใส่สาเหตุใน headers", example: "Payment ล้มครบ 3 ครั้ง → ส่ง message เดิมไป order-events-dlt พร้อม x-error-reason" },
+  cdc: { title: "CDC (Change Data Capture)", body: "เทคนิคดักการเปลี่ยนแปลงข้อมูลจาก log ของฐานข้อมูล แล้วส่งออกเป็น event โดยไม่ต้องแก้โค้ดแอปที่เขียนข้อมูล", example: "แก้ราคาสินค้าในระบบหลังบ้าน → Debezium ส่ง event → ระบบค้นหาอัปเดตราคาใน 2 วินาที" },
+  binding: { title: "Binding (RabbitMQ)", body: "กฎที่ผูก exchange เข้ากับคิว พร้อม pattern ว่าข้อความ routing key แบบไหนให้ส่งเข้าคิวนี้", example: "ผูกคิว th-warehouse กับ exchange shipping ด้วย ship.th.*" },
+  prefetch: { title: "Prefetch (RabbitMQ)", body: "จำนวนข้อความสูงสุดที่ยังไม่ ack ซึ่ง RabbitMQ จะส่งมาค้างไว้ที่ worker หนึ่งตัว ช่วยแบ่งงานให้ worker เท่า ๆ กันและไม่รับงานเกินกำลัง", example: "prefetch 1 สำหรับงานหนัก → worker ทำเสร็จทีละงานจึงได้งานใหม่" },
+  dlq: { title: "DLX / DLQ (RabbitMQ)", body: "DLX (Dead Letter Exchange) คือ exchange ที่ RabbitMQ ส่งข้อความไปเมื่อข้อความ “ตาย” ส่วน DLQ คือคิวที่ผูกกับ DLX ไว้เก็บข้อความเหล่านั้น ตั้งค่าครั้งเดียวที่คิวหลักแล้วทำงานอัตโนมัติ", example: "payment queue ตั้ง x-dead-letter-exchange = payment.dlx และ x-delivery-limit = 5 → ล้มครั้งที่ 6 ไปอยู่ payment.dlq เอง" },
+  jobState: { title: "Job State (BullMQ)", body: "สถานะของงานที่ BullMQ ติดตามให้ — delayed (รอเวลา), waiting (รอคิว), active (กำลังทำ), completed (สำเร็จ), failed (ล้มเหลวครบแล้ว)", example: "อีเมลที่ตั้ง delay 5 วินาทีจะอยู่ delayed ก่อน แล้วไป waiting และ active ตามลำดับ" },
+  failedJobs: { title: "Failed Jobs (BullMQ)", body: "งานที่ลองครบจำนวน attempts แล้วยังล้ม หรือโยน UnrecoverableError จะถูกเก็บในสถานะ failed พร้อมสาเหตุ ทำหน้าที่เหมือน DLQ และสั่ง retry ได้ภายหลัง", example: "เปิด Bull Board เห็นอีเมล 12 งาน failed เพราะ SMTP ล่ม → แก้แล้วกด Retry all" },
   asynchronous: { title: "Asynchronous (ทำงานแบบไม่รอกัน)", body: "ระบบต้นทางส่งงานต่อแล้วตอบกลับได้ทันที ไม่ต้องรอให้ทุกขั้นตอนเสร็จ งานที่เหลือทำต่อเบื้องหลัง", example: "สั่งอาหารแล้วได้บัตรคิว ไม่ต้องยืนรอหน้าเตา" },
   event: { title: "Event", body: "ข้อความที่บอกว่าเหตุการณ์หนึ่ง “เกิดขึ้นแล้ว” ตั้งชื่อเป็นอดีต ผู้ส่งไม่สนว่าใครจะนำไปใช้", example: "OrderCreated — ใบเสร็จที่ฝ่ายบัญชี คลัง และการตลาดต่างนำไปใช้" },
   command: { title: "Command", body: "ข้อความที่ “สั่ง” ให้ระบบหนึ่งไปทำบางอย่าง มีผู้รับที่ชัดเจนและคาดหวังว่าจะทำสำเร็จ", example: "ReserveStock — สั่งคลังสินค้าให้กันสินค้าไว้ให้ออเดอร์นี้" },
