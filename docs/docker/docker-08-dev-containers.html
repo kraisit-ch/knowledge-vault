@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>Docker ตอนเสริม: Dev Containers</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css?v=20261008">
+</head>
+<body data-title="Docker ตอนเสริม: Dev Containers" data-mark="D+">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">🐳 Docker สำหรับ Dev · ตอนเสริม</div>
+      <h1><span class="grad">Dev Containers</span><br>เครื่อง dev เหมือนกันทั้งทีม ในคลิกเดียว</h1>
+      <p class="lead">เปิดโปรเจกต์ใน container ที่มี Node, .NET SDK, เครื่องมือ และ VS Code extension ครบตามที่ทีมกำหนด คนใหม่ clone แล้วกด “Reopen in Container” ก็เริ่มเขียนโค้ดได้ ไม่ต้องติดตั้งอะไรลงเครื่องเลย</p>
+      <div class="tag-row"><span class="tag gold">devcontainer.json</span><span class="tag blue">VS Code</span><span class="tag">Features</span><span class="tag">Docker Compose</span><span class="tag">Codespaces</span></div>
+      <div class="quote">“ติดตั้งเครื่อง dev” เปลี่ยนจากเอกสาร 3 หน้า เป็นไฟล์ JSON 1 ไฟล์ที่อยู่ใน Git</div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="ต่างจากตอนที่ 6 อย่างไร">
+    <div class="slide-inner">
+      <div class="eyebrow">ตำแหน่งของ Dev Containers</div>
+      <h2>ต่างจากการรัน Docker ในตอนที่ 6 อย่างไร</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th></th><th>A. Infra ใน Docker (ตอนที่ 6)</th><th>B. ทุกอย่างใน Docker (ตอนที่ 6)</th><th class="gold">C. Dev Containers</th></tr>
+        <tr><td>Node / .NET SDK</td><td>ติดตั้งบนเครื่อง</td><td>อยู่ใน image ของแอป</td><td><strong>อยู่ใน dev container</strong></td></tr>
+        <tr><td>เขียนโค้ด / debug</td><td>บนเครื่อง (เร็วสุด)</td><td>ยาก ต้องต่อ debugger เข้า container</td><td><strong>VS Code ทำงานใน container</strong> debug ได้ปกติ</td></tr>
+        <tr><td>Extension, formatter, CLI</td><td>แต่ละคนลงเอง</td><td>แต่ละคนลงเอง</td><td><strong>กำหนดในไฟล์ ทุกคนได้เหมือนกัน</strong></td></tr>
+        <tr><td>คนใหม่เริ่มงาน</td><td>ลง SDK ตามเอกสาร</td><td>ลง Docker</td><td>ลง Docker + VS Code แล้วกดปุ่มเดียว</td></tr>
+      </table></div>
+      <div class="callout">Dev Container ไม่ได้แทน Dockerfile ของ production — มันคือ “เครื่อง dev สำเร็จรูป” ส่วน image ที่ deploy ยังเป็นของตอนที่ 2 เหมือนเดิม</div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="ทำงานอย่างไร">
+    <div class="slide-inner">
+      <div class="eyebrow">กลไก</div>
+      <h2>Dev Container ทำงานอย่างไร</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="node">เครื่องเรา<small>VS Code (หน้าจอ) + Docker Desktop</small></div><div class="arrow">↔</div>
+          <div class="node gold">Dev Container<small>VS Code Server, Node 22, .NET 10, git, extensions</small></div><div class="arrow">↔</div>
+          <div class="node violet">db / redis<small>container อื่นใน compose</small></div>
+        </div>
+        <div class="flow mt"><div class="node green">โฟลเดอร์โปรเจกต์</div><div class="arrow">— mount เข้า →</div><div class="node gold">/workspaces/shop</div></div>
+      </div>
+      <ol class="steps mt">
+        <li>VS Code อ่าน <code>.devcontainer/devcontainer.json</code> แล้วสร้าง container ตามที่กำหนด</li>
+        <li>ติดตั้ง <strong>VS Code Server</strong><button class="term" data-term="vscodeserver"></button> และ extension ลงใน container</li>
+        <li>หน้าจอยังเป็น VS Code บนเครื่องเรา แต่ terminal, build, debug ทำงานใน container ทั้งหมด</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="สิ่งที่ต้องมี">
+    <div class="slide-inner">
+      <div class="eyebrow">เตรียมเครื่อง</div>
+      <h2>สิ่งที่ต้องมีบนเครื่อง (ครั้งเดียว)</h2>
+      <div class="grid grid-3">
+        <div class="card gold"><div class="icon">🐳</div><h3>Docker Desktop</h3><p class="small muted">Windows ใช้ WSL2 backend (ตอนที่ 6) · Mac / Linux ใช้ Docker Desktop หรือ Docker Engine</p></div>
+        <div class="card"><div class="icon">🧩</div><h3>VS Code + Dev Containers</h3><p class="small muted">ติดตั้ง extension “Dev Containers” (<code>ms-vscode-remote.remote-containers</code>)</p></div>
+        <div class="card violet"><div class="icon">🔀</div><h3>Git</h3><p class="small muted">credential และ SSH agent บนเครื่องถูกส่งต่อเข้า container ให้อัตโนมัติ</p></div>
+      </div>
+      <div class="grid grid-3 mt">
+        <div class="card"><h4>JetBrains Rider</h4><p class="small muted">รองรับ <code>devcontainer.json</code> ผ่าน Dev Containers ของ JetBrains</p></div>
+        <div class="card"><h4>GitHub Codespaces</h4><p class="small muted">ไฟล์เดียวกันเปิดบน cloud ได้ทันทีจากหน้า repo</p></div>
+        <div class="card"><h4>Dev Container CLI</h4><p class="small muted"><code>npm i -g @devcontainers/cli</code> ใช้ใน CI หรือ terminal: <code>devcontainer up</code></p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="devcontainer.json แรก">
+    <div class="slide-inner">
+      <div class="eyebrow">เริ่มต้น · Next.js</div>
+      <h2><code>.devcontainer/devcontainer.json</code> แบบง่ายที่สุด</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="json">
+{
+  "name": "Shop Web (Next.js)",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:22",
+  "forwardPorts": [3000],
+  "postCreateCommand": "npm ci",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss"
+      ],
+      "settings": { "editor.formatOnSave": true }
+    }
+  }
+}
+</pre>
+        <ol class="steps">
+          <li>commit ไฟล์นี้ลง repo</li>
+          <li>เปิดโปรเจกต์ใน VS Code จะมีป้ายเด้งขึ้นมา → <strong>Reopen in Container</strong> (หรือ F1 → “Dev Containers: Reopen in Container”)</li>
+          <li>รอสร้างครั้งแรก (ครั้งต่อไปเร็วเพราะมี cache)</li>
+          <li>เปิด terminal ใน VS Code → <code>npm run dev</code> → เปิด <code>localhost:3000</code> บนเครื่องได้เลย</li>
+        </ol>
+      </div>
+      <p class="muted small mt">image ทางการของทีม Dev Containers อยู่ที่ <code>mcr.microsoft.com/devcontainers/*</code> มี Node, git, zsh และ user ที่ไม่ใช่ root (<code>node</code> / <code>vscode</code>) มาให้แล้ว</p>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="Property ที่ใช้บ่อย">
+    <div class="slide-inner">
+      <div class="eyebrow">Reference</div>
+      <h2>Property ที่ใช้บ่อยใน devcontainer.json</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>Property</th><th>ทำอะไร</th><th>ตัวอย่าง</th></tr>
+        <tr><td><code>image</code> / <code>build</code></td><td>ใช้ image สำเร็จรูป หรือ build จาก Dockerfile ของเรา</td><td><code>"build": { "dockerfile": "Dockerfile" }</code></td></tr>
+        <tr><td><code>dockerComposeFile</code> + <code>service</code></td><td>ใช้ compose (มี DB / Redis มาด้วย)</td><td>สไลด์ 8</td></tr>
+        <tr><td><code>features</code></td><td>เพิ่มเครื่องมือแบบสำเร็จรูป</td><td>.NET, Node, GitHub CLI</td></tr>
+        <tr><td><code>forwardPorts</code></td><td>เปิด port จาก container มาที่ <code>localhost</code> ของเครื่อง</td><td><code>[3000, 8080, "db:5432"]</code></td></tr>
+        <tr><td><code>postCreateCommand</code></td><td>รันครั้งเดียวหลังสร้าง container</td><td><code>npm ci &amp;&amp; dotnet restore</code></td></tr>
+        <tr><td><code>postStartCommand</code></td><td>รันทุกครั้งที่ container เริ่ม</td><td><code>git fetch</code></td></tr>
+        <tr><td><code>initializeCommand</code></td><td>รัน <strong>บนเครื่องเรา</strong> ก่อนสร้าง container</td><td>สร้าง <code>.env</code> จาก example</td></tr>
+        <tr><td><code>containerEnv</code> / <code>remoteEnv</code></td><td>ตั้ง environment variable</td><td>สไลด์ 10</td></tr>
+        <tr><td><code>customizations.vscode</code></td><td>extension และ settings ของ VS Code</td><td>ESLint, C# Dev Kit</td></tr>
+        <tr><td><code>remoteUser</code></td><td>user ที่ใช้ทำงานใน container</td><td><code>"node"</code>, <code>"vscode"</code></td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="Features">
+    <div class="slide-inner">
+      <div class="eyebrow">เพิ่มเครื่องมือทีละบรรทัด</div>
+      <h2>Features<button class="term" data-term="features"></button>: ติดตั้งเครื่องมือโดยไม่ต้องเขียน Dockerfile</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="json">
+{
+  "image": "mcr.microsoft.com/devcontainers/base:bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "22" },
+    "ghcr.io/devcontainers/features/dotnet:2": { "version": "10.0" },
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  }
+}
+</pre>
+        <div class="table-wrap"><table class="table">
+          <tr><th>Feature</th><th>ได้อะไร</th></tr>
+          <tr><td><code>node</code></td><td>Node.js + npm (เลือกเวอร์ชัน)</td></tr>
+          <tr><td><code>dotnet</code></td><td>.NET SDK (เลือกเวอร์ชัน / หลายเวอร์ชัน)</td></tr>
+          <tr><td><code>docker-outside-of-docker</code></td><td>สั่ง <code>docker</code> จากใน container โดยใช้ Docker ของเครื่องเรา</td></tr>
+          <tr><td><code>github-cli</code>, <code>azure-cli</code></td><td>CLI สำหรับ PR / cloud</td></tr>
+        </table></div>
+      </div>
+      <div class="callout">รายการ features ทั้งหมดดูได้ที่ <a href="https://containers.dev/features" target="_blank" rel="noopener">containers.dev/features</a> · ระบุเวอร์ชันเสมอ เพื่อให้ทุกคนได้เครื่องมือเวอร์ชันเดียวกัน</div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="Full stack ด้วย Compose">
+    <div class="slide-inner">
+      <div class="eyebrow">Next.js + .NET + PostgreSQL + Redis</div>
+      <h2>Dev Container แบบมี DB และ Redis มาด้วย</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="json">
+// .devcontainer/devcontainer.json
+{
+  "name": "Shop (Full stack)",
+  "dockerComposeFile": ["compose.yaml"],
+  "service": "dev",
+  "workspaceFolder": "/workspaces/shop",
+  "shutdownAction": "stopCompose",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "22" }
+  },
+  "forwardPorts": [3000, 8080, "db:5432"],
+  "postCreateCommand": "npm ci --prefix web &amp;&amp; dotnet restore",
+  "customizations": { "vscode": { "extensions": [
+    "ms-dotnettools.csdevkit", "dbaeumer.vscode-eslint"
+  ] } }
+}
+</pre>
+<pre class="code" data-lang="yaml">
+# .devcontainer/compose.yaml
+services:
+  dev:
+    image: mcr.microsoft.com/devcontainers/dotnet:10.0
+    volumes:
+      - ..:/workspaces/shop:cached     # โค้ดทั้ง repo
+    command: sleep infinity            # ให้ container อยู่รอ VS Code
+    environment:
+      ConnectionStrings__Default: Host=db;Database=shop;Username=shop;Password=dev
+      Redis__Connection: redis:6379
+  db:
+    image: postgres:17-alpine
+    environment: { POSTGRES_DB: shop, POSTGRES_USER: shop, POSTGRES_PASSWORD: dev }
+    volumes: [pgdata:/var/lib/postgresql/data]
+  redis:
+    image: redis:7-alpine
+volumes:
+  pgdata:
+</pre>
+      </div>
+      <p class="muted small mt">ในโค้ดเรียก DB ด้วยชื่อ service (<code>Host=db</code>) เหมือนตอนที่ 3 · <code>"db:5432"</code> ใน forwardPorts ทำให้ DBeaver บนเครื่องต่อ <code>localhost:5432</code> ได้</p>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title=".NET ใน Dev Container">
+    <div class="slide-inner">
+      <div class="eyebrow">.NET / C#</div>
+      <h2>พัฒนา .NET ใน Dev Container</h2>
+      <div class="grid grid-2">
+        <div class="card gold"><h3>Debug ได้ปกติ</h3><ul>
+          <li>ติดตั้ง <code>ms-dotnettools.csdevkit</code> ใน <code>customizations</code></li>
+          <li>F5 / breakpoint / Test Explorer ทำงานใน container</li>
+          <li><code>dotnet watch</code> สำหรับ hot reload</li>
+        </ul></div>
+        <div class="card"><h3>เรื่องที่ต้องตั้งค่า</h3><ul>
+          <li>ให้ Kestrel ฟังทุก interface: <code>ASPNETCORE_URLS=http://+:8080</code> แล้ว forward 8080</li>
+          <li>HTTPS dev certificate ของเครื่องไม่ติดเข้าไป — ใน dev container ใช้ HTTP ไปก่อน หรือสร้าง cert ใหม่ใน container</li>
+          <li>NuGet cache: mount volume ที่ <code>/home/vscode/.nuget/packages</code> เพื่อไม่ต้องโหลดใหม่ทุกครั้งที่ rebuild</li>
+        </ul></div>
+      </div>
+      <div class="callout warn">ทีมที่ใช้ <strong>Visual Studio (Windows)</strong> เป็นหลัก ยังใช้รูปแบบ A (infra ใน Docker, แอปบนเครื่อง) ได้ตามเดิม Dev Container เหมาะกับคนที่ใช้ VS Code / Rider และงาน frontend มากกว่า</div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title="Env & Secrets">
+    <div class="slide-inner">
+      <div class="eyebrow">เชื่อมกับตอนที่ 4</div>
+      <h2>Environment variable และ Secret ใน Dev Container</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="json">
+{
+  // ค่าทั่วไปที่ไม่ลับ: ใส่ตรงนี้ได้
+  "containerEnv": {
+    "ASPNETCORE_ENVIRONMENT": "Development",
+    "NEXT_TELEMETRY_DISABLED": "1"
+  },
+  // ค่าลับ: ดึงจาก env ของเครื่องเรา ไม่ commit ลง Git
+  "remoteEnv": {
+    "OPENAI_API_KEY": "${localEnv:OPENAI_API_KEY}"
+  },
+  // หรือโหลดทั้งไฟล์ (ไฟล์อยู่ใน .gitignore)
+  "runArgs": ["--env-file", ".devcontainer/.env"]
+}
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4><code>containerEnv</code></h4><p class="small muted">ตั้งตอนสร้าง container — process ทุกตัวเห็น เปลี่ยนแล้วต้อง rebuild</p></div>
+          <div class="card"><h4><code>remoteEnv</code></h4><p class="small muted">ตั้งให้ VS Code / terminal — เปลี่ยนแล้วแค่ reload window</p></div>
+          <div class="card bad"><h4>อย่า commit</h4><p class="small muted"><code>.devcontainer/.env</code> ต้องอยู่ใน <code>.gitignore</code> และมี <code>.env.example</code> แทน (กฎเดียวกับตอนที่ 4)</p></div>
+        </div>
+      </div>
+      <p class="muted small mt"><code>runArgs</code> ใช้กับแบบ <code>image</code> / <code>build</code> · ถ้าใช้ Compose ให้ใส่ <code>env_file:</code> ใน compose.yaml แทน</p>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide" data-title="Windows: ให้เร็ว">
+    <div class="slide-inner">
+      <div class="eyebrow">สำหรับเครื่อง Windows</div>
+      <h2>ทำให้ Dev Container บน Windows เร็ว</h2>
+      <div class="grid grid-2">
+        <div class="card gold"><h3>1. เก็บโค้ดใน container volume หรือ WSL</h3><p class="small muted">F1 → “Dev Containers: <strong>Clone Repository in Container Volume</strong>” โค้ดอยู่ใน volume ของ Docker ไม่ต้องข้าม Windows ↔ Linux จึงเร็วกว่า mount จาก <code>C:\</code> มาก</p></div>
+        <div class="card"><h3>2. หรือเปิดจาก WSL</h3><p class="small muted">clone ไว้ที่ <code>~/projects</code> ใน WSL แล้วเปิดด้วย VS Code (WSL) ก่อน แล้วค่อย Reopen in Container</p></div>
+        <div class="card bad"><h3>3. Line ending</h3><p class="small muted">ใส่ <code>.gitattributes</code> ให้ไฟล์ <code>*.sh</code> เป็น LF (ตอนที่ 6) ไม่งั้น script ใน container error</p></div>
+        <div class="card violet"><h3>4. RAM ของ WSL</h3><p class="small muted">dev container + DB + Redis + VS Code Server ใช้ RAM รวมหลาย GB ตั้ง <code>.wslconfig</code> ให้พอ</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 -->
+  <section class="slide" data-title="การทำงานประจำวัน">
+    <div class="slide-inner">
+      <div class="eyebrow">Daily Workflow</div>
+      <h2>ใช้งานประจำวัน: เมื่อไรต้อง Rebuild</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>สถานการณ์</th><th>ทำอะไร (F1 → Dev Containers: …)</th></tr>
+        <tr><td>เปิดโปรเจกต์ครั้งแรก / หลังปิดเครื่อง</td><td><strong>Reopen in Container</strong></td></tr>
+        <tr><td>แก้โค้ด, เพิ่ม npm / NuGet package</td><td>ไม่ต้องทำอะไร ติดตั้งใน terminal ได้เลย</td></tr>
+        <tr><td>pull มาแล้ว <code>devcontainer.json</code>, Dockerfile หรือ features เปลี่ยน</td><td><strong>Rebuild Container</strong></td></tr>
+        <tr><td>container เพี้ยน / cache ผิด</td><td><strong>Rebuild Without Cache</strong></td></tr>
+        <tr><td>กลับไปทำงานบนเครื่องปกติ</td><td><strong>Reopen Folder Locally</strong></td></tr>
+      </table></div>
+      <div class="callout">ค่าส่วนตัว (theme, font, shell alias) ไม่ต้องใส่ใน <code>devcontainer.json</code> ของทีม ใช้ Settings Sync หรือ dotfiles repo ของตัวเองแทน</div>
+    </div>
+  </section>
+
+  <!-- 13 -->
+  <section class="slide" data-title="ข้อผิดพลาดที่พบบ่อย">
+    <div class="slide-inner">
+      <div class="eyebrow">Troubleshooting</div>
+      <h2>ปัญหาที่พบบ่อย</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>อาการ</th><th>สาเหตุ</th><th>วิธีแก้</th></tr>
+        <tr><td>เปิด <code>localhost:3000</code> ไม่ได้</td><td>dev server ฟังแค่ใน container</td><td>รันด้วย <code>--hostname 0.0.0.0</code> / <code>ASPNETCORE_URLS=http://+:8080</code> และใส่ใน <code>forwardPorts</code></td></tr>
+        <tr><td>ไฟล์บนเครื่องเป็นของ root แก้ไม่ได้</td><td>ทำงานใน container ด้วย root</td><td>ใช้ image ทางการ + <code>"remoteUser": "node"</code> / <code>"vscode"</code></td></tr>
+        <tr><td>แก้ devcontainer.json แล้วไม่เห็นผล</td><td>ยังใช้ container เดิม</td><td>Rebuild Container</td></tr>
+        <tr><td>build / npm install ช้ามาก (Windows)</td><td>mount โค้ดจาก <code>C:\</code></td><td>Clone in Container Volume / WSL</td></tr>
+        <tr><td><code>node_modules</code> ใช้ข้ามเครื่องไม่ได้</td><td>ติดตั้งบน Windows แล้วเปิดใน Linux</td><td>ลบแล้ว <code>npm ci</code> ใหม่ใน container (ใส่ใน <code>postCreateCommand</code>)</td></tr>
+        <tr><td>git push ไม่ได้ / ถามรหัสตลอด</td><td>credential ไม่ถูกส่งเข้า container</td><td>ตั้ง Git Credential Manager / SSH agent บนเครื่องให้ทำงานก่อน</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- 14 -->
+  <section class="slide" data-title="สรุปและ Checklist">
+    <div class="slide-inner">
+      <div class="eyebrow">สรุป</div>
+      <h2>ควรใช้เมื่อไร และ Checklist ของทีม</h2>
+      <div class="grid grid-2">
+        <div class="do"><h4>ใช้ Dev Container เมื่อ</h4><ul>
+          <li>มีคนเข้าออกทีมบ่อย อยากให้เริ่มงานได้ในวันแรก</li>
+          <li>ต้องใช้หลายเวอร์ชัน (Node 20 กับ 22, .NET 8 กับ 10) ในหลายโปรเจกต์</li>
+          <li>ทีมใช้ VS Code / Rider / Codespaces</li>
+        </ul></div>
+        <div class="dont"><h4>ไม่จำเป็นเมื่อ</h4><ul>
+          <li>ทีมเล็ก เครื่องเหมือนกันหมดอยู่แล้ว</li>
+          <li>ใช้ Visual Studio บน Windows เป็นหลัก</li>
+          <li>เครื่อง RAM น้อย (&lt; 16GB) และต้องรันหลาย service</li>
+        </ul></div>
+      </div>
+      <div class="card good mt"><ul>
+        <li>☐ <code>.devcontainer/</code> อยู่ใน Git · image / features ระบุเวอร์ชัน</li>
+        <li>☐ extension ที่ทีมใช้ร่วม (ESLint, Prettier, C# Dev Kit) อยู่ใน <code>customizations</code></li>
+        <li>☐ <code>postCreateCommand</code> ติดตั้ง dependency ให้ครบ · secret มาจาก <code>${localEnv:…}</code> / <code>.env</code> ที่ไม่ commit</li>
+        <li>☐ README มีขั้นตอน “Reopen in Container” และทดสอบกับเครื่องใหม่แล้ว</li>
+      </ul></div>
+      <div class="tag-row"><span class="muted small">อ่านต่อ →</span><a class="tag" href="docker-06-dev-workflow.html" target="_blank" rel="noopener">ตอนที่ 6: Dev Workflow</a><a class="tag gold" href="docker-04-env-config.html" target="_blank" rel="noopener">ตอนที่ 4: .env &amp; Config</a><a class="tag blue" href="https://containers.dev" target="_blank" rel="noopener">containers.dev</a></div>
+    </div>
+  </section>
+
+</main>
+<script>
+window.KV_GLOSSARY = {
+  vscodeserver: { title: "VS Code Server", body: "ส่วนเบื้องหลังของ VS Code ที่ถูกติดตั้งใน container อัตโนมัติ ทำหน้าที่รัน extension, terminal, debugger และอ่านไฟล์ ส่วนหน้าจอยังเป็น VS Code บนเครื่องเรา ทั้งสองคุยกันผ่านช่องทางที่ Dev Containers extension จัดการให้", example: "กด F5 บนเครื่องเรา → debugger ที่อยู่ใน container เริ่ม .NET API และหยุดที่ breakpoint ให้" },
+  features: { title: "Dev Container Features", body: "ชุดติดตั้งเครื่องมือสำเร็จรูปที่เพิ่มเข้า dev container ได้ด้วยการเขียนชื่อใน devcontainer.json ไม่ต้องเขียนคำสั่งติดตั้งใน Dockerfile เอง และเลือกเวอร์ชันได้", example: "\"ghcr.io/devcontainers/features/dotnet:2\": { \"version\": \"10.0\" } → ได้ .NET 10 SDK ใน container ทันที" }
+};
+</script>
+<script src="../../assets/kv-deck.js?v=20261008"></script>
+</body>
+</html>

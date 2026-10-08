@@ -4,7 +4,7 @@
   "categories": [
     { "id": "frontend",  "name": "Frontend",           "icon": "⚛️", "desc": "React, Next.js, UI และ Performance" },
     { "id": "backend",   "name": "Backend & API",      "icon": "🛠️", "desc": ".NET / C#, Web API, Database" },
-    { "id": "docker",    "name": "Docker สำหรับ Dev",   "icon": "🐳", "desc": "ซีรีส์ 7 ตอน จากพื้นฐานถึง .env และ Production" },
+    { "id": "docker",    "name": "Docker สำหรับ Dev",   "icon": "🐳", "desc": "ซีรีส์ 7 ตอน + ตอนเสริม Dev Containers จากพื้นฐานถึง Production" },
     { "id": "team",      "name": "Team & Process",     "icon": "🤝", "desc": "Git, Code Review, มาตรฐานการทำงาน" },
     { "id": "messaging", "name": "Messaging & Queue",  "icon": "📨", "desc": "Kafka, RabbitMQ, Background Job" },
     { "id": "testing",   "name": "Testing",            "icon": "🧪", "desc": "E2E, Unit, Integration Test" },
@@ -20,6 +20,7 @@
     { "category": "docker", "title": "Docker 5: Volume & Network", "desc": "Named volume vs bind mount, backup/restore DB, container คุยกันอย่างไร, host.docker.internal", "path": "docs/docker/docker-05-volumes-network.html", "date": "2026-10-07", "slides": 10, "level": "กลาง", "tags": ["volume", "network", "backup"] },
     { "category": "docker", "title": "Docker 6: Dev Workflow & แก้ปัญหา", "desc": "Hot reload ด้วย compose watch, Windows/WSL2, ลำดับการ debug และ error ที่เจอบ่อย", "path": "docs/docker/docker-06-dev-workflow.html", "date": "2026-10-07", "slides": 9, "level": "กลาง", "tags": ["hot-reload", "watch", "wsl2", "troubleshooting"] },
     { "category": "docker", "title": "Docker 7: Production & Security", "desc": "Image tag, healthcheck, resource limit, hardening, scan ช่องโหว่ และ CI/CD flow", "path": "docs/docker/docker-07-production.html", "date": "2026-10-07", "slides": 9, "level": "กลาง–สูง", "tags": ["production", "security", "ci-cd"] },
+    { "category": "docker", "title": "Docker ตอนเสริม: Dev Containers", "desc": "devcontainer.json, Features, Full stack ด้วย Compose, .NET ใน container, env/secret, ทำให้เร็วบน Windows และ Checklist ทีม", "path": "docs/docker/docker-08-dev-containers.html", "date": "2026-10-08", "slides": 14, "level": "กลาง", "tags": ["devcontainer", "vscode", "codespaces", "docker"] },
     { "category": "frontend",  "title": "React Essentials สำหรับทีม", "desc": "Component, Hooks, State, Data fetching, Forms และ Checklist ก่อนเปิด PR", "path": "docs/frontend/react-essentials.html", "date": "2026-10-06", "slides": 13, "level": "พื้นฐาน–กลาง", "tags": ["react", "hooks", "tanstack-query", "zod"] },
     { "category": "frontend",  "title": "Next.js App Router Playbook", "desc": "Server vs Client Component, Rendering, Cache, Server Actions และ BFF กับ .NET", "path": "docs/frontend/nextjs-app-router.html", "date": "2026-10-06", "slides": 13, "level": "กลาง", "tags": ["nextjs", "rsc", "server-actions", "seo"] },
     { "category": "backend",   "title": ".NET Web API & Clean Architecture", "desc": "โครงสร้าง Solution, DI, EF Core, Validation, ProblemDetails, Logging และ Testing", "path": "docs/backend/dotnet-clean-architecture.html", "date": "2026-10-06", "slides": 13, "level": "กลาง", "tags": ["dotnet", "csharp", "ef-core", "clean-architecture"] },
