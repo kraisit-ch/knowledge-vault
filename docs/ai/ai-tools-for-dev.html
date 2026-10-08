@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>AI สำหรับทีม Dev</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css?v=20261008">
+</head>
+<body data-title="ใช้ AI ในงานพัฒนา สำหรับทีม Dev" data-mark="AI">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">🤖 AI &amp; Content · สำหรับทีม Dev</div>
+      <h1><span class="grad">ใช้ AI ในงานพัฒนา</span><br>เร็วขึ้น โดยไม่เสียคุณภาพและความปลอดภัย</h1>
+      <p class="lead">รู้จักเครื่องมือ AI แต่ละแบบ, งานไหนให้ AI ช่วยได้ดี, วิธีเขียน prompt ให้ได้ผล, การทำงานแบบ AI agent และกฎของทีมเรื่องข้อมูลลับและการตรวจผลงาน</p>
+      <div class="tag-row"><span class="tag gold">Chat Assistant</span><span class="tag blue">IDE Copilot</span><span class="tag">Coding Agent</span><span class="tag">Prompt</span><span class="tag">กฎทีม</span></div>
+      <div class="quote">AI เขียนได้เร็ว แต่ “คนที่ commit” ยังเป็นเจ้าของโค้ดนั้น 100%</div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="เครื่องมือ AI 4 แบบ">
+    <div class="slide-inner">
+      <div class="eyebrow">ภาพรวมเครื่องมือ</div>
+      <h2>เครื่องมือ AI สำหรับ Dev มี 4 แบบหลัก</h2>
+      <div class="grid grid-2">
+        <div class="card gold"><div class="icon">💬</div><h3>Chat Assistant</h3><p class="muted small">Claude, ChatGPT, Gemini บนเว็บ / แอป</p><p class="small">ถามแนวคิด, ออกแบบ, อธิบาย error, ร่างเอกสาร</p></div>
+        <div class="card"><div class="icon">⌨️</div><h3>IDE Assistant</h3><p class="muted small">GitHub Copilot, Cursor, AI ใน JetBrains / Visual Studio</p><p class="small">เติมโค้ดระหว่างพิมพ์, แก้ไฟล์ที่เปิดอยู่, chat ข้างโค้ด</p></div>
+        <div class="card violet"><div class="icon">🤖</div><h3>Coding Agent<button class="term" data-term="agent"></button></h3><p class="muted small">Claude Code, Copilot agent mode, Codex และอื่น ๆ</p><p class="small">อ่านทั้ง repo, แก้หลายไฟล์, รันคำสั่ง / เทสต์เอง แล้วสรุปผล</p></div>
+        <div class="card good"><div class="icon">🔍</div><h3>AI ใน Workflow</h3><p class="muted small">AI review ใน MR / PR, สรุป issue, เขียน release note</p><p class="small">ทำงานอัตโนมัติใน GitLab / GitHub</p></div>
+      </div>
+      <p class="muted small mt">ชื่อและความสามารถของเครื่องมือเปลี่ยนเร็วมาก — ตรวจนโยบายบริษัทว่าทีมได้รับอนุญาตให้ใช้ตัวไหนและแพ็กเกจไหน (ณ ต.ค. 2026)</p>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="งานไหนให้ AI ช่วย">
+    <div class="slide-inner">
+      <div class="eyebrow">ใช้ให้ถูกงาน</div>
+      <h2>งานไหนให้ AI ช่วยได้ดี / ต้องระวัง</h2>
+      <div class="grid grid-2">
+        <div class="do"><h4>ช่วยได้ดีมาก</h4><ul>
+          <li>อธิบายโค้ดเก่าที่ไม่มีคนรู้เรื่อง</li>
+          <li>เขียน unit test จากโค้ดที่มีอยู่</li>
+          <li>แปลงโค้ด / refactor ตามแบบที่กำหนด</li>
+          <li>SQL, regex, script, Dockerfile, CI YAML ร่างแรก</li>
+          <li>หาสาเหตุ error จาก stack trace</li>
+          <li>เขียนเอกสาร, commit message, PR description</li>
+        </ul></div>
+        <div class="dont"><h4>ต้องระวังเป็นพิเศษ</h4><ul>
+          <li>ข้อมูลเวอร์ชันล่าสุดของ library — <strong>AI อาจรู้ข้อมูลเก่า</strong></li>
+          <li>โค้ดด้าน security, auth, การเงิน</li>
+          <li>ตัดสินใจสถาปัตยกรรมแทนทีม</li>
+          <li>ตัวเลข / ข้อเท็จจริงที่ไม่มีแหล่งอ้างอิง</li>
+          <li>โค้ดที่ไม่มีใครในทีมเข้าใจหลัง merge</li>
+        </ul></div>
+      </div>
+      <div class="callout warn"><strong>ตัวอย่างจริงจากคลังความรู้นี้:</strong> เอกสาร Background Jobs เคยเขียนว่า “BullMQ ใช้ PostgreSQL ไม่ได้” ตามข้อมูลเวอร์ชันเก่า แต่ BullMQ v6 (ก.ค. 2026) รองรับแล้ว — ทีมตรวจเจอและแก้จากเอกสารทางการ นี่คือเหตุผลที่ต้องตรวจทุกครั้ง<button class="term" data-term="hallucination"></button></div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="กฎทีม: ข้อมูลลับ">
+    <div class="slide-inner">
+      <div class="eyebrow">กฎของทีม · สำคัญที่สุด</div>
+      <h2>ข้อมูลอะไรห้ามส่งให้ AI</h2>
+      <div class="grid grid-2">
+        <div class="card bad"><h3>🚫 ห้ามส่ง</h3><ul>
+          <li>รหัสผ่าน, API key, token, connection string จริง</li>
+          <li>ข้อมูลลูกค้า / พนักงาน (ชื่อ, เบอร์, เลขบัตร, ที่อยู่) — PDPA</li>
+          <li>ข้อมูลการเงิน, สัญญา, ข้อมูลที่บริษัทจัดเป็นความลับ</li>
+          <li>ไฟล์ <code>.env</code>, dump ฐานข้อมูล production</li>
+        </ul></div>
+        <div class="card good"><h3>✅ ทำแบบนี้แทน</h3><ul>
+          <li>ใช้ข้อมูลตัวอย่าง / ปิดบังค่า (<code>***</code>, <code>example.com</code>)</li>
+          <li>ใช้เครื่องมือและบัญชีที่บริษัทอนุมัติ (แพ็กเกจที่ไม่เอาข้อมูลไป train)</li>
+          <li>ตั้ง agent ไม่ให้อ่านไฟล์ลับ (ignore / permission)</li>
+          <li>ถ้าไม่แน่ใจ ถามหัวหน้าทีมก่อนส่ง</li>
+        </ul></div>
+      </div>
+      <div class="quote">ถ้าไม่กล้าโพสต์ข้อความนั้นลงช่องแชตของทีม ก็อย่าส่งให้ AI</div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="เขียน Prompt ให้ได้ผล">
+    <div class="slide-inner">
+      <div class="eyebrow">Prompt</div>
+      <h2>เขียน Prompt ให้ได้ผล: บริบท · งาน · ข้อจำกัด · รูปแบบ</h2>
+      <div class="grid grid-2">
+        <div class="dont"><h4>Prompt กว้างเกินไป</h4><pre class="code" data-lang="text">เขียน API สร้างออเดอร์ให้หน่อย</pre><p class="small muted">ได้โค้ดทั่วไป ไม่ตรงโครงสร้างโปรเจกต์ ต้องแก้เยอะ</p></div>
+        <div class="do"><h4>Prompt ที่ชัด</h4>
+<pre class="code" data-lang="text">
+บริบท: .NET 10 Web API, Clean Architecture
+(Domain/Application/Infrastructure/Api), EF Core,
+FluentValidation, ตอบ error เป็น ProblemDetails
+
+งาน: เพิ่ม endpoint POST /api/orders/{id}/cancel
+
+ข้อจำกัด:
+- ยกเลิกได้เฉพาะสถานะ Pending / Paid
+- ถ้าจัดส่งแล้วตอบ 409
+- ทำตามแบบของ CreateOrder ที่มีอยู่
+- ไม่แก้ไฟล์อื่นที่ไม่เกี่ยว
+
+รูปแบบ: แสดงไฟล์ที่เพิ่ม/แก้ + unit test ของ Domain
+</pre></div>
+      </div>
+      <div class="grid grid-4 mt">
+        <div class="card gold"><h4>บริบท</h4><p class="small muted">stack, เวอร์ชัน, โครงสร้าง</p></div>
+        <div class="card"><h4>งาน</h4><p class="small muted">ต้องการผลอะไร ชัดเจน 1 เรื่อง</p></div>
+        <div class="card"><h4>ข้อจำกัด</h4><p class="small muted">กฎธุรกิจ, สิ่งที่ห้ามทำ, แบบที่ต้องตาม</p></div>
+        <div class="card violet"><h4>รูปแบบผลลัพธ์</h4><p class="small muted">ไฟล์, ตาราง, ขั้นตอน, ภาษา</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="Prompt สำเร็จรูป">
+    <div class="slide-inner">
+      <div class="eyebrow">ใช้ได้ทันที</div>
+      <h2>Prompt สำเร็จรูปที่ใช้บ่อย</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>งาน</th><th>Prompt</th></tr>
+        <tr><td>อธิบายโค้ด</td><td>“อธิบายว่าไฟล์นี้ทำอะไร ทีละส่วน สำหรับคนเพิ่งเข้าทีม และชี้จุดที่อาจเป็น bug”</td></tr>
+        <tr><td>เขียนเทสต์</td><td>“เขียน unit test ด้วย xUnit ให้ <code>Order.Cancel()</code> ครอบคลุม happy path, edge case และ error ทุกกรณี ห้ามแก้โค้ดจริง”</td></tr>
+        <tr><td>หาสาเหตุ error</td><td>“นี่คือ stack trace และโค้ดที่เกี่ยวข้อง ให้ระบุสาเหตุที่เป็นไปได้ เรียงจากน่าจะเป็นที่สุด พร้อมวิธีตรวจสอบแต่ละข้อ”</td></tr>
+        <tr><td>Review</td><td>“review diff นี้ตามลำดับ: ความถูกต้อง, ความปลอดภัย, performance, อ่านง่าย ระบุบรรทัดและเหตุผล”</td></tr>
+        <tr><td>SQL</td><td>“เขียน SQL (PostgreSQL 17) หาลูกค้าที่ซื้อซ้ำภายใน 30 วัน จากตาราง orders(id, customer_id, created_at) อธิบาย index ที่ควรมี”</td></tr>
+        <tr><td>เอกสาร</td><td>“สรุปการเปลี่ยนแปลงใน diff นี้เป็น PR description ตาม template ของทีม: ทำอะไร / ทำไม / ทดสอบอย่างไร”</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="ทำงานกับ Coding Agent">
+    <div class="slide-inner">
+      <div class="eyebrow">Coding Agent</div>
+      <h2>ทำงานกับ Coding Agent ให้ได้ผล</h2>
+      <ol class="steps">
+        <li><strong>ให้วางแผนก่อน</strong> — ขอแผนว่าจะแก้ไฟล์ไหน อย่างไร แล้วเราอนุมัติก่อนลงมือ</li>
+        <li><strong>งานละเรื่อง</strong> — แบ่งงานใหญ่เป็นงานย่อยที่ตรวจได้ (เหมือน PR เล็ก)</li>
+        <li><strong>ให้รันเทสต์ / build เอง</strong> — agent ที่เห็นผลเทสต์แก้ตัวเองได้ดีขึ้นมาก</li>
+        <li><strong>ตรวจ diff ทุกบรรทัด</strong> — ก่อน commit เสมอ ไม่ merge โดยไม่อ่าน</li>
+        <li><strong>เขียนกฎของโปรเจกต์ไว้ในไฟล์</strong> — เช่น <code>CLAUDE.md</code> / <code>AGENTS.md</code> / instructions ของเครื่องมือ: stack, คำสั่ง build/test, coding standard, สิ่งที่ห้ามแตะ</li>
+      </ol>
+<pre class="code mt" data-lang="text">
+# CLAUDE.md / AGENTS.md (ตัวอย่างย่อ)
+- Stack: Next.js 16 (web/), .NET 10 (api/), PostgreSQL 17
+- Test: `npm test --prefix web`, `dotnet test api`
+- ต้องผ่าน lint + test ก่อนบอกว่าเสร็จ
+- ห้ามอ่าน/แก้ไฟล์ .env* และโฟลเดอร์ secrets/
+- ตาม convention ในเอกสาร React Essentials และ .NET Clean Architecture
+</pre>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="กรณีศึกษา: คลังความรู้นี้">
+    <div class="slide-inner">
+      <div class="eyebrow">กรณีศึกษา</div>
+      <h2>คลังความรู้นี้สร้างด้วย Coding Agent อย่างไร</h2>
+      <div class="diagram"><div class="flow">
+        <div class="node">คนกำหนดเป้าหมาย<small>หัวข้อ, โทนสี, กฎ</small></div><div class="arrow">→</div>
+        <div class="node gold">Agent ร่าง<small>HTML, ธีม, เนื้อหา</small></div><div class="arrow">→</div>
+        <div class="node violet">Agent ตรวจเอง<small>screenshot, ลิงก์, จำนวนสไลด์</small></div><div class="arrow">→</div>
+        <div class="node green">คนรีวิว / ท้วง<small>แก้ข้อมูลที่ผิด</small></div><div class="arrow">→</div>
+        <div class="node">push + บันทึกงาน</div>
+      </div></div>
+      <div class="grid grid-3 mt">
+        <div class="card good"><h4>ได้อะไร</h4><p class="small muted">เอกสาร 30+ เรื่อง ธีมเดียวกันทั้งหมด ในเวลาไม่กี่วัน</p></div>
+        <div class="card gold"><h4>สิ่งที่ทำให้สำเร็จ</h4><p class="small muted">กฎเขียนเป็นไฟล์ (<code>todo.md</code>), template กลาง, ตรวจด้วยเครื่องมือทุกครั้ง</p></div>
+        <div class="card bad"><h4>สิ่งที่คนยังต้องทำ</h4><p class="small muted">ตัดสินใจทิศทาง, ตรวจความถูกต้อง (เช่น เคส BullMQ v6), อนุมัติก่อนเผยแพร่</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="ตรวจผลงานของ AI">
+    <div class="slide-inner">
+      <div class="eyebrow">Verify</div>
+      <h2>ตรวจผลงานของ AI อย่างไร</h2>
+      <div class="grid grid-3">
+        <div class="card gold"><h4>1. รันจริง</h4><p class="small muted">build, test, lint ต้องผ่าน — “ดูเหมือนถูก” ยังไม่พอ</p></div>
+        <div class="card gold"><h4>2. เช็คเวอร์ชัน API</h4><p class="small muted">method / option ที่ AI ใช้มีจริงในเวอร์ชันของเราไหม (ดู docs, changelog, npm / NuGet)</p></div>
+        <div class="card gold"><h4>3. อ่าน diff</h4><p class="small muted">มีไฟล์ที่ไม่ได้ขอให้แก้ไหม · ลบเทสต์ทิ้งเพื่อให้ผ่านไหม</p></div>
+        <div class="card"><h4>4. Security</h4><p class="small muted">ตรวจสิทธิ์, validate input, ไม่มี secret ในโค้ด</p></div>
+        <div class="card"><h4>5. License</h4><p class="small muted">โค้ดที่ดูเหมือน copy มาทั้งก้อนจาก open source — ตรวจที่มาและ license</p></div>
+        <div class="card"><h4>6. เข้าใจก่อน merge</h4><p class="small muted">ต้องอธิบายให้ reviewer ฟังได้ว่าโค้ดทำงานอย่างไร</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title="สรุปกฎของทีม">
+    <div class="slide-inner">
+      <div class="eyebrow">สรุป</div>
+      <h2>กฎการใช้ AI ของทีม</h2>
+      <div class="grid grid-2">
+        <div class="card good"><ul>
+          <li>☐ ใช้เครื่องมือ / บัญชีที่บริษัทอนุมัติเท่านั้น</li>
+          <li>☐ ไม่ส่ง secret, ข้อมูลลูกค้า, ข้อมูลลับของบริษัท</li>
+          <li>☐ ให้บริบทครบ: stack, เวอร์ชัน, กฎ, รูปแบบผลลัพธ์</li>
+          <li>☐ โปรเจกต์มีไฟล์กฎสำหรับ agent (<code>CLAUDE.md</code> / <code>AGENTS.md</code>)</li>
+        </ul></div>
+        <div class="card gold"><ul>
+          <li>☐ รันเทสต์และอ่าน diff ทุกครั้งก่อน commit</li>
+          <li>☐ ตรวจข้อมูลเวอร์ชันจากแหล่งทางการ</li>
+          <li>☐ ผู้ commit รับผิดชอบโค้ดเหมือนเขียนเอง</li>
+          <li>☐ แบ่งปัน prompt ที่ได้ผลให้ทีม (เก็บในคลังความรู้นี้)</li>
+        </ul></div>
+      </div>
+      <div class="tag-row"><span class="muted small">อ่านต่อ →</span><a class="tag gold" href="ai-social-content-1-plan-write.html" target="_blank" rel="noopener">AI ทำคอนเทนต์โซเชียล 1</a><a class="tag" href="../team/git-workflow-code-review.html" target="_blank" rel="noopener">Git Workflow &amp; Code Review</a></div>
+    </div>
+  </section>
+
+</main>
+<script>
+window.KV_GLOSSARY = {
+  agent: { title: "AI Coding Agent", body: "AI ที่ไม่ได้แค่ตอบคำถาม แต่ลงมือทำงานหลายขั้นเองได้ เช่น อ่านไฟล์ใน repo, แก้หลายไฟล์, รันคำสั่ง build/test แล้วแก้ต่อจากผลที่ได้ จนงานเสร็จ โดยคนเป็นผู้อนุมัติและตรวจผล", example: "สั่ง “เพิ่ม endpoint ยกเลิกออเดอร์พร้อมเทสต์” → agent สร้างไฟล์, รัน dotnet test, แก้จนผ่าน แล้วสรุปไฟล์ที่เปลี่ยนให้ review" },
+  hallucination: { title: "Hallucination / ข้อมูลล้าสมัย", body: "การที่ AI ตอบอย่างมั่นใจแต่ข้อมูลผิด หรือใช้ข้อมูลเก่าตามช่วงเวลาที่ถูกฝึก เช่น อ้าง method ที่ไม่มีอยู่จริง หรือไม่รู้ว่าเวอร์ชันใหม่เพิ่มความสามารถแล้ว", example: "AI บอกว่า library รองรับแค่ Redis ทั้งที่เวอร์ชันล่าสุดเพิ่ม PostgreSQL แล้ว — แก้ได้ด้วยการเปิดเอกสารทางการตรวจ" }
+};
+</script>
+<script src="../../assets/kv-deck.js?v=20261008"></script>
+</body>
+</html>

@@ -117,7 +117,7 @@ git add . && git commit -m "docs(backend): add ef-core performance" && git push
 - [ ] Coding Standard รวม (ESLint/Prettier + .editorconfig ของ .NET)
 - [ ] Estimation & Sprint Planning
 - [ ] Incident Response & Postmortem template
-- [ ] การใช้ AI (Claude Code / Copilot) ในทีมอย่างปลอดภัย
+- [x] การใช้ AI (Claude Code / Copilot) ในทีมอย่างปลอดภัย → ดูหมวด AI & Content
 
 ### 🐳 Docker สำหรับ Dev (ซีรีส์ `docs/docker/`)
 - [x] ตอนที่ 1: พื้นฐาน (Image, Container, คำสั่งประจำวัน)
@@ -131,10 +131,20 @@ git add . && git commit -m "docs(backend): add ef-core performance" && git push
 - [ ] ตอนเสริม: รัน SQL Server / RabbitMQ / Kafka สำหรับ dev ด้วย Compose
 
 ### 🖥️ DevOps & Security
-- [ ] CI/CD ด้วย GitHub Actions → Deploy (Coolify / VPS)
+- [x] GitLab CI/CD 1: พื้นฐาน · GitLab CI/CD 2: Next.js + .NET → Docker → Deploy
+- [x] Linux Server พื้นฐานสำหรับ Dev
+- [x] Reverse Proxy & HTTPS (Nginx / Caddy / Traefik)
+- [ ] CI/CD ด้วย GitHub Actions (ถ้าทีมใช้ GitHub)
 - [ ] Logging & Monitoring (Serilog + Seq / Grafana)
 - [ ] OWASP Top 10 สำหรับเว็บแอป
 - [ ] PDPA สำหรับนักพัฒนา (ข้อมูลส่วนบุคคลใน log, DB, backup)
+
+### 🤖 AI & Content
+- [x] ใช้ AI ในงานพัฒนา สำหรับทีม Dev
+- [x] AI ทำคอนเทนต์โซเชียล 1: วางแผน & เขียน
+- [x] AI ทำคอนเทนต์โซเชียล 2: ภาพ วิดีโอ เผยแพร่ วัดผล
+- [ ] คลัง Prompt ของทีม (dev + content) แยกตามงาน
+- [ ] AI Code Review ใน GitLab MR
 
 ### 🏗️ Architecture
 - [x] Kafka vs RabbitMQ vs BullMQ
@@ -167,6 +177,7 @@ git add . && git commit -m "docs(backend): add ef-core performance" && git push
 
 | งาน | Commit |
 |---|---|
+| เพิ่ม **DevOps 4 เรื่อง**: GitLab CI/CD 1 (พื้นฐาน), GitLab CI/CD 2 (Next.js + .NET → Docker → Deploy Coolify/SSH), Linux Server พื้นฐาน, Reverse Proxy & HTTPS · หมวดใหม่ **🤖 AI & Content 3 เรื่อง**: AI สำหรับทีม Dev, AI ทำคอนเทนต์โซเชียล 1 (วางแผน & เขียน), 2 (ภาพ วิดีโอ เผยแพร่ วัดผล กฎหมาย) · ตรวจข้อมูลก่อนเขียน: docker:29-dind, Kaniko archived, GitLab Runner 19.4 + token glrt-, Coolify POST /api/v1/deploy, nginx 1.30 / Caddy 2.11 / Traefik v3.7 | ดู `git log` |
 | เพิ่ม **Docker ตอนเสริม: Dev Containers** (14 สไลด์): ต่างจากตอนที่ 6 อย่างไร, กลไก, devcontainer.json แรก (Next.js), property ที่ใช้บ่อย, Features, Full stack ด้วย Compose (Next.js + .NET + PostgreSQL + Redis), .NET ใน container, env/secret, Windows, daily workflow, troubleshooting, checklist · ตรวจ image/feature/CLI เวอร์ชันล่าสุดจาก MCR / npm ก่อนเขียน · ลิงก์จากตอนที่ 7 | `a935386` |
 | **แก้ข้อมูลล้าสมัย: BullMQ v6 (ก.ค. 2026) รองรับ PostgreSQL แล้ว** — ตรวจกับเอกสารทางการ docs.bullmq.io/guide/postgresql + npm (ล่าสุด 6.3.11) · Background Jobs: เพิ่มสไลด์ “BullMQ v6 + PostgreSQL” (โค้ด, ตัวเลขประสิทธิภาพ, สิ่งที่ต้องตั้งค่า) และแก้สไลด์ที่บอกว่าต้องใช้ Redis เท่านั้น (→ 16 สไลด์) · Kafka vs RabbitMQ vs BullMQ: แก้ตารางเปรียบเทียบ, คำศัพท์, สไลด์ “ไม่ใช้ Redis ได้ไหม” · BullMQ Deep Dive: หมายเหตุ v6 | `a8a2976` |
 | ลิงก์ “อ่านเต็ม / อ่านต่อ / ตอนถัดไป” ทุกจุด (43 ลิงก์ใน 25 ไฟล์) ใส่ `target="_blank"` ใน HTML โดยตรง ไม่พึ่ง JS อย่างเดียว · เพิ่มเลขเวอร์ชัน `?v=20261008` ให้ `kv-deck.css/js` ทุกไฟล์ กัน browser ใช้ไฟล์เก่าจาก cache · อัปเดตกฎใน `todo.md` + ตัวอย่างลิงก์ใน template | `636460d` |

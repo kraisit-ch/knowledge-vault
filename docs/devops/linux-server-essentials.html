@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>Linux Server พื้นฐานสำหรับ Dev</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css?v=20261008">
+</head>
+<body data-title="Linux Server พื้นฐานสำหรับ Dev" data-mark="LNX">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">DevOps &amp; Server</div>
+      <h1><span class="grad">Linux Server</span><br>พื้นฐานที่ Dev ต้องรู้</h1>
+      <p class="lead">ตั้งแต่เข้า server ด้วย SSH key อย่างปลอดภัย, จัดการ user, firewall, อัปเดตระบบ, ดู log และทรัพยากร ไปจนถึงการตั้งงานอัตโนมัติ เพื่อดูแล VPS ที่รัน Docker / Coolify ได้ด้วยตัวเอง</p>
+      <div class="tag-row"><span class="tag gold">Ubuntu LTS</span><span class="tag blue">SSH</span><span class="tag">ufw</span><span class="tag">systemd</span><span class="tag">journalctl</span><span class="tag">Backup</span></div>
+      <div class="quote">server ที่ดีคือ server ที่ “ไม่มีใครต้อง SSH เข้าไปแก้มือ” แต่เมื่อจำเป็นต้องเข้า ต้องรู้ว่าดูอะไรก่อน</div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="SSH ด้วย Key">
+    <div class="slide-inner">
+      <div class="eyebrow">เข้า server อย่างปลอดภัย</div>
+      <h2>SSH ด้วย Key แทนรหัสผ่าน</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="bash">
+# 1) บนเครื่องเรา: สร้าง key (ทำครั้งเดียว)
+ssh-keygen -t ed25519 -C "you@company.com"
+
+# 2) ส่ง public key ขึ้น server
+ssh-copy-id deploy@203.0.113.10
+
+# 3) เข้า server
+ssh deploy@203.0.113.10
+</pre>
+<pre class="code" data-lang="text">
+# ~/.ssh/config บนเครื่องเรา — ไม่ต้องจำ IP
+Host shop-staging
+    HostName 203.0.113.10
+    User deploy
+    IdentityFile ~/.ssh/id_ed25519
+
+# ใช้งาน
+ssh shop-staging
+</pre>
+      </div>
+      <div class="grid grid-3 mt">
+        <div class="card gold"><h4>Private key อยู่กับเราเท่านั้น</h4><p class="small muted">ไฟล์ <code>id_ed25519</code> ห้ามส่งใคร ห้าม commit ตั้งรหัสผ่าน key ด้วย</p></div>
+        <div class="card"><h4>Public key แจกได้</h4><p class="small muted"><code>id_ed25519.pub</code> ใส่ใน <code>~/.ssh/authorized_keys</code> ของ server</p></div>
+        <div class="card bad"><h4>คนออกจากทีม</h4><p class="small muted">ลบ public key ของคนนั้นออกจาก server ทุกเครื่องทันที</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="ปิดช่องโหว่ SSH">
+    <div class="slide-inner">
+      <div class="eyebrow">Hardening</div>
+      <h2>ตั้งค่า SSH ให้ปลอดภัย (ทำหลังใส่ key แล้ว)</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="text">
+# /etc/ssh/sshd_config.d/99-hardening.conf
+PermitRootLogin no
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PubkeyAuthentication yes
+MaxAuthTries 3
+</pre>
+<pre class="code" data-lang="bash">
+sudo sshd -t                 # ตรวจ config ก่อน (ไม่มี output = ผ่าน)
+sudo systemctl reload ssh    # โหลด config ใหม่
+
+# ติดตั้ง fail2ban: บล็อก IP ที่เดารหัสผิดซ้ำ ๆ
+sudo apt install fail2ban
+</pre>
+      </div>
+      <div class="callout bad"><strong>เปิด terminal ค้างไว้ 1 หน้าต่างเสมอ</strong> ขณะแก้ SSH แล้วทดสอบเข้าจากหน้าต่างใหม่ ถ้าตั้งผิดจะยังแก้กลับได้ ไม่โดนล็อกออกจาก server</div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="User และสิทธิ์">
+    <div class="slide-inner">
+      <div class="eyebrow">Users &amp; Permissions</div>
+      <h2>User และสิทธิ์: ไม่ทำงานด้วย root</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="bash">
+# สร้าง user สำหรับ deploy
+sudo adduser deploy
+sudo usermod -aG docker deploy      # ให้สั่ง docker ได้ (เทียบเท่า root — ระวัง)
+
+# user สำหรับคนในทีม ที่ต้อง sudo
+sudo adduser somchai
+sudo usermod -aG sudo somchai
+
+# สิทธิ์ไฟล์
+ls -l /srv/shop
+sudo chown -R deploy:deploy /srv/shop
+chmod 600 /srv/shop/.env            # อ่าน/เขียนได้เฉพาะเจ้าของ
+</pre>
+        <div class="table-wrap"><table class="table">
+          <tr><th>สิทธิ์</th><th>เลข</th><th>ใช้กับ</th></tr>
+          <tr><td><code>rw-------</code></td><td>600</td><td><code>.env</code>, private key</td></tr>
+          <tr><td><code>rw-r--r--</code></td><td>644</td><td>ไฟล์ config ทั่วไป</td></tr>
+          <tr><td><code>rwxr-xr-x</code></td><td>755</td><td>โฟลเดอร์, script ที่รันได้</td></tr>
+          <tr><td><code>rwxrwxrwx</code></td><td>777</td><td><strong class="red">ห้ามใช้</strong> ทุกคนแก้ได้</td></tr>
+        </table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="Firewall">
+    <div class="slide-inner">
+      <div class="eyebrow">Network</div>
+      <h2>Firewall ด้วย ufw</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="bash">
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw allow OpenSSH          # สำคัญ: อนุญาต SSH ก่อนเปิด!
+sudo ufw allow 80,443/tcp       # เว็บ
+sudo ufw enable
+sudo ufw status verbose
+</pre>
+        <div class="grid">
+          <div class="card bad"><h4>Docker ข้าม ufw</h4><p class="small muted">port ที่ <code>ports:</code> ใน compose ถูกเปิดสู่ภายนอก <strong>แม้ ufw บล็อก</strong> เพราะ Docker แก้ iptables เอง → ผูกกับ <code>127.0.0.1:</code> หรือไม่ publish port ของ DB</p></div>
+          <div class="card gold"><h4>Firewall ของ cloud</h4><p class="small muted">ใช้ Security Group / Cloud Firewall ของผู้ให้บริการอีกชั้น เปิดเฉพาะ 22 (จาก IP บริษัท), 80, 443</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="อัปเดตระบบ">
+    <div class="slide-inner">
+      <div class="eyebrow">Patching</div>
+      <h2>อัปเดตระบบและ Security Patch</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="bash">
+# อัปเดตเอง
+sudo apt update &amp;&amp; sudo apt upgrade -y
+
+# ให้ติดตั้ง security update อัตโนมัติ
+sudo apt install unattended-upgrades
+sudo dpkg-reconfigure -plow unattended-upgrades
+
+# ต้อง reboot ไหม?
+[ -f /var/run/reboot-required ] &amp;&amp; echo "ต้อง reboot"
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4>ใช้ Ubuntu LTS</h4><p class="small muted">เวอร์ชัน LTS ได้ security update 5 ปี เลือก LTS ล่าสุดที่ผู้ให้บริการรองรับ</p></div>
+          <div class="card"><h4>Docker image ต้องอัปเดตด้วย</h4><p class="small muted">อัปเดต OS ไม่ได้อัปเดตของใน container → rebuild image เป็นระยะ (Docker ตอนที่ 7)</p></div>
+          <div class="card violet"><h4>นัดเวลา reboot</h4><p class="small muted">kernel ใหม่ต้อง reboot เลือกช่วงคนใช้น้อย และแจ้งทีม</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="systemd และ Log">
+    <div class="slide-inner">
+      <div class="eyebrow">Services &amp; Logs</div>
+      <h2>systemd และ journalctl: ดูสถานะและ log ของ service</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="bash">
+systemctl status docker          # รันอยู่ไหม error อะไร
+sudo systemctl restart docker
+sudo systemctl enable docker     # เปิดอัตโนมัติเมื่อ boot
+
+journalctl -u docker -f          # log ของ service แบบ real-time
+journalctl -u ssh --since "1 hour ago"
+journalctl -p err -b             # เฉพาะ error ตั้งแต่ boot ล่าสุด
+
+# log ของแอปใน container
+docker compose -f /srv/shop/compose.yaml logs --tail 200 -f api
+</pre>
+        <div class="table-wrap"><table class="table">
+          <tr><th>ไฟล์ log ที่ควรรู้</th><th>มีอะไร</th></tr>
+          <tr><td><code>/var/log/auth.log</code></td><td>การ login / sudo (ดูคนพยายามเจาะ)</td></tr>
+          <tr><td><code>/var/log/syslog</code></td><td>log รวมของระบบ</td></tr>
+          <tr><td><code>journalctl</code></td><td>log ของ service ทั้งหมดที่ systemd ดูแล</td></tr>
+          <tr><td><code>/var/log/nginx/</code></td><td>access / error log (ถ้าใช้ Nginx บนเครื่อง)</td></tr>
+        </table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="ทรัพยากรเครื่อง">
+    <div class="slide-inner">
+      <div class="eyebrow">Troubleshooting</div>
+      <h2>เว็บช้า / ล่ม: ดูทรัพยากรเครื่องก่อน</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="bash">
+uptime                      # load average (เทียบกับจำนวน CPU)
+free -h                     # RAM / swap
+df -h                       # พื้นที่ดิสก์ (เต็ม 100% = หลายอย่างพัง)
+sudo du -sh /var/lib/docker # Docker ใช้ไปเท่าไร
+htop                        # process ที่กิน CPU / RAM
+docker stats                # ราย container
+
+# หาไฟล์ใหญ่
+sudo du -ah / 2&gt;/dev/null | sort -rh | head -20
+
+# ใครฟัง port ไหน
+sudo ss -tulpn
+</pre>
+        <div class="table-wrap"><table class="table">
+          <tr><th>อาการ</th><th>ดูที่</th><th>สาเหตุที่พบบ่อย</th></tr>
+          <tr><td>ทุกอย่างช้า</td><td><code>uptime</code>, <code>htop</code></td><td>CPU เต็ม, process วนลูป</td></tr>
+          <tr><td>container ถูก kill (137)</td><td><code>free -h</code>, <code>dmesg</code></td><td>RAM ไม่พอ (OOM)</td></tr>
+          <tr><td>เขียนไฟล์ / DB ไม่ได้</td><td><code>df -h</code></td><td>ดิสก์เต็มจาก log / image เก่า</td></tr>
+          <tr><td>เข้าเว็บไม่ได้</td><td><code>ss -tulpn</code>, <code>ufw status</code></td><td>service ไม่ฟัง port / firewall</td></tr>
+        </table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="งานอัตโนมัติ + Backup">
+    <div class="slide-inner">
+      <div class="eyebrow">Automation</div>
+      <h2>งานตั้งเวลา และ Backup</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="bash">
+# crontab -e  (ของ user deploy)
+# นาที ชม. วัน เดือน วันในสัปดาห์
+0 2 * * *  /srv/shop/scripts/backup-db.sh &gt;&gt; /var/log/shop-backup.log 2&gt;&amp;1
+0 4 * * 0  docker image prune -af --filter "until=168h"
+</pre>
+<pre class="code" data-lang="bash">
+#!/usr/bin/env bash
+# /srv/shop/scripts/backup-db.sh
+set -euo pipefail
+FILE="/srv/backup/shop-$(date +%F).dump"
+docker compose -f /srv/shop/compose.yaml exec -T db pg_dump -U shop -Fc shop &gt; "$FILE"
+find /srv/backup -name 'shop-*.dump' -mtime +14 -delete   # เก็บ 14 วัน
+# ส่งสำเนาออกนอกเครื่อง (S3 / storage อื่น) — backup ในเครื่องเดียวไม่พอ
+</pre>
+      </div>
+      <div class="grid grid-3 mt">
+        <div class="card gold"><h4>กฎ 3-2-1</h4><p class="small muted">3 สำเนา · 2 สื่อ · 1 ชุดอยู่นอกสถานที่</p></div>
+        <div class="card"><h4>ทดสอบ restore</h4><p class="small muted">backup ที่ไม่เคยลอง restore = ยังไม่มี backup</p></div>
+        <div class="card"><h4>cron ทำงานเฉพาะเครื่องนี้</h4><p class="small muted">งานธุรกิจใช้ Job Scheduler แทน (เรื่อง Background Jobs)</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title="Checklist Server ใหม่">
+    <div class="slide-inner">
+      <div class="eyebrow">สรุป</div>
+      <h2>Checklist ตั้ง Server ใหม่</h2>
+      <div class="grid grid-2">
+        <div class="card good"><ul>
+          <li>☐ Ubuntu LTS ล่าสุด · ตั้ง timezone <code>Asia/Bangkok</code> และ hostname</li>
+          <li>☐ user สำหรับคน + user <code>deploy</code> · เข้าด้วย SSH key</li>
+          <li>☐ ปิด root login และ password login · ติดตั้ง fail2ban</li>
+          <li>☐ ufw + cloud firewall เปิดเฉพาะ 22 / 80 / 443</li>
+          <li>☐ unattended-upgrades สำหรับ security patch</li>
+        </ul></div>
+        <div class="card gold"><ul>
+          <li>☐ Docker + compose · DB ไม่ publish port ออกนอกเครื่อง</li>
+          <li>☐ จำกัดขนาด log ของ Docker (Docker ตอนที่ 7)</li>
+          <li>☐ backup อัตโนมัติ + สำเนานอกเครื่อง + ทดสอบ restore</li>
+          <li>☐ monitoring: disk, RAM, uptime ของเว็บ + แจ้งเตือน</li>
+          <li>☐ จดรายละเอียด server ไว้ในเอกสารทีม (ไม่รวมรหัสผ่าน)</li>
+        </ul></div>
+      </div>
+      <div class="tag-row"><span class="muted small">อ่านต่อ →</span><a class="tag gold" href="reverse-proxy-https.html" target="_blank" rel="noopener">Reverse Proxy &amp; HTTPS</a><a class="tag" href="docker-coolify-aapanel.html" target="_blank" rel="noopener">aaPanel vs Coolify</a><a class="tag blue" href="gitlab-cicd-2-pipeline.html" target="_blank" rel="noopener">GitLab CI/CD 2</a></div>
+    </div>
+  </section>
+
+</main>
+<script src="../../assets/kv-deck.js?v=20261008"></script>
+</body>
+</html>

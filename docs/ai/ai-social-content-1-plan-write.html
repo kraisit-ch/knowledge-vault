@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>AI ทำคอนเทนต์โซเชียล 1: วางแผน &amp; เขียน</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css?v=20261008">
+</head>
+<body data-title="AI ทำคอนเทนต์โซเชียล 1: วางแผน &amp; เขียน" data-mark="SC1">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">🤖 AI &amp; Content · คอนเทนต์โซเชียล · ตอนที่ 1/2</div>
+      <h1><span class="grad">ทำคอนเทนต์โซเชียลด้วย AI</span><br>วางแผน &amp; เขียนให้เป็นระบบ</h1>
+      <p class="lead">ใช้ AI ช่วยตั้งแต่กำหนดกลุ่มเป้าหมาย วางแผนคอนเทนต์ทั้งเดือน ไปจนถึงเขียนโพสต์และสคริปต์วิดีโอสำหรับ Facebook, Instagram, TikTok, LinkedIn, YouTube และ LINE OA ในน้ำเสียงของแบรนด์เรา</p>
+      <div class="tag-row"><span class="tag gold">Content Pillars</span><span class="tag blue">Brand Voice</span><span class="tag">Content Calendar</span><span class="tag">Prompt Template</span><span class="tag">Repurpose</span></div>
+      <div class="quote">AI ช่วยให้ทำได้ “มากขึ้น” แต่สิ่งที่ทำให้คนหยุดอ่านคือ “เรื่องจริงและมุมมองของเรา”</div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="Workflow ทั้งหมด">
+    <div class="slide-inner">
+      <div class="eyebrow">ภาพรวม</div>
+      <h2>Workflow การทำคอนเทนต์ และ AI ช่วยตรงไหน</h2>
+      <div class="diagram"><div class="flow">
+        <div class="node">เป้าหมาย &amp; กลุ่มเป้าหมาย</div><div class="arrow">→</div>
+        <div class="node gold">วางแผน / ปฏิทิน</div><div class="arrow">→</div>
+        <div class="node gold">เขียน</div><div class="arrow">→</div>
+        <div class="node violet">ภาพ / วิดีโอ<small>ตอนที่ 2</small></div><div class="arrow">→</div>
+        <div class="node">ตรวจ &amp; อนุมัติ</div><div class="arrow">→</div>
+        <div class="node violet">ตั้งเวลา / วัดผล<small>ตอนที่ 2</small></div>
+      </div></div>
+      <div class="grid grid-2 mt">
+        <div class="card gold"><h3>🤖 ให้ AI ช่วย</h3><ul><li>ระดมไอเดีย, ร่างปฏิทิน</li><li>ร่างโพสต์หลายเวอร์ชัน, ปรับความยาวตามแพลตฟอร์ม</li><li>แปลง 1 เนื้อหาเป็นหลายรูปแบบ</li><li>สรุปผลวัดผลและเสนอการปรับ</li></ul></div>
+        <div class="card"><h3>🧑 คนต้องทำ</h3><ul><li>กำหนดเป้าหมายและจุดยืนของแบรนด์</li><li>ใส่เรื่องจริง ตัวเลขจริง ประสบการณ์จริง</li><li>ตรวจข้อเท็จจริง ข้อกฎหมาย และน้ำเสียง</li><li>ตอบคอมเมนต์และดูแลชุมชน</li></ul></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="เป้าหมายและกลุ่มเป้าหมาย">
+    <div class="slide-inner">
+      <div class="eyebrow">เริ่มที่คนอ่าน</div>
+      <h2>กำหนดเป้าหมาย และสร้าง Persona<button class="term" data-term="persona"></button> ด้วย AI</h2>
+      <div class="grid grid-2">
+        <div class="table-wrap"><table class="table">
+          <tr><th>เป้าหมาย</th><th>วัดด้วย</th></tr>
+          <tr><td>ให้คนรู้จัก (Awareness)</td><td>Reach, ยอดวิว</td></tr>
+          <tr><td>ให้คนสนใจ (Engagement)</td><td>คอมเมนต์, แชร์, บันทึก</td></tr>
+          <tr><td>ให้คนติดต่อ / ซื้อ (Conversion)</td><td>คลิก, ทักแชต, ยอดขาย</td></tr>
+          <tr><td>หาคนเข้าทีม (Employer brand)</td><td>ผู้สมัครงาน</td></tr>
+        </table></div>
+<pre class="code" data-lang="text">
+ช่วยสร้าง persona 3 แบบ ของคนที่จะสนใจ
+[บริการ / สินค้า: รับพัฒนาระบบ e-commerce ด้วย Next.js + .NET]
+ในประเทศไทย
+
+แต่ละ persona ให้มี:
+- ตำแหน่ง / อายุ / ธุรกิจ
+- ปัญหาที่เจอบ่อย 3 ข้อ (ใช้คำพูดแบบที่เขาพูดจริง)
+- แพลตฟอร์มที่ใช้และช่วงเวลาที่เล่น
+- คอนเทนต์แบบไหนที่จะทำให้เขาหยุดดู
+- สิ่งที่ทำให้เขาไม่ไว้ใจผู้ขาย
+
+ตอบเป็นตาราง
+</pre>
+      </div>
+      <p class="muted small mt">ผลจาก AI คือ “สมมติฐาน” — ยืนยันด้วยข้อมูลจริง เช่น คำถามที่ลูกค้าถามบ่อย, ข้อมูลผู้ติดตามในหน้า Insights</p>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="Content Pillars">
+    <div class="slide-inner">
+      <div class="eyebrow">วางโครงเนื้อหา</div>
+      <h2>Content Pillars<button class="term" data-term="pillars"></button>: 4 หมวดหลักของเพจ</h2>
+      <div class="grid grid-4">
+        <div class="card gold"><div class="big-number">40%</div><h3>ให้ความรู้</h3><p class="small muted">Tips, How-to, อธิบายเรื่องยากให้ง่าย</p><p class="small">“5 สัญญาณว่าเว็บร้านค้าคุณช้าเกินไป”</p></div>
+        <div class="card"><div class="big-number">25%</div><h3>เบื้องหลัง / คน</h3><p class="small muted">ทีม, วิธีทำงาน, วัฒนธรรม</p><p class="small">“1 วันของทีม Dev ก่อนขึ้นระบบใหม่”</p></div>
+        <div class="card violet"><div class="big-number">20%</div><h3>ผลงาน / ลูกค้า</h3><p class="small muted">Case study, ก่อน–หลัง, รีวิวจริง</p><p class="small">“ลดเวลาโหลดหน้าเว็บจาก 6 เหลือ 1.5 วินาที”</p></div>
+        <div class="card good"><div class="big-number">15%</div><h3>ขาย / โปรโมต</h3><p class="small muted">บริการ, โปรโมชั่น, ชวนติดต่อ</p><p class="small">“รับปรึกษาฟรี 30 นาที เดือนนี้”</p></div>
+      </div>
+      <div class="callout">สัดส่วนเป็นจุดเริ่มต้น ปรับตามผลวัดจริง · เพจที่โพสต์ขายอย่างเดียวคนจะเลื่อนผ่าน — ให้คุณค่าก่อนขาย</div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="Brand Voice Guide">
+    <div class="slide-inner">
+      <div class="eyebrow">ทำครั้งเดียว ใช้ทุก prompt</div>
+      <h2>Brand Voice Guide: ให้ AI เขียนด้วยเสียงของเรา</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="text">
+[BRAND VOICE — วางไว้ต้นทุก prompt]
+แบรนด์: MERCENT GROUP — ทีมพัฒนาซอฟต์แวร์
+ผู้อ่าน: เจ้าของธุรกิจ SME และทีม IT ในไทย
+น้ำเสียง: เป็นกันเอง มืออาชีพ ตรงไปตรงมา
+          เหมือนพี่ที่ปรึกษาที่รู้จริง ไม่โอ้อวด
+ภาษา: ไทยเป็นหลัก ทับศัพท์เทคนิคได้
+      อธิบายศัพท์ยากในวงเล็บ
+ใช้: ตัวอย่างจริง, ตัวเลข, ประโยคสั้น
+ห้าม: คำเกินจริง (ที่สุด, อันดับ 1, การันตี),
+      คำฮิตแบบ AI (“ในยุคดิจิทัล”, “ไม่ใช่แค่…แต่คือ…”),
+      อีโมจิเกิน 3 ตัวต่อโพสต์, ติดแฮชแท็กเกิน 5
+ปิดท้าย: ชวนคุยด้วยคำถาม 1 ข้อ
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4>เก็บเป็นไฟล์เดียวของทีม</h4><p class="small muted">ทุกคนใช้ชุดเดียวกัน เพจจึงมีเสียงเดียว ไม่ว่าใครเป็นคนทำ</p></div>
+          <div class="card"><h4>ใส่ตัวอย่างโพสต์ที่ดี</h4><p class="small muted">แนบโพสต์จริง 2–3 โพสต์ที่ได้ผลดี แล้วสั่ง “เขียนในสไตล์นี้” ได้ผลกว่าคำอธิบายยาว ๆ</p></div>
+          <div class="card violet"><h4>ใช้กับเครื่องมือได้เลย</h4><p class="small muted">ตั้งเป็น Project / Custom instructions ใน Claude หรือ ChatGPT จะได้ไม่ต้องวางซ้ำ</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="Cheat Sheet แต่ละแพลตฟอร์ม">
+    <div class="slide-inner">
+      <div class="eyebrow">Platform Cheat Sheet</div>
+      <h2>แต่ละแพลตฟอร์มเหมาะกับอะไร</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>แพลตฟอร์ม</th><th>เหมาะกับ</th><th>รูปแบบที่ได้ผล</th><th>สัดส่วนภาพ / วิดีโอ</th><th>ความยาวข้อความ</th></tr>
+        <tr><td><strong>Facebook</strong></td><td>ชุมชน, ลูกค้า SME</td><td>Carousel, รูป + ข้อความเล่าเรื่อง, Reels</td><td>4:5 · Reels 9:16</td><td>ยาวได้ ใจความต้องอยู่ 2 บรรทัดแรก</td></tr>
+        <tr><td><strong>Instagram</strong></td><td>ภาพลักษณ์, ไลฟ์สไตล์</td><td>Reels, Carousel</td><td>3:4 / 4:5 · Reels 9:16</td><td>caption ≤ 2,200 ตัวอักษร</td></tr>
+        <tr><td><strong>TikTok</strong></td><td>คนรุ่นใหม่, เข้าถึงคนใหม่</td><td>วิดีโอสั้น 15–60 วิ hook 3 วิแรก</td><td>9:16</td><td>caption สั้น เน้นในวิดีโอ</td></tr>
+        <tr><td><strong>LinkedIn</strong></td><td>B2B, หาลูกค้าองค์กร, หาคนเข้าทีม</td><td>บทเรียนจากงานจริง, เอกสาร PDF carousel</td><td>1:1 / 4:5</td><td>≤ 3,000 ตัวอักษร</td></tr>
+        <tr><td><strong>YouTube</strong></td><td>สอนละเอียด, ค้นหาเจอระยะยาว</td><td>Tutorial 5–15 นาที, Shorts</td><td>16:9 · Shorts 9:16</td><td>ชื่อ ≤ 100 ตัวอักษร</td></tr>
+        <tr><td><strong>LINE OA</strong></td><td>ลูกค้าเดิม, แจ้งข่าว / โปร</td><td>Broadcast สั้น + Rich message</td><td>Rich message 1:1</td><td>สั้นที่สุด 1 เรื่องต่อข้อความ</td></tr>
+      </table></div>
+      <p class="muted small mt">ค่าแนะนำทั่วไป ณ ต.ค. 2026 — แพลตฟอร์มเปลี่ยนสเปกบ่อย ตรวจหน้า Help ของแต่ละแพลตฟอร์มก่อนผลิตจริง</p>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="Content Calendar">
+    <div class="slide-inner">
+      <div class="eyebrow">วางแผนทั้งเดือน</div>
+      <h2>Content Calendar ด้วย AI</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="text">
+[วาง BRAND VOICE]
+
+วางแผนคอนเทนต์เดือน พ.ย. 2026
+- แพลตฟอร์ม: Facebook 3 โพสต์/สัปดาห์,
+  TikTok 2 คลิป/สัปดาห์, LinkedIn 1 โพสต์/สัปดาห์
+- Pillars: ความรู้ 40%, เบื้องหลัง 25%,
+  ผลงาน 20%, ขาย 15%
+- วันสำคัญ: 11.11, Black Friday, ปิดงบปลายปี
+- ไอเดียตั้งต้นจากคำถามลูกค้าจริง:
+  [วางคำถาม 10 ข้อ]
+
+ตอบเป็นตาราง: วันที่ | แพลตฟอร์ม | Pillar |
+หัวข้อ | hook ประโยคแรก | รูปแบบ (รูป/carousel/วิดีโอ) | CTA
+</pre>
+        <div class="table-wrap"><table class="table">
+          <tr><th>วัน</th><th>แพลตฟอร์ม</th><th>หัวข้อ</th></tr>
+          <tr><td>จ. 3</td><td>Facebook</td><td>5 สัญญาณเว็บร้านค้าช้า (ความรู้)</td></tr>
+          <tr><td>อ. 4</td><td>TikTok</td><td>“เว็บช้า 1 วิ เสียลูกค้ากี่คน?” (ความรู้)</td></tr>
+          <tr><td>พ. 5</td><td>LinkedIn</td><td>บทเรียนย้ายระบบไป Docker (เบื้องหลัง)</td></tr>
+          <tr><td>พฤ. 6</td><td>Facebook</td><td>Case: ลดเวลาโหลด 75% (ผลงาน)</td></tr>
+          <tr><td>ศ. 7</td><td>TikTok</td><td>1 วันของทีม Dev (เบื้องหลัง)</td></tr>
+        </table></div>
+      </div>
+      <p class="muted small mt">นำตารางไปไว้ใน Google Sheets / Notion / Trello เพิ่มคอลัมน์ผู้รับผิดชอบ, สถานะ, ลิงก์ไฟล์ และวันโพสต์จริง</p>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="Prompt: โพสต์ Facebook / LinkedIn">
+    <div class="slide-inner">
+      <div class="eyebrow">Prompt Template</div>
+      <h2>Prompt เขียนโพสต์ Facebook / LinkedIn</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="text">
+[วาง BRAND VOICE]
+
+เขียนโพสต์ Facebook หัวข้อ:
+“5 สัญญาณว่าเว็บร้านค้าคุณช้าเกินไป”
+
+ข้อมูลจริงที่ต้องใช้:
+- ลูกค้ารายหนึ่ง เว็บโหลด 6 วิ → ปรับแล้ว 1.5 วิ
+- ยอดสั่งซื้อเพิ่ม 18% ใน 1 เดือนหลังปรับ
+
+โครงสร้าง:
+1. hook 1–2 บรรทัด ที่ทำให้หยุดเลื่อน
+2. สัญญาณ 5 ข้อ ข้อละ 1–2 บรรทัด
+3. เรื่องจริงของลูกค้า (ไม่ระบุชื่อ)
+4. ปิดด้วยคำถามชวนคอมเมนต์ + CTA ทักแชต
+
+ขอ 3 เวอร์ชัน: สั้น (≤ 80 คำ), กลาง, ยาว
+และ hook ทางเลือกอีก 5 แบบ
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4>ให้ข้อมูลจริงเสมอ</h4><p class="small muted">ตัวเลข, เคสลูกค้า, ประสบการณ์ทีม — AI ไม่ควรแต่งตัวเลขขึ้นมาเอง</p></div>
+          <div class="card"><h4>ขอหลายเวอร์ชัน</h4><p class="small muted">เลือกท่อนที่ดีที่สุดมารวมกัน แล้วแก้เอง</p></div>
+          <div class="card violet"><h4>LinkedIn</h4><p class="small muted">เปลี่ยนเป็นมุมบทเรียน: “สิ่งที่เราเรียนรู้จาก…” เล่าแบบมืออาชีพ ตัดอีโมจิส่วนใหญ่</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="Prompt: สคริปต์วิดีโอสั้น">
+    <div class="slide-inner">
+      <div class="eyebrow">Prompt Template · TikTok / Reels / Shorts</div>
+      <h2>สคริปต์วิดีโอสั้น: Hook 3 วินาทีคือทุกอย่าง</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="text">
+[วาง BRAND VOICE]
+
+เขียนสคริปต์ TikTok ยาว 30–40 วินาที
+หัวข้อ: “เว็บช้า 1 วินาที เสียลูกค้าไปเท่าไร”
+
+ตอบเป็นตาราง: เวลา | ภาพบนจอ | คำพูด | ข้อความบนจอ
+
+โครงสร้าง:
+0–3 วิ  Hook: คำถาม / ตัวเลขช็อก / ภาพแปลก
+3–25 วิ เนื้อหา 3 ประเด็น ประเด็นละ 1 ประโยค
+25–35 วิ ตัวอย่างจริง 1 เคส
+35–40 วิ CTA: “ติดตามไว้ ตอนหน้า…”
+
+ข้อกำหนด: พูดภาษาคน ไม่อ่านเหมือนสคริปต์,
+ประโยคละไม่เกิน 12 คำ, ข้อความบนจอ ≤ 6 คำ
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4>Hook ที่ได้ผล</h4><ul class="small"><li>คำถามที่คนดูเคยสงสัย</li><li>ตัวเลขที่ไม่คาดคิด</li><li>“หยุดทำแบบนี้…”</li><li>ผลลัพธ์ก่อน–หลังภายใน 1 วินาที</li></ul></div>
+          <div class="card"><h4>ใส่ซับเสมอ</h4><p class="small muted">คนส่วนใหญ่ดูแบบปิดเสียง</p></div>
+          <div class="card violet"><h4>ขั้นต่อไป</h4><p class="small muted">นำสคริปต์ไปทำเสียง ภาพ และตัดต่อ (ตอนที่ 2)</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title="Repurpose 1 เรื่อง → หลายช่องทาง">
+    <div class="slide-inner">
+      <div class="eyebrow">ทำครั้งเดียว ใช้หลายที่</div>
+      <h2>Repurpose<button class="term" data-term="repurpose"></button>: เนื้อหา 1 ชิ้น → 6 คอนเทนต์</h2>
+      <div class="diagram">
+        <div class="flow"><div class="node gold">ต้นฉบับ 1 ชิ้น<small>บทความ / เอกสารในคลังความรู้ / คลิปสอน</small></div></div>
+        <div class="branch-grid" style="grid-template-columns:repeat(3,1fr)">
+          <div class="node">Facebook<small>สรุป 5 ข้อ + carousel</small></div>
+          <div class="node">LinkedIn<small>บทเรียนจากงานจริง</small></div>
+          <div class="node">TikTok / Reels<small>สคริปต์ 30 วิ</small></div>
+          <div class="node">YouTube<small>tutorial เต็ม</small></div>
+          <div class="node">LINE OA<small>broadcast 3 บรรทัด + ลิงก์</small></div>
+          <div class="node">Instagram<small>carousel 7 หน้า</small></div>
+        </div>
+      </div>
+<pre class="code mt" data-lang="text">
+[วาง BRAND VOICE]
+นี่คือเนื้อหาต้นฉบับ: [วางเนื้อหา]
+แปลงเป็น: 1) โพสต์ Facebook 2) โพสต์ LinkedIn 3) สคริปต์ TikTok 30 วิ
+4) ข้อความ LINE OA ไม่เกิน 3 บรรทัด 5) ข้อความใน carousel 7 หน้า หน้าละ ≤ 20 คำ
+แต่ละแบบต้องมี hook ของตัวเอง ไม่ใช่ตัดสั้นจากอันเดียวกัน
+</pre>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide" data-title="ไม่ให้อ่านแล้วรู้ว่าเป็น AI">
+    <div class="slide-inner">
+      <div class="eyebrow">คุณภาพ</div>
+      <h2>ทำให้ไม่อ่านแล้วรู้สึกว่า “AI เขียน”</h2>
+      <div class="grid grid-2">
+        <div class="dont"><h4>สัญญาณของข้อความ AI ที่ไม่ได้แก้</h4><ul>
+          <li>เปิดด้วย “ในยุคดิจิทัลที่…” / “คุณเคยสงสัยไหมว่า…”</li>
+          <li>ทุกย่อหน้ายาวเท่ากัน มี bullet 3 ข้อทุกครั้ง</li>
+          <li>คำใหญ่ไม่มีเนื้อ: ปฏิวัติ, ยกระดับ, ครบวงจร</li>
+          <li>ไม่มีตัวเลข ชื่อ สถานที่ หรือเรื่องที่เกิดขึ้นจริง</li>
+          <li>ภาษาไทยแปลจากอังกฤษ ฟังแข็ง</li>
+        </ul></div>
+        <div class="do"><h4>วิธีแก้</h4><ul>
+          <li>ใส่ <strong>รายละเอียดเฉพาะ</strong> ที่มีแต่เรารู้: ตัวเลข, เคส, ความผิดพลาดที่เคยเจอ</li>
+          <li>เขียนประโยคแรกเอง แล้วให้ AI ช่วยต่อ</li>
+          <li>อ่านออกเสียง — ถ้าไม่มีใครพูดแบบนี้ ให้แก้</li>
+          <li>ตัดคำเกินจริงและคำซ้ำออก</li>
+          <li>ใส่ความเห็นของเรา: เห็นด้วย / ไม่เห็นด้วยกับอะไร</li>
+        </ul></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 -->
+  <section class="slide" data-title="ตรวจก่อนโพสต์">
+    <div class="slide-inner">
+      <div class="eyebrow">สรุป</div>
+      <h2>Checklist ก่อนกดโพสต์</h2>
+      <div class="grid grid-2">
+        <div class="card good"><ul>
+          <li>☐ ตรงเป้าหมายและ pillar ในปฏิทิน</li>
+          <li>☐ hook ประโยคแรกทำให้หยุดเลื่อน</li>
+          <li>☐ ตัวเลข / ข้อเท็จจริง ตรวจแล้ว มีแหล่งที่มา</li>
+          <li>☐ น้ำเสียงตรงกับ Brand Voice · ไม่มีคำเกินจริง</li>
+          <li>☐ มี CTA ชัดเจน 1 อย่าง</li>
+        </ul></div>
+        <div class="card gold"><ul>
+          <li>☐ ไม่มีข้อมูลลูกค้าที่ยังไม่ได้รับอนุญาต</li>
+          <li>☐ ไม่อ้างสรรพคุณเกินจริง / ผิดกฎหมายโฆษณา</li>
+          <li>☐ สะกดถูก ชื่อแบรนด์ / ชื่อคนถูกต้อง</li>
+          <li>☐ ขนาดภาพ / วิดีโอถูกตามแพลตฟอร์ม</li>
+          <li>☐ มีคนที่สองอ่านก่อนโพสต์ (โพสต์สำคัญ)</li>
+        </ul></div>
+      </div>
+      <div class="tag-row"><span class="muted small">ตอนถัดไป →</span><a class="tag gold" href="ai-social-content-2-produce-publish.html" target="_blank" rel="noopener">ตอนที่ 2: ภาพ วิดีโอ ตั้งเวลา วัดผล &amp; ข้อกฎหมาย</a><a class="tag" href="ai-tools-for-dev.html" target="_blank" rel="noopener">AI สำหรับทีม Dev</a></div>
+    </div>
+  </section>
+
+</main>
+<script>
+window.KV_GLOSSARY = {
+  persona: { title: "Persona", body: "ตัวละครสมมติที่เป็นตัวแทนกลุ่มลูกค้าเป้าหมาย มีอาชีพ ปัญหา พฤติกรรม และสิ่งที่สนใจชัดเจน ช่วยให้เขียนคอนเทนต์ “ถึงคนคนหนึ่ง” แทนที่จะเขียนถึงทุกคน", example: "“คุณเอ เจ้าของร้านเสื้อผ้าออนไลน์ อายุ 35 ขายผ่าน LINE และ Facebook ปวดหัวกับการตอบแชตและเช็คสต็อกเอง”" },
+  pillars: { title: "Content Pillars", body: "หมวดเนื้อหาหลัก 3–5 หมวดที่เพจจะพูดถึงเป็นประจำ ทำให้คอนเทนต์มีทิศทาง ไม่ซ้ำ และสร้างภาพจำว่าเพจนี้เก่งเรื่องอะไร", example: "ความรู้เรื่องเว็บ / เบื้องหลังทีม / ผลงานลูกค้า / บริการและโปรโมชั่น" },
+  repurpose: { title: "Repurpose", body: "การนำเนื้อหาที่ทำไว้แล้วมาปรับรูปแบบให้เหมาะกับช่องทางอื่น โดยเปลี่ยนมุมเล่า ความยาว และ hook ให้เข้ากับผู้ชมของแต่ละแพลตฟอร์ม", example: "เอกสาร “Docker 4: .env” ในคลังความรู้ → โพสต์ LinkedIn “3 ความเข้าใจผิดเรื่อง .env ที่ทีมเราเคยเจอ”" }
+};
+</script>
+<script src="../../assets/kv-deck.js?v=20261008"></script>
+</body>
+</html>

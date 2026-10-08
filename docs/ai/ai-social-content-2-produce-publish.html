@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>AI ทำคอนเทนต์โซเชียล 2: ผลิต เผยแพร่ วัดผล</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css?v=20261008">
+</head>
+<body data-title="AI ทำคอนเทนต์โซเชียล 2: ภาพ วิดีโอ เผยแพร่ วัดผล" data-mark="SC2">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">🤖 AI &amp; Content · คอนเทนต์โซเชียล · ตอนที่ 2/2</div>
+      <h1><span class="grad">ผลิต เผยแพร่ และวัดผล</span><br>ด้วย AI อย่างถูกกฎหมาย</h1>
+      <p class="lead">ทำภาพและวิดีโอสั้นด้วยเครื่องมือ AI, ตั้งเวลาโพสต์, อ่านผลและให้ AI ช่วยวิเคราะห์ พร้อมข้อกฎหมายและนโยบายแพลตฟอร์มที่ต้องรู้ในไทย</p>
+      <div class="tag-row"><span class="tag gold">AI Image</span><span class="tag blue">Short Video</span><span class="tag">Scheduling</span><span class="tag">Analytics</span><span class="tag">PDPA · อย. · ลิขสิทธิ์</span></div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="เครื่องมือภาพ">
+    <div class="slide-inner">
+      <div class="eyebrow">ภาพนิ่ง</div>
+      <h2>เครื่องมือทำภาพ: เลือกตามงาน</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>ประเภท</th><th>ตัวอย่างเครื่องมือ</th><th>เหมาะกับ</th><th>ข้อควรระวัง</th></tr>
+        <tr><td><strong>AI สร้างภาพจากข้อความ</strong></td><td>ChatGPT (image), Gemini, Midjourney, Ideogram</td><td>ภาพประกอบแนวคิด, พื้นหลัง, mood</td><td>ห้ามสร้างภาพคนจริง / แบรนด์คนอื่น · ตรวจสิทธิ์การใช้เชิงพาณิชย์ของแพ็กเกจ</td></tr>
+        <tr><td><strong>เครื่องมือออกแบบ + AI</strong></td><td>Canva (Magic Studio), Adobe Express / Firefly</td><td>โพสต์มีข้อความ, carousel, template แบรนด์</td><td>ตั้ง Brand Kit (สี / ฟอนต์ / โลโก้) ให้ทุกคนใช้ชุดเดียว</td></tr>
+        <tr><td><strong>แก้ภาพจริงด้วย AI</strong></td><td>ลบพื้นหลัง, ขยายภาพ, ลบวัตถุ</td><td>รูปสินค้า, รูปทีมงาน</td><td>อย่าแก้จนเกินจริง (เช่น ผลิตภัณฑ์ก่อน–หลัง)</td></tr>
+        <tr><td><strong>ภาพจริง</strong></td><td>ถ่ายเอง, screenshot ระบบจริง</td><td>ผลงาน, เบื้องหลัง, case study</td><td>ได้ความน่าเชื่อถือมากที่สุด — ใช้ให้มากกว่าภาพ AI</td></tr>
+      </table></div>
+      <p class="muted small mt">ชื่อเครื่องมือ ราคา และเงื่อนไขสิทธิ์เปลี่ยนบ่อย (ณ ต.ค. 2026) — อ่านเงื่อนไขการใช้เชิงพาณิชย์ก่อนใช้กับงานของบริษัทเสมอ</p>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="Prompt ภาพ">
+    <div class="slide-inner">
+      <div class="eyebrow">Image Prompt</div>
+      <h2>โครงสร้าง Prompt สำหรับภาพ</h2>
+      <div class="grid grid-2">
+        <div class="table-wrap"><table class="table">
+          <tr><th>ส่วน</th><th>ตัวอย่าง</th></tr>
+          <tr><td>สิ่งที่อยู่ในภาพ</td><td>นักพัฒนาชาวเอเชียกำลังดูกราฟความเร็วเว็บบนจอ</td></tr>
+          <tr><td>สไตล์</td><td>ภาพถ่ายสมจริง / 3D minimal / flat illustration</td></tr>
+          <tr><td>องค์ประกอบ</td><td>มุมกล้องระดับตา, พื้นที่ว่างด้านขวาสำหรับใส่ข้อความ</td></tr>
+          <tr><td>สี / แสง</td><td>โทนน้ำเงิน–ทอง ตามแบรนด์, แสงนุ่ม</td></tr>
+          <tr><td>สัดส่วน</td><td>4:5 สำหรับ feed / 9:16 สำหรับ story</td></tr>
+          <tr><td>สิ่งที่ไม่ต้องการ</td><td>ไม่มีโลโก้, ไม่มีตัวหนังสือในภาพ</td></tr>
+        </table></div>
+<pre class="code" data-lang="text">
+Realistic photo of an Asian software developer
+looking at a website speed dashboard on a monitor,
+modern office, soft daylight, navy blue and gold
+color accents, eye-level shot, empty space on the
+right side for text, 4:5 aspect ratio,
+no logos, no text in the image
+</pre>
+      </div>
+      <div class="callout"><strong>ข้อความภาษาไทยในภาพ</strong> ให้ใส่ทีหลังในเครื่องมือออกแบบ — AI สร้างตัวอักษรไทยในภาพยังผิดบ่อย</div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="วิดีโอสั้นด้วย AI">
+    <div class="slide-inner">
+      <div class="eyebrow">Short Video</div>
+      <h2>ผลิตวิดีโอสั้น: AI ช่วยได้ทุกขั้น</h2>
+      <div class="diagram"><div class="flow">
+        <div class="node gold">สคริปต์<small>Claude / ChatGPT (ตอนที่ 1)</small></div><div class="arrow">→</div>
+        <div class="node">ถ่าย / ภาพประกอบ<small>คนจริง, screen record, AI B-roll</small></div><div class="arrow">→</div>
+        <div class="node">เสียง<small>พูดเอง หรือ AI voice</small></div><div class="arrow">→</div>
+        <div class="node violet">ตัดต่อ + ซับอัตโนมัติ<small>CapCut, เครื่องมือในแพลตฟอร์ม</small></div><div class="arrow">→</div>
+        <div class="node green">ปก + caption</div>
+      </div></div>
+      <div class="grid grid-3 mt">
+        <div class="card gold"><h4>คนจริงพูด ได้ผลที่สุด</h4><p class="small muted">หน้าคนในทีมสร้างความเชื่อใจมากกว่าเสียง AI — ใช้ AI ช่วยเขียนบทและตัดต่อแทน</p></div>
+        <div class="card"><h4>AI voice / avatar</h4><p class="small muted">ใช้ได้กับคลิปอธิบายทั่วไป · <strong>ห้ามเลียนเสียง / หน้าคนจริง</strong> โดยไม่ได้รับอนุญาต</p></div>
+        <div class="card violet"><h4>AI สร้างวิดีโอ</h4><p class="small muted">เหมาะกับฉากประกอบสั้น ๆ ไม่ใช่ทั้งคลิป และต้องติดป้ายว่าเป็น AI ตามนโยบายแพลตฟอร์ม</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="ตัวอย่าง: 1 ชั่วโมง 1 คลิป">
+    <div class="slide-inner">
+      <div class="eyebrow">Workflow ตัวอย่าง</div>
+      <h2>จากบทความในคลังความรู้ → Reels 30 วินาที ใน 1 ชั่วโมง</h2>
+      <ol class="steps">
+        <li><strong>10 นาที</strong> — วางเนื้อหา “Docker 4: .env” ให้ AI แปลงเป็นสคริปต์ 30 วิ hook: “ใส่ใน .env แล้วทำไมแอปไม่เห็น?” (Prompt ตอนที่ 1)</li>
+        <li><strong>15 นาที</strong> — ถ่ายคนในทีมพูด 3 ช่วง + screen record หน้าจอ <code>docker compose config</code></li>
+        <li><strong>20 นาที</strong> — ตัดต่อใน CapCut: ซับอัตโนมัติ (ตรวจคำผิดภาษาไทย), ข้อความบนจอ, เพลงที่มีสิทธิ์ใช้</li>
+        <li><strong>10 นาที</strong> — ให้ AI เขียน caption 3 แบบ + เลือกภาพปก + แฮชแท็ก 3–5 ตัว</li>
+        <li><strong>5 นาที</strong> — คนที่สองตรวจ แล้วตั้งเวลาโพสต์ทั้ง Reels, TikTok, Shorts</li>
+      </ol>
+      <p class="muted small mt">ถ่ายครั้งเดียวทำได้ 3–4 คลิป เมื่อวางสคริปต์ไว้ล่วงหน้าทั้งสัปดาห์</p>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="ตั้งเวลาโพสต์">
+    <div class="slide-inner">
+      <div class="eyebrow">Publishing</div>
+      <h2>ตั้งเวลาโพสต์และจัดการหลายแพลตฟอร์ม</h2>
+      <div class="grid grid-2">
+        <div class="card gold"><h3>เครื่องมือของแพลตฟอร์ม (ฟรี)</h3><ul>
+          <li><strong>Meta Business Suite</strong> — Facebook + Instagram</li>
+          <li><strong>TikTok Studio</strong> — ตั้งเวลาคลิป</li>
+          <li><strong>YouTube Studio</strong> — วิดีโอ + Shorts</li>
+          <li><strong>LinkedIn</strong> — ตั้งเวลาโพสต์ในหน้าเขียนโพสต์</li>
+          <li><strong>LINE OA Manager</strong> — broadcast ตั้งเวลา / แบ่งกลุ่ม</li>
+        </ul></div>
+        <div class="card"><h3>เครื่องมือรวมหลายแพลตฟอร์ม</h3><ul>
+          <li>Buffer, Hootsuite, Later, Metricool และอื่น ๆ</li>
+          <li>เหมาะเมื่อดูแลหลายเพจ / หลายคนอนุมัติ</li>
+          <li>ตรวจว่ารองรับแพลตฟอร์มและฟีเจอร์ที่ใช้ (เช่น carousel, Reels)</li>
+        </ul></div>
+      </div>
+      <div class="grid grid-3 mt">
+        <div class="card"><h4>เวลาโพสต์</h4><p class="small muted">ดูจาก Insights ของเพจเราเอง (ช่วงที่ผู้ติดตามออนไลน์) ไม่ใช่ตามบทความทั่วไป</p></div>
+        <div class="card"><h4>สม่ำเสมอ &gt; ปริมาณ</h4><p class="small muted">3 โพสต์ดีต่อสัปดาห์ต่อเนื่อง ดีกว่า 10 โพสต์แล้วหายไป</p></div>
+        <div class="card bad"><h4>ตั้งเวลาแล้วต้องมีคนดู</h4><p class="small muted">ช่วง 1 ชั่วโมงแรกหลังโพสต์ ตอบคอมเมนต์ให้เร็ว</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="วัดผล + ให้ AI วิเคราะห์">
+    <div class="slide-inner">
+      <div class="eyebrow">Analytics</div>
+      <h2>วัดผล และให้ AI ช่วยหารูปแบบ</h2>
+      <div class="grid grid-2">
+        <div class="table-wrap"><table class="table">
+          <tr><th>ตัวชี้วัด</th><th>บอกอะไร</th></tr>
+          <tr><td>Reach / Views</td><td>เข้าถึงคนได้กว้างแค่ไหน</td></tr>
+          <tr><td>Engagement rate</td><td>(ไลก์+คอมเมนต์+แชร์+บันทึก) ÷ reach</td></tr>
+          <tr><td>Saves / Shares</td><td>คอนเทนต์มีประโยชน์จริง (สำคัญกว่าไลก์)</td></tr>
+          <tr><td>Watch time / Retention</td><td>คนดูคลิปถึงวินาทีไหน hook ได้ผลไหม</td></tr>
+          <tr><td>คลิก / ทักแชต / ยอดขาย</td><td>สร้างผลทางธุรกิจหรือไม่</td></tr>
+        </table></div>
+<pre class="code" data-lang="text">
+นี่คือข้อมูลโพสต์ 30 วันล่าสุด (export จาก Insights,
+ลบข้อมูลส่วนตัวของผู้ใช้ออกแล้ว): [วาง CSV]
+
+1. 5 โพสต์ที่ engagement rate สูงสุด มีอะไรเหมือนกัน
+   (หัวข้อ, pillar, รูปแบบ, ความยาว, hook, เวลาโพสต์)
+2. 5 โพสต์ที่แย่ที่สุด น่าจะเพราะอะไร
+3. คลิปไหน retention ตกในช่วง 3 วิแรก
+4. เสนอการปรับแผนเดือนหน้า 5 ข้อ
+   พร้อมวิธีทดลองที่วัดผลได้
+</pre>
+      </div>
+      <div class="callout warn">AI วิเคราะห์จากข้อมูลที่ให้ — ตัวอย่างน้อยเกินไปสรุปไม่ได้ ใช้ผลเป็น “สมมติฐานที่ต้องทดลอง” เช่น ลอง hook 2 แบบกับหัวข้อเดียวกัน</div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="กฎหมายและนโยบาย">
+    <div class="slide-inner">
+      <div class="eyebrow">Legal &amp; Policy (ประเทศไทย)</div>
+      <h2>ข้อกฎหมายและนโยบายที่ต้องรู้</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>เรื่อง</th><th>สิ่งที่ต้องทำ</th></tr>
+        <tr><td><strong>PDPA</strong> (ข้อมูลส่วนบุคคล)</td><td>ใช้รูป / ชื่อ / รีวิวของลูกค้าหรือพนักงาน ต้องได้รับความยินยอม · ไม่ใส่ข้อมูลลูกค้าลงเครื่องมือ AI</td></tr>
+        <tr><td><strong>ลิขสิทธิ์</strong></td><td>ใช้เพลง / ภาพ / ฟอนต์ที่มีสิทธิ์ · ไม่สั่ง AI ทำ “สไตล์ของศิลปิน / แบรนด์ X” แล้วนำไปใช้เชิงพาณิชย์</td></tr>
+        <tr><td><strong>โฆษณาเกินจริง</strong></td><td>ห้ามอ้าง “ดีที่สุด / การันตี” โดยไม่มีหลักฐาน (กฎหมายคุ้มครองผู้บริโภค) · อาหาร ยา เครื่องสำอาง อาหารเสริม ต้องตามข้อกำหนด อย.</td></tr>
+        <tr><td><strong>ติดป้ายเนื้อหา AI</strong></td><td>ภาพ / วิดีโอที่สมจริงจาก AI ต้องติดป้ายตามนโยบาย Meta, TikTok, YouTube (มีตัวเลือกตอนอัปโหลด)</td></tr>
+        <tr><td><strong>เนื้อหาที่ได้รับการสนับสนุน</strong></td><td>ระบุชัดว่าเป็นโฆษณา / ได้รับการสนับสนุน เมื่อร่วมกับ influencer</td></tr>
+        <tr><td><strong>ข้อมูลเท็จ / รีวิวปลอม</strong></td><td>ห้ามสร้างรีวิวหรือคำรับรองปลอมด้วย AI</td></tr>
+      </table></div>
+      <p class="muted small mt">นี่คือแนวทางทั่วไป ไม่ใช่คำแนะนำทางกฎหมาย — แคมเปญที่มีความเสี่ยงให้ฝ่ายกฎหมายตรวจก่อน</p>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="สิ่งที่ห้ามทำด้วย AI">
+    <div class="slide-inner">
+      <div class="eyebrow">Brand Safety</div>
+      <h2>สิ่งที่ห้ามทำด้วย AI ในนามบริษัท</h2>
+      <div class="grid grid-3">
+        <div class="card bad"><h4>ภาพ / เสียงคนจริง</h4><p class="small muted">ทำภาพหรือเสียงของลูกค้า คนดัง หรือพนักงานโดยไม่ได้รับอนุญาต (deepfake)</p></div>
+        <div class="card bad"><h4>ผลงานปลอม</h4><p class="small muted">ภาพ “ผลงาน” หรือ screenshot ระบบที่ไม่มีอยู่จริง</p></div>
+        <div class="card bad"><h4>รีวิวปลอม</h4><p class="small muted">ให้ AI เขียนรีวิว / คอมเมนต์ปลอมตัวเป็นลูกค้า</p></div>
+        <div class="card bad"><h4>โจมตีคู่แข่ง</h4><p class="small muted">เปรียบเทียบโดยไม่มีข้อมูลจริง หรือใช้โลโก้คู่แข่ง</p></div>
+        <div class="card bad"><h4>ตอบลูกค้าอัตโนมัติเรื่องสำคัญ</h4><p class="small muted">ราคา สัญญา ข้อร้องเรียน — ให้คนตอบ</p></div>
+        <div class="card bad"><h4>โพสต์โดยไม่มีคนตรวจ</h4><p class="small muted">ตั้งให้ AI โพสต์อัตโนมัติทั้งกระบวนการ</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title="จังหวะการทำงานรายสัปดาห์">
+    <div class="slide-inner">
+      <div class="eyebrow">Operating Rhythm</div>
+      <h2>จังหวะทำงานรายสัปดาห์ของทีมคอนเทนต์</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>วัน</th><th>งาน</th><th>AI ช่วย</th></tr>
+        <tr><td><strong>จันทร์</strong></td><td>ดูผลสัปดาห์ก่อน · ยืนยันแผนสัปดาห์นี้</td><td>สรุป Insights, เสนอปรับ</td></tr>
+        <tr><td><strong>อังคาร</strong></td><td>เขียนโพสต์ + สคริปต์ทั้งสัปดาห์</td><td>ร่างหลายเวอร์ชัน, repurpose</td></tr>
+        <tr><td><strong>พุธ</strong></td><td>ถ่ายวิดีโอ / ทำภาพ</td><td>ภาพประกอบ, ซับ, ตัดต่อ</td></tr>
+        <tr><td><strong>พฤหัส</strong></td><td>ตรวจ (คนที่สอง) · ตั้งเวลาโพสต์</td><td>ตรวจคำผิด, ความยาวตามแพลตฟอร์ม</td></tr>
+        <tr><td><strong>ทุกวัน</strong></td><td>ตอบคอมเมนต์ / แชต · เก็บคำถามลูกค้าเป็นไอเดียใหม่</td><td>ร่างคำตอบคำถามที่พบบ่อย (คนตรวจก่อนส่ง)</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide" data-title="Checklist">
+    <div class="slide-inner">
+      <div class="eyebrow">สรุป</div>
+      <h2>Checklist ผลิตและเผยแพร่</h2>
+      <div class="grid grid-2">
+        <div class="card good"><ul>
+          <li>☐ ภาพ / วิดีโอตามสัดส่วนของแพลตฟอร์ม · ใช้ Brand Kit</li>
+          <li>☐ ภาพจริง / คนจริง เป็นหลัก ภาพ AI เป็นส่วนเสริม</li>
+          <li>☐ ซับภาษาไทยตรวจคำผิดแล้ว</li>
+          <li>☐ เพลง / ภาพ / ฟอนต์ มีสิทธิ์ใช้</li>
+          <li>☐ เนื้อหา AI ที่สมจริงติดป้ายตามนโยบาย</li>
+        </ul></div>
+        <div class="card gold"><ul>
+          <li>☐ ได้รับความยินยอมก่อนใช้รูป / ชื่อ / รีวิวลูกค้า</li>
+          <li>☐ ไม่มีคำโฆษณาเกินจริง · สินค้า อย. ตรวจข้อความแล้ว</li>
+          <li>☐ ตั้งเวลาแล้ว และมีคนดูแลคอมเมนต์หลังโพสต์</li>
+          <li>☐ บันทึกผลรายสัปดาห์ และปรับแผนจากข้อมูล</li>
+          <li>☐ เก็บ prompt ที่ได้ผลไว้ในคลังความรู้ของทีม</li>
+        </ul></div>
+      </div>
+      <div class="tag-row"><span class="muted small">อ่านต่อ →</span><a class="tag" href="ai-social-content-1-plan-write.html" target="_blank" rel="noopener">← ตอนที่ 1: วางแผน &amp; เขียน</a><a class="tag gold" href="ai-tools-for-dev.html" target="_blank" rel="noopener">AI สำหรับทีม Dev</a></div>
+    </div>
+  </section>
+
+</main>
+<script src="../../assets/kv-deck.js?v=20261008"></script>
+</body>
+</html>

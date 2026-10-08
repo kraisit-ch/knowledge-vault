@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>GitLab CI/CD 1: พื้นฐาน</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css?v=20261008">
+</head>
+<body data-title="GitLab CI/CD 1: พื้นฐาน .gitlab-ci.yml" data-mark="GL1">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">DevOps · GitLab CI/CD · ตอนที่ 1/2</div>
+      <h1><span class="grad">GitLab CI/CD</span><br>ให้เครื่องทดสอบและ deploy แทนเรา</h1>
+      <p class="lead">เข้าใจ Pipeline, Stage, Job, Runner และเขียน <code>.gitlab-ci.yml</code> ตั้งแต่ไฟล์แรก: เลือกว่า job รันเมื่อไร, ใช้ตัวแปรและ secret อย่างปลอดภัย, cache ให้เร็ว และแสดงผลเทสต์ใน Merge Request</p>
+      <div class="tag-row"><span class="tag gold">.gitlab-ci.yml</span><span class="tag blue">Pipeline</span><span class="tag">rules</span><span class="tag">Variables</span><span class="tag">Cache &amp; Artifacts</span><span class="tag">Runner</span></div>
+      <div class="quote">ทุก Merge Request ต้องผ่านการตรวจแบบเดียวกันเสมอ — ไม่ขึ้นกับว่าใครจำได้หรือลืม</div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="CI กับ CD คืออะไร">
+    <div class="slide-inner">
+      <div class="eyebrow">แนวคิด</div>
+      <h2>CI กับ CD คืออะไร</h2>
+      <div class="diagram"><div class="flow">
+        <div class="node">git push / เปิด MR</div><div class="arrow">→</div>
+        <div class="node gold">CI<small>lint · test · build</small></div><div class="arrow">→</div>
+        <div class="node violet">Build image<small>push registry</small></div><div class="arrow">→</div>
+        <div class="node green">CD<small>deploy staging → production</small></div>
+      </div></div>
+      <div class="grid grid-3 mt">
+        <div class="card gold"><h3>CI — Continuous Integration</h3><p class="muted small">รวมโค้ดบ่อย ๆ และ <strong>ตรวจอัตโนมัติทุกครั้ง</strong> ว่า build ผ่าน เทสต์ผ่าน ก่อน merge</p></div>
+        <div class="card"><h3>Continuous Delivery</h3><p class="muted small">โค้ดที่ผ่าน CI พร้อม deploy เสมอ แต่ <strong>ขึ้น production เมื่อคนกดยืนยัน</strong></p></div>
+        <div class="card violet"><h3>Continuous Deployment</h3><p class="muted small">ผ่านทุกด่านแล้ว <strong>ขึ้น production อัตโนมัติ</strong> ต้องมีเทสต์และ monitoring ที่เชื่อถือได้</p></div>
+      </div>
+      <p class="muted small mt">ทีมส่วนใหญ่เริ่มที่ CI + deploy staging อัตโนมัติ + production กดเอง (manual) ซึ่งเป็นแนวที่ใช้ในตอนที่ 2</p>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="คำศัพท์">
+    <div class="slide-inner">
+      <div class="eyebrow">คำศัพท์ที่ต้องเข้าใจตรงกัน</div>
+      <h2>ส่วนประกอบของ GitLab CI/CD</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>คำ</th><th>ความหมาย</th><th>ตัวอย่าง</th></tr>
+        <tr><td><strong>Pipeline</strong></td><td>การทำงานทั้งชุดที่เกิดขึ้น 1 ครั้งต่อ push / MR / tag</td><td>pipeline #1842</td></tr>
+        <tr><td><strong>Stage</strong></td><td>ขั้นใหญ่ เรียงตามลำดับ stage ก่อนผ่านจึงไปต่อ</td><td><code>test</code> → <code>build</code> → <code>deploy</code></td></tr>
+        <tr><td><strong>Job</strong></td><td>งาน 1 ชิ้นที่รันคำสั่ง job ใน stage เดียวกันรันพร้อมกัน</td><td><code>web:lint</code>, <code>api:test</code></td></tr>
+        <tr><td><strong>Runner</strong><button class="term" data-term="runner"></button></td><td>เครื่องที่หยิบ job ไปรันจริง</td><td>shared runner ของ GitLab.com</td></tr>
+        <tr><td><strong>Image</strong></td><td>Docker image ที่ job ใช้เป็นสภาพแวดล้อม</td><td><code>node:22-alpine</code></td></tr>
+        <tr><td><strong>Variable</strong></td><td>ค่าที่ส่งให้ job ทั้งที่ GitLab มีให้และที่เราตั้งเอง</td><td><code>$CI_COMMIT_SHORT_SHA</code></td></tr>
+        <tr><td><strong>Artifact</strong></td><td>ไฟล์ผลลัพธ์ของ job ที่ส่งต่อให้ job ถัดไป / ดาวน์โหลดได้</td><td><code>dist/</code>, test report</td></tr>
+        <tr><td><strong>Cache</strong></td><td>ไฟล์ที่เก็บไว้ใช้ซ้ำข้าม pipeline เพื่อความเร็ว</td><td><code>.npm/</code>, <code>~/.nuget</code></td></tr>
+        <tr><td><strong>Environment</strong></td><td>ปลายทางที่ deploy พร้อมประวัติและ URL</td><td><code>staging</code>, <code>production</code></td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="ไฟล์แรก">
+    <div class="slide-inner">
+      <div class="eyebrow">เริ่มต้น</div>
+      <h2><code>.gitlab-ci.yml</code> ไฟล์แรก</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="yaml">
+# .gitlab-ci.yml (วางที่ root ของ repo)
+stages: [test, build]
+
+default:
+  image: node:22-alpine          # ทุก job ใช้ image นี้ถ้าไม่ระบุเอง
+  interruptible: true            # มี push ใหม่ → ยกเลิก pipeline เก่าได้
+
+lint:
+  stage: test
+  script:
+    - npm ci
+    - npm run lint
+    - npx tsc --noEmit
+
+unit-test:
+  stage: test
+  script:
+    - npm ci
+    - npm test -- --run
+
+build:
+  stage: build
+  script:
+    - npm ci
+    - npm run build
+</pre>
+        <ol class="steps">
+          <li>commit ไฟล์นี้แล้ว push — GitLab สร้าง pipeline ให้อัตโนมัติ</li>
+          <li>ดูผลที่ <strong>Build → Pipelines</strong> คลิก job เพื่อดู log ทีละบรรทัด</li>
+          <li><code>lint</code> กับ <code>unit-test</code> อยู่ stage เดียวกัน → <strong>รันพร้อมกัน</strong></li>
+          <li><code>build</code> รันเมื่อ stage <code>test</code> ผ่านทั้งหมด</li>
+          <li>job ไหน exit code ≠ 0 → pipeline แดง และ MR merge ไม่ได้ (ถ้าตั้งไว้)</li>
+        </ol>
+      </div>
+      <p class="muted small mt">ใช้ <strong>Build → Pipeline editor</strong> ใน GitLab ช่วยตรวจ syntax และดูภาพ pipeline ก่อน commit</p>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="Stage และ needs">
+    <div class="slide-inner">
+      <div class="eyebrow">ลำดับการทำงาน</div>
+      <h2>Stage เรียงลำดับ · <code>needs</code> ทำให้เร็วขึ้น</h2>
+      <div class="grid grid-2">
+        <div class="card"><h3>แบบ stage ปกติ</h3>
+          <div class="diagram"><div class="flow"><div class="node">test<small>web:test · api:test</small></div><div class="arrow">→ รอทั้งหมด →</div><div class="node">build<small>web:build · api:build</small></div></div></div>
+          <p class="small muted mt">api:build ต้องรอ web:test ทั้งที่ไม่เกี่ยวกัน</p></div>
+        <div class="card gold"><h3>ใช้ <code>needs</code><button class="term" data-term="needs"></button></h3>
+<pre class="code" data-lang="yaml">
+api:build:
+  stage: build
+  needs: [api:test]       # รอแค่ api:test
+  script: [dotnet publish -c Release]
+
+web:build:
+  stage: build
+  needs: [web:test]
+  script: [npm run build]
+</pre>
+          <p class="small muted">แต่ละฝั่งวิ่งต่อได้ทันทีที่งานของตัวเองเสร็จ</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="rules: รันเมื่อไร">
+    <div class="slide-inner">
+      <div class="eyebrow">ควบคุมว่า job รันเมื่อไร</div>
+      <h2><code>rules</code>: เลือกเงื่อนไขการรัน</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="yaml">
+# ระดับทั้ง pipeline: สร้าง pipeline เมื่อไร
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+# ระดับ job
+web:test:
+  rules:
+    - changes: [web/**/*]           # รันเมื่อโค้ด web เปลี่ยน
+  script: [npm test -- --run]
+
+deploy:production:
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+      when: manual                  # มีปุ่มให้คนกด
+  script: [./deploy.sh production]
+</pre>
+        <div class="table-wrap"><table class="table">
+          <tr><th>อยากให้รันเมื่อ</th><th>เงื่อนไข</th></tr>
+          <tr><td>เปิด / อัปเดต MR</td><td><code>$CI_PIPELINE_SOURCE == "merge_request_event"</code></td></tr>
+          <tr><td>push เข้า main</td><td><code>$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH</code></td></tr>
+          <tr><td>สร้าง tag เวอร์ชัน</td><td><code>$CI_COMMIT_TAG</code></td></tr>
+          <tr><td>บางโฟลเดอร์เปลี่ยน</td><td><code>changes: [api/**/*]</code></td></tr>
+          <tr><td>ให้คนกดเอง</td><td><code>when: manual</code></td></tr>
+          <tr><td>ตั้งเวลา (nightly)</td><td><code>$CI_PIPELINE_SOURCE == "schedule"</code></td></tr>
+        </table></div>
+      </div>
+      <div class="callout warn">ใช้ <code>rules</code> แทน <code>only</code> / <code>except</code> แบบเก่า และใส่ <code>workflow:rules</code> เพื่อไม่ให้เกิด pipeline ซ้ำ 2 ชุดตอนมีทั้ง branch push และ MR</div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="Variables และ Secret">
+    <div class="slide-inner">
+      <div class="eyebrow">ตัวแปร</div>
+      <h2>Variables: ที่ GitLab มีให้ และที่เราตั้งเอง</h2>
+      <div class="grid grid-2">
+        <div class="table-wrap"><table class="table">
+          <tr><th>Predefined (มีให้เสมอ)</th><th>ค่า</th></tr>
+          <tr><td><code>CI_COMMIT_SHORT_SHA</code></td><td>รหัส commit 8 ตัว ใช้เป็น tag image</td></tr>
+          <tr><td><code>CI_COMMIT_REF_SLUG</code></td><td>ชื่อ branch ที่ใช้ใน URL ได้</td></tr>
+          <tr><td><code>CI_COMMIT_TAG</code></td><td>ชื่อ tag (มีเฉพาะ pipeline ของ tag)</td></tr>
+          <tr><td><code>CI_DEFAULT_BRANCH</code></td><td>ปกติคือ <code>main</code></td></tr>
+          <tr><td><code>CI_REGISTRY_IMAGE</code></td><td>ที่อยู่ image ของโปรเจกต์ใน GitLab Registry</td></tr>
+          <tr><td><code>CI_REGISTRY_USER</code> / <code>_PASSWORD</code></td><td>สิทธิ์ push registry ชั่วคราวต่อ job</td></tr>
+        </table></div>
+        <div class="grid">
+          <div class="card gold"><h4>ตัวแปรของเรา</h4><p class="small muted">Settings → CI/CD → Variables ใส่ secret เช่น <code>COOLIFY_TOKEN</code>, <code>SSH_PRIVATE_KEY</code></p></div>
+          <div class="card"><h4>Masked / Hidden</h4><p class="small muted">ซ่อนค่าใน log ของ job · Hidden ซ่อนในหน้า settings ด้วย</p></div>
+          <div class="card"><h4>Protected</h4><p class="small muted">ส่งให้เฉพาะ branch / tag ที่ protected — กัน branch ของคนอื่นดึง secret production ไปใช้</p></div>
+          <div class="card violet"><h4>Environment scope</h4><p class="small muted">ค่าเดียวกันชื่อเดียวกันแต่ต่าง environment (staging / production)</p></div>
+        </div>
+      </div>
+      <div class="callout bad">ห้าม <code>echo</code> หรือ <code>env</code> แสดง secret ใน log และห้ามใส่ secret ใน <code>.gitlab-ci.yml</code> ที่ commit</div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="Cache vs Artifacts">
+    <div class="slide-inner">
+      <div class="eyebrow">ทำให้เร็ว / ส่งต่อผลลัพธ์</div>
+      <h2>Cache vs Artifacts</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th></th><th class="gold">Cache</th><th class="blue">Artifacts</th></tr>
+        <tr><td>ใช้ทำอะไร</td><td>เร่งความเร็ว (ไม่มีก็ทำงานได้ แค่ช้า)</td><td>ส่งผลลัพธ์ให้ job ถัดไป / ให้คนดาวน์โหลด</td></tr>
+        <tr><td>ตัวอย่าง</td><td>npm cache, NuGet packages</td><td><code>.next/</code>, <code>publish/</code>, test report</td></tr>
+        <tr><td>รับประกันว่ามี</td><td>ไม่ (อาจไม่มีในบาง runner)</td><td>ใช่ (ภายใน pipeline เดียวกัน)</td></tr>
+      </table></div>
+<pre class="code mt" data-lang="yaml">
+web:build:
+  image: node:22-alpine
+  cache:
+    key:
+      files: [web/package-lock.json]   # lock file เปลี่ยน = cache ใหม่
+    paths: [.npm/]
+  script:
+    - npm ci --cache .npm --prefer-offline --prefix web
+    - npm run build --prefix web
+  artifacts:
+    paths: [web/.next/]
+    expire_in: 1 day                   # อย่าเก็บนานเกินจำเป็น
+</pre>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="Services และ Test Report">
+    <div class="slide-inner">
+      <div class="eyebrow">เทสต์กับฐานข้อมูลจริง</div>
+      <h2>Services และแสดงผลเทสต์ใน Merge Request</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="yaml">
+api:test:
+  image: mcr.microsoft.com/dotnet/sdk:10.0
+  services:
+    - name: postgres:17-alpine
+      alias: db                     # เรียกด้วย Host=db
+  variables:
+    POSTGRES_DB: shop_test
+    POSTGRES_USER: shop
+    POSTGRES_PASSWORD: test
+    ConnectionStrings__Default: Host=db;Database=shop_test;Username=shop;Password=test
+  script:
+    - dotnet test --logger "junit;LogFilePath=../../reports/{assembly}.xml"
+  artifacts:
+    when: always                    # เก็บ report แม้เทสต์ fail
+    reports:
+      junit: reports/*.xml
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4>Services</h4><p class="small muted">GitLab เปิด container ข้าง ๆ job ให้ใช้ระหว่างเทสต์ แล้วปิดทิ้งเมื่อ job จบ</p></div>
+          <div class="card"><h4>JUnit report</h4><p class="small muted">MR แสดงว่าเทสต์ไหน fail โดยไม่ต้องเปิด log · .NET ต้องเพิ่ม package <code>JunitXml.TestLogger</code></p></div>
+          <div class="card violet"><h4>Node.js</h4><p class="small muted">Vitest: <code>--reporter=junit --outputFile=reports/web.xml</code></p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title="Runner">
+    <div class="slide-inner">
+      <div class="eyebrow">เครื่องที่รัน job</div>
+      <h2>Runner: ใช้ของ GitLab หรือมีเครื่องของเราเอง</h2>
+      <div class="grid grid-2">
+        <div class="card"><h3>Shared runner (GitLab.com)</h3><ul>
+          <li>ใช้ได้ทันที ไม่ต้องดูแลเครื่อง</li>
+          <li>มีโควตานาทีต่อเดือนตามแพ็กเกจ</li>
+          <li>เข้าถึง server ภายในบริษัทไม่ได้</li>
+        </ul></div>
+        <div class="card gold"><h3>Project runner (เครื่องของเรา)</h3><ul>
+          <li>ไม่จำกัดนาที ใช้เครื่องแรงได้ / cache อยู่ในเครื่อง</li>
+          <li>deploy เข้าเครือข่ายภายในได้</li>
+          <li>ต้องดูแล อัปเดต และรักษาความปลอดภัยเอง</li>
+        </ul></div>
+      </div>
+      <ol class="steps mt">
+        <li><strong>Settings → CI/CD → Runners → New project runner</strong> ใส่ tag เช่น <code>docker</code>, <code>internal</code> → ได้ token ขึ้นต้น <code>glrt-</code></li>
+        <li>บนเครื่อง runner: ติดตั้ง GitLab Runner แล้ว <code>gitlab-runner register --url https://gitlab.com --token glrt-…</code> เลือก executor <strong>docker</strong></li>
+        <li>ใน job ระบุ <code>tags: [internal]</code> ให้ไปรันที่เครื่องนี้</li>
+      </ol>
+      <p class="muted small">วิธีลงทะเบียนแบบ registration token เดิมไม่แนะนำแล้ว ใช้ token <code>glrt-</code> ที่สร้างจาก UI แทน</p>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide" data-title="ปัญหาที่พบบ่อย">
+    <div class="slide-inner">
+      <div class="eyebrow">Troubleshooting</div>
+      <h2>ปัญหาที่พบบ่อย</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>อาการ</th><th>สาเหตุ</th><th>วิธีแก้</th></tr>
+        <tr><td>Pipeline ไม่ถูกสร้าง</td><td>YAML ผิด หรือ <code>workflow:rules</code> ไม่ตรง</td><td>ตรวจใน Pipeline editor</td></tr>
+        <tr><td>Job ค้าง “pending” นาน</td><td>ไม่มี runner ที่ตรง <code>tags</code></td><td>ตรวจ tag ของ job กับ runner</td></tr>
+        <tr><td>Pipeline ซ้ำ 2 ชุดต่อ 1 push</td><td>มีทั้ง branch pipeline และ MR pipeline</td><td>ใช้ <code>workflow:rules</code> (สไลด์ 6)</td></tr>
+        <tr><td>ตัวแปร secret เป็นค่าว่าง</td><td>ตั้งเป็น Protected แต่ branch ไม่ protected</td><td>protect branch / tag หรือเอา Protected ออก (ระวัง)</td></tr>
+        <tr><td>ช้าเพราะติดตั้ง package ทุกครั้ง</td><td>ไม่มี cache</td><td>ตั้ง <code>cache:key:files</code> (สไลด์ 8)</td></tr>
+        <tr><td>“Job succeeded” แต่จริง ๆ ผิด</td><td>script ไม่ส่ง exit code ผิดพลาดออกมา</td><td>ใน shell script ใช้ <code>set -euo pipefail</code></td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- 12 -->
+  <section class="slide" data-title="Checklist">
+    <div class="slide-inner">
+      <div class="eyebrow">สรุป</div>
+      <h2>Checklist ตอนที่ 1</h2>
+      <div class="grid grid-2">
+        <div class="card good"><ul>
+          <li>☐ <code>.gitlab-ci.yml</code> มี stages ชัดเจน · ระบุ tag ของ image</li>
+          <li>☐ <code>workflow:rules</code> กัน pipeline ซ้ำ</li>
+          <li>☐ ใช้ <code>needs</code> และ <code>rules:changes</code> ให้เร็ว</li>
+          <li>☐ cache อิงจาก lock file · artifacts มี <code>expire_in</code></li>
+        </ul></div>
+        <div class="card gold"><ul>
+          <li>☐ secret อยู่ใน CI/CD Variables แบบ Masked + Protected</li>
+          <li>☐ test report (JUnit) แสดงใน MR</li>
+          <li>☐ ตั้ง MR ให้ merge ได้เมื่อ pipeline ผ่านเท่านั้น</li>
+          <li>☐ รู้ว่าใช้ runner แบบไหน และใครดูแล</li>
+        </ul></div>
+      </div>
+      <div class="tag-row"><span class="muted small">ตอนถัดไป →</span><a class="tag gold" href="gitlab-cicd-2-pipeline.html" target="_blank" rel="noopener">ตอนที่ 2: Pipeline จริง Next.js + .NET → Docker → Deploy</a><a class="tag" href="../team/git-workflow-code-review.html" target="_blank" rel="noopener">Git Workflow &amp; Code Review</a></div>
+    </div>
+  </section>
+
+</main>
+<script>
+window.KV_GLOSSARY = {
+  runner: { title: "GitLab Runner", body: "โปรแกรมที่ติดตั้งบนเครื่องใดเครื่องหนึ่ง คอยถาม GitLab ว่ามี job ให้ทำไหม แล้วรัน job นั้น (มักรันใน Docker container ตาม image ที่ job ระบุ) จากนั้นส่ง log และผลลัพธ์กลับไป", example: "runner บน server ในบริษัทรับ job deploy เพราะเข้าถึงเครือข่ายภายในได้ ส่วน job test ใช้ shared runner ของ GitLab" },
+  needs: { title: "needs (DAG)", body: "การบอกว่า job นี้ต้องรอ job ไหนเท่านั้น แทนที่จะรอทั้ง stage ก่อนหน้า ทำให้ pipeline เป็นกราฟ (DAG) และจบเร็วขึ้นมาก", example: "api:build ต้องรอแค่ api:test ไม่ต้องรอ web:e2e ที่ใช้เวลา 10 นาที" }
+};
+</script>
+<script src="../../assets/kv-deck.js?v=20261008"></script>
+</body>
+</html>

@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>GitLab CI/CD 2: Pipeline จริง</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css?v=20261008">
+</head>
+<body data-title="GitLab CI/CD 2: Next.js + .NET → Docker → Deploy" data-mark="GL2">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">DevOps · GitLab CI/CD · ตอนที่ 2/2</div>
+      <h1><span class="grad">Pipeline จริงของทีม</span><br>Next.js + .NET → Docker → Deploy</h1>
+      <p class="lead">ประกอบทุกอย่างจากตอนที่ 1 เป็น pipeline ที่ใช้ได้จริง: ทดสอบทั้ง web และ api, build Docker image, ตรวจช่องโหว่, push เข้า GitLab Registry, deploy staging อัตโนมัติ และ production แบบกดยืนยัน พร้อมวิธี rollback</p>
+      <div class="tag-row"><span class="tag gold">Monorepo</span><span class="tag blue">Docker Build</span><span class="tag">Container Registry</span><span class="tag">Coolify / SSH</span><span class="tag">Environments</span></div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="ภาพรวม Pipeline">
+    <div class="slide-inner">
+      <div class="eyebrow">ภาพรวม</div>
+      <h2>Pipeline ที่จะสร้าง</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="node">test<small>web: lint · type · test<br>api: build · test</small></div><div class="arrow">→</div>
+          <div class="node gold">build<small>docker build web / api</small></div><div class="arrow">→</div>
+          <div class="node violet">scan<small>SAST · secret · container</small></div><div class="arrow">→</div>
+          <div class="node green">deploy:staging<small>อัตโนมัติจาก main</small></div><div class="arrow">→</div>
+          <div class="node" style="border-color:rgba(255,107,107,.5);background:rgba(255,107,107,.08)">deploy:production<small>tag vX.Y.Z + กดยืนยัน</small></div>
+        </div>
+      </div>
+      <div class="table-wrap mt"><table class="table">
+        <tr><th>เหตุการณ์</th><th>สิ่งที่รัน</th></tr>
+        <tr><td>เปิด / อัปเดต Merge Request</td><td>test เท่านั้น — ไม่ build image และไม่ deploy</td></tr>
+        <tr><td>merge เข้า <code>main</code></td><td>test → build → scan → push image → <strong>deploy staging</strong></td></tr>
+        <tr><td>สร้าง tag <code>v1.4.2</code></td><td>build image tag <code>1.4.2</code> → <strong>ปุ่ม deploy production</strong></td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="โครงสร้าง Monorepo">
+    <div class="slide-inner">
+      <div class="eyebrow">เตรียม repo</div>
+      <h2>โครงสร้าง repo และการแยกไฟล์ CI</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="text">
+shop/
+├─ .gitlab-ci.yml            # ไฟล์หลัก: stages, workflow, include
+├─ ci/
+│  ├─ web.gitlab-ci.yml      # job ของ Next.js
+│  ├─ api.gitlab-ci.yml      # job ของ .NET
+│  └─ deploy.gitlab-ci.yml   # build image + deploy
+├─ web/                      # Next.js + Dockerfile
+└─ api/                      # .NET solution + Dockerfile
+</pre>
+<pre class="code" data-lang="yaml">
+# .gitlab-ci.yml
+stages: [test, build, scan, deploy]
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+default:
+  interruptible: true
+
+include:
+  - local: ci/web.gitlab-ci.yml
+  - local: ci/api.gitlab-ci.yml
+  - local: ci/deploy.gitlab-ci.yml
+</pre>
+      </div>
+      <p class="muted small mt">แยกไฟล์ด้วย <code>include</code> ทำให้แต่ละทีมดูแลส่วนของตัวเองได้ และ review ง่าย</p>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="Job ของ Next.js">
+    <div class="slide-inner">
+      <div class="eyebrow">ci/web.gitlab-ci.yml</div>
+      <h2>Job ของ Next.js</h2>
+<pre class="code" data-lang="yaml">
+.web:                                   # template (ขึ้นต้นด้วยจุด = ไม่รันเอง)
+  image: node:22-alpine
+  rules:
+    - changes: [web/**/*, ci/web.gitlab-ci.yml]
+  cache:
+    key: { files: [web/package-lock.json] }
+    paths: [.npm/]
+  before_script:
+    - cd web
+    - npm ci --cache ../.npm --prefer-offline
+
+web:lint:
+  extends: .web
+  stage: test
+  script:
+    - npm run lint
+    - npx tsc --noEmit
+
+web:test:
+  extends: .web
+  stage: test
+  script:
+    - npx vitest run --reporter=junit --outputFile=../reports/web.xml
+  artifacts:
+    when: always
+    reports: { junit: reports/web.xml }
+</pre>
+      <p class="muted small"><code>extends</code> ดึงค่าจาก template มาใช้ซ้ำ ไม่ต้องเขียน image / cache / rules ซ้ำทุก job</p>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="Job ของ .NET">
+    <div class="slide-inner">
+      <div class="eyebrow">ci/api.gitlab-ci.yml</div>
+      <h2>Job ของ .NET</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="yaml">
+.api:
+  image: mcr.microsoft.com/dotnet/sdk:10.0
+  rules:
+    - changes: [api/**/*, ci/api.gitlab-ci.yml]
+  variables:
+    NUGET_PACKAGES: $CI_PROJECT_DIR/.nuget
+  cache:
+    key: { files: [api/Directory.Packages.props] }
+    paths: [.nuget/]
+
+api:test:
+  extends: .api
+  stage: test
+  services:
+    - name: postgres:17-alpine
+      alias: db
+  variables:
+    POSTGRES_DB: shop_test
+    POSTGRES_USER: shop
+    POSTGRES_PASSWORD: test
+    ConnectionStrings__Default: Host=db;Database=shop_test;Username=shop;Password=test
+  script:
+    - cd api
+    - dotnet format --verify-no-changes
+    - dotnet build -warnaserror
+    - dotnet test --no-build --logger "junit;LogFilePath=../reports/{assembly}.xml"
+  artifacts:
+    when: always
+    reports: { junit: reports/*.xml }
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4><code>NUGET_PACKAGES</code></h4><p class="small muted">ย้ายที่เก็บ package มาไว้ในโฟลเดอร์โปรเจกต์ เพื่อให้ cache ได้</p></div>
+          <div class="card"><h4>Integration test</h4><p class="small muted">ใช้ <code>services</code> แทน Testcontainers บน shared runner เพราะ shared runner ทั่วไปสั่ง Docker ใน job ไม่ได้</p></div>
+          <div class="card violet"><h4>คุณภาพโค้ด</h4><p class="small muted"><code>dotnet format</code> + <code>-warnaserror</code> ตรงกับ Checklist ในเรื่อง .NET Clean Architecture</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="Build Docker Image">
+    <div class="slide-inner">
+      <div class="eyebrow">ci/deploy.gitlab-ci.yml</div>
+      <h2>Build และ Push Docker Image เข้า GitLab Registry</h2>
+<pre class="code" data-lang="yaml">
+.docker-build:
+  stage: build
+  image: docker:29
+  services: [docker:29-dind]           # Docker-in-Docker (runner ต้องเปิด privileged)
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  script:
+    - IMAGE="$CI_REGISTRY_IMAGE/$APP"
+    - TAG="${CI_COMMIT_TAG:-sha-$CI_COMMIT_SHORT_SHA}"   # tag เวอร์ชัน หรือ sha
+    - docker pull "$IMAGE:latest-main" || true            # ใช้ layer เดิมเป็น cache
+    - docker build --cache-from "$IMAGE:latest-main" $BUILD_ARGS -t "$IMAGE:$TAG" -t "$IMAGE:latest-main" "$APP"
+    - docker push "$IMAGE:$TAG"
+    - if [ -z "$CI_COMMIT_TAG" ]; then docker push "$IMAGE:latest-main"; fi
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+build:api:
+  extends: .docker-build
+  variables: { APP: api }
+
+build:web:
+  extends: .docker-build
+  variables:
+    APP: web
+    BUILD_ARGS: --build-arg NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+</pre>
+      <p class="muted small">Kaniko ที่เคยนิยมใช้ build บน runner ที่ไม่มีสิทธิ์ privileged ถูก archive แล้ว (2025) ถ้าเปิด privileged ไม่ได้ ใช้ Buildah หรือ runner ของเราเองที่ mount Docker socket แทน · ค่า <code>NEXT_PUBLIC_*</code> ต้องส่งตอน build (Docker ตอนที่ 4)</p>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="ตรวจความปลอดภัย">
+    <div class="slide-inner">
+      <div class="eyebrow">Security Scanning</div>
+      <h2>เพิ่มการสแกนความปลอดภัยด้วย template ของ GitLab</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="yaml">
+include:
+  - template: Jobs/SAST.gitlab-ci.yml
+  - template: Jobs/Secret-Detection.gitlab-ci.yml
+  - template: Jobs/Container-Scanning.gitlab-ci.yml
+
+container_scanning:
+  stage: scan
+  variables:
+    CS_IMAGE: $CI_REGISTRY_IMAGE/api:sha-$CI_COMMIT_SHORT_SHA
+</pre>
+        <div class="table-wrap"><table class="table">
+          <tr><th>Scanner</th><th>หาอะไร</th></tr>
+          <tr><td>SAST</td><td>ช่องโหว่ในโค้ด เช่น SQL injection</td></tr>
+          <tr><td>Secret Detection</td><td>รหัสผ่าน / token ที่เผลอ commit</td></tr>
+          <tr><td>Container Scanning</td><td>ช่องโหว่ใน base image และ package ของ OS</td></tr>
+          <tr><td>Dependency Scanning</td><td>ช่องโหว่ใน npm / NuGet package</td></tr>
+        </table></div>
+      </div>
+      <div class="callout">scanner ใช้ได้ทุกแพ็กเกจ แต่หน้ารวมผลใน MR และ Security Dashboard แบบเต็มเป็นของแพ็กเกจ Ultimate — แพ็กเกจอื่นดูผลจาก artifact ของ job ได้ หรือใช้ Trivy เองตาม Docker ตอนที่ 7</div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="Deploy Staging">
+    <div class="slide-inner">
+      <div class="eyebrow">Deploy อัตโนมัติ</div>
+      <h2>Deploy staging: 2 วิธีที่ใช้บ่อย</h2>
+      <div class="grid grid-2">
+        <div class="card gold"><h3>A. สั่ง Coolify ผ่าน API</h3>
+<pre class="code" data-lang="yaml">
+deploy:staging:
+  stage: deploy
+  image: curlimages/curl:latest
+  environment:
+    name: staging
+    url: https://staging.shop.example.com
+  script:
+    - >
+      curl --fail -X POST
+      -H "Authorization: Bearer $COOLIFY_TOKEN"
+      "$COOLIFY_URL/api/v1/deploy?uuid=$COOLIFY_APP_UUID"
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+</pre>
+          <p class="small muted">Coolify ตั้งให้ดึง image tag ล่าสุดจาก GitLab Registry แล้ว CI แค่สั่งให้ deploy</p></div>
+        <div class="card"><h3>B. SSH เข้า server + Docker Compose</h3>
+<pre class="code" data-lang="yaml">
+deploy:staging:
+  stage: deploy
+  image: alpine:3
+  environment: { name: staging, url: https://staging.shop.example.com }
+  before_script:
+    - apk add --no-cache openssh-client
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | ssh-add -
+    - mkdir -p ~/.ssh &amp;&amp; echo "$SSH_KNOWN_HOSTS" &gt; ~/.ssh/known_hosts
+  script:
+    - ssh deploy@$STAGING_HOST "cd /srv/shop &amp;&amp; TAG=sha-$CI_COMMIT_SHORT_SHA docker compose pull &amp;&amp; TAG=sha-$CI_COMMIT_SHORT_SHA docker compose up -d"
+</pre>
+          <p class="small muted">compose บน server ใช้ <code>image: …/api:${TAG}</code> · user <code>deploy</code> มีสิทธิ์เฉพาะที่จำเป็น</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="Deploy Production + Rollback">
+    <div class="slide-inner">
+      <div class="eyebrow">Production</div>
+      <h2>Production: กดยืนยัน และ Rollback ได้</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="yaml">
+deploy:production:
+  stage: deploy
+  extends: .deploy-coolify          # template จากสไลด์ 8 (ย้าย script ไปไว้ใน .deploy-coolify)
+  environment:
+    name: production
+    url: https://shop.example.com
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+      when: manual                  # มีปุ่ม ▶ ให้กด
+  resource_group: production        # deploy ทีละครั้ง ไม่ชนกัน
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4>Protected environment</h4><p class="small muted">Settings → CI/CD → Protected environments กำหนดว่าใครกด deploy production ได้</p></div>
+          <div class="card"><h4>Rollback</h4><p class="small muted">Operate → Environments → production → เลือก deployment ก่อนหน้า → <strong>Re-deploy</strong> (ใช้ image tag เดิมที่ immutable)</p></div>
+          <div class="card bad"><h4>Database migration</h4><p class="small muted">รันเป็น job แยกก่อน deploy และต้องย้อนกลับได้ — rollback image ไม่ได้ย้อนข้อมูล (Docker ตอนที่ 7)</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title="ตัวแปรแยก Environment">
+    <div class="slide-inner">
+      <div class="eyebrow">Variables ต่อ Environment</div>
+      <h2>ค่าเดียวกัน คนละ Environment</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>Key</th><th>Environment scope</th><th>Masked</th><th>Protected</th></tr>
+        <tr><td><code>COOLIFY_APP_UUID</code></td><td>staging</td><td>-</td><td>✓</td></tr>
+        <tr><td><code>COOLIFY_APP_UUID</code></td><td>production</td><td>-</td><td>✓</td></tr>
+        <tr><td><code>COOLIFY_TOKEN</code></td><td>*</td><td>✓</td><td>✓</td></tr>
+        <tr><td><code>NEXT_PUBLIC_SITE_URL</code></td><td>staging / production</td><td>-</td><td>-</td></tr>
+        <tr><td><code>SSH_PRIVATE_KEY</code></td><td>*</td><td>✓ (Hidden)</td><td>✓</td></tr>
+      </table></div>
+      <div class="callout"><strong>Secret ของแอป</strong> (connection string, JWT key) <strong>ไม่ต้องอยู่ใน GitLab</strong> — เก็บที่ Coolify / server ตามกฎ Docker ตอนที่ 4 · GitLab เก็บเฉพาะสิ่งที่ CI ต้องใช้ในการ deploy</div>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide" data-title="ทำให้ Pipeline เร็ว">
+    <div class="slide-inner">
+      <div class="eyebrow">Performance</div>
+      <h2>ทำให้ Pipeline เร็ว (เป้าหมาย &lt; 10 นาที)</h2>
+      <div class="grid grid-3">
+        <div class="card gold"><h4><code>rules:changes</code></h4><p class="small muted">แก้แค่ web ไม่ต้องรัน test ของ api</p></div>
+        <div class="card gold"><h4><code>needs</code></h4><p class="small muted">build ของแต่ละฝั่งไม่ต้องรออีกฝั่ง</p></div>
+        <div class="card"><h4>cache จาก lock file</h4><p class="small muted">npm / NuGet ไม่ต้องโหลดใหม่ทุกครั้ง</p></div>
+        <div class="card"><h4>Docker <code>--cache-from</code></h4><p class="small muted">ใช้ layer ของ image ล่าสุด</p></div>
+        <div class="card violet"><h4><code>interruptible</code></h4><p class="small muted">push ใหม่ยกเลิก pipeline เก่าที่ยังไม่จบ</p></div>
+        <div class="card violet"><h4><code>parallel</code></h4><p class="small muted">แบ่งเทสต์ e2e ยาว ๆ เป็นหลายเครื่อง</p></div>
+      </div>
+      <p class="muted small mt">ดูว่า job ไหนช้าที่สุดใน <strong>Build → Pipelines → (pipeline) → Jobs</strong> แล้วแก้จุดนั้นก่อน</p>
+    </div>
+  </section>
+
+  <!-- 12 -->
+  <section class="slide" data-title="Checklist">
+    <div class="slide-inner">
+      <div class="eyebrow">สรุป</div>
+      <h2>Checklist Pipeline ก่อนใช้จริง</h2>
+      <div class="grid grid-2">
+        <div class="card good"><ul>
+          <li>☐ MR: lint + test + build ผ่านก่อน merge</li>
+          <li>☐ image tag แบบ immutable (<code>sha-…</code> / <code>1.4.2</code>)</li>
+          <li>☐ scan secret / ช่องโหว่ อย่างน้อยบน main</li>
+          <li>☐ staging deploy อัตโนมัติ + มี URL ใน Environment</li>
+          <li>☐ production: tag + manual + protected environment</li>
+        </ul></div>
+        <div class="card gold"><ul>
+          <li>☐ secret ใน CI/CD Variables แบบ Masked + Protected</li>
+          <li>☐ migration แยก job และย้อนกลับได้</li>
+          <li>☐ ทดลอง rollback จริงอย่างน้อย 1 ครั้ง</li>
+          <li>☐ แจ้งผล deploy เข้าช่องทีม (Integrations → Slack / Teams)</li>
+          <li>☐ pipeline ใช้เวลาไม่เกิน ~10 นาที</li>
+        </ul></div>
+      </div>
+      <div class="tag-row"><span class="muted small">อ่านต่อ →</span><a class="tag" href="gitlab-cicd-1-basics.html" target="_blank" rel="noopener">← ตอนที่ 1</a><a class="tag gold" href="../docker/docker-07-production.html" target="_blank" rel="noopener">Docker 7: Production</a><a class="tag blue" href="docker-coolify-aapanel.html" target="_blank" rel="noopener">aaPanel vs Coolify</a><a class="tag" href="reverse-proxy-https.html" target="_blank" rel="noopener">Reverse Proxy &amp; HTTPS</a></div>
+    </div>
+  </section>
+
+</main>
+<script src="../../assets/kv-deck.js?v=20261008"></script>
+</body>
+</html>

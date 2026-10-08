@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>Reverse Proxy &amp; HTTPS</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css?v=20261008">
+</head>
+<body data-title="Reverse Proxy &amp; HTTPS" data-mark="RP">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">DevOps &amp; Server</div>
+      <h1><span class="grad">Reverse Proxy &amp; HTTPS</span><br>ประตูหน้าบ้านของเว็บ</h1>
+      <p class="lead">เข้าใจว่า reverse proxy ทำอะไร, เลือกระหว่าง Nginx / Caddy / Traefik, ทำ HTTPS ฟรีด้วย Let's Encrypt และตั้งค่าให้ Next.js กับ .NET รู้ว่าผู้ใช้เข้ามาทาง HTTPS จริง</p>
+      <div class="tag-row"><span class="tag gold">Nginx</span><span class="tag blue">Caddy</span><span class="tag">Traefik</span><span class="tag">Let's Encrypt</span><span class="tag">Cloudflare</span></div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="Reverse Proxy ทำอะไร">
+    <div class="slide-inner">
+      <div class="eyebrow">แนวคิด</div>
+      <h2>Reverse Proxy<button class="term" data-term="rproxy"></button> ทำอะไร</h2>
+      <div class="diagram"><div class="flow">
+        <div class="node">ผู้ใช้<small>https://shop.example.com</small></div><div class="arrow">→ :443 →</div>
+        <div class="node gold">Reverse Proxy<small>HTTPS · routing · gzip</small></div>
+        <div class="arrow">→</div>
+        <div class="branch-grid" style="grid-template-columns:1fr;min-width:220px"><div class="node">/ → web:3000<small>Next.js</small></div><div class="node violet">/api → api:8080<small>.NET</small></div></div>
+      </div></div>
+      <div class="grid grid-4 mt">
+        <div class="card gold"><h4>HTTPS</h4><p class="small muted">จัดการ certificate ที่เดียว แอปข้างหลังคุย HTTP ธรรมดา</p></div>
+        <div class="card"><h4>Routing</h4><p class="small muted">หลายโดเมน / หลาย path บน server เดียว</p></div>
+        <div class="card"><h4>ป้องกัน</h4><p class="small muted">ซ่อน port แอป, rate limit, จำกัดขนาด upload</p></div>
+        <div class="card violet"><h4>ประสิทธิภาพ</h4><p class="small muted">บีบอัด, cache ไฟล์ static, HTTP/2–3</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="เลือก Nginx / Caddy / Traefik">
+    <div class="slide-inner">
+      <div class="eyebrow">เลือกเครื่องมือ</div>
+      <h2>Nginx vs Caddy vs Traefik</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th></th><th class="gold">Nginx</th><th class="blue">Caddy</th><th class="violet-text">Traefik</th></tr>
+        <tr><td>จุดเด่น</td><td>มาตรฐานอุตสาหกรรม เร็ว เอกสารเยอะ</td><td>ตั้งค่าสั้นที่สุด HTTPS อัตโนมัติ</td><td>อ่านค่าจาก Docker label เอง</td></tr>
+        <tr><td>HTTPS อัตโนมัติ</td><td><span class="status"><span class="dot medium"></span>ต้องใช้ certbot</span></td><td><span class="status"><span class="dot good"></span>ในตัว</span></td><td><span class="status"><span class="dot good"></span>ในตัว</span></td></tr>
+        <tr><td>เพิ่มแอปใหม่</td><td>แก้ไฟล์ config + reload</td><td>เพิ่ม 3 บรรทัด</td><td>ใส่ label ใน compose</td></tr>
+        <tr><td>เหมาะกับ</td><td>server ทั่วไป, ทีมคุ้นเคยอยู่แล้ว</td><td>server เล็ก, อยากได้ HTTPS เร็ว</td><td>มีหลาย container เพิ่ม/ลดบ่อย</td></tr>
+        <tr><td>อยู่ในเครื่องมือ</td><td>aaPanel</td><td>Coolify (เลือกได้)</td><td>Coolify (ค่าเริ่มต้น)</td></tr>
+      </table></div>
+      <p class="muted small mt">ถ้าใช้ Coolify อยู่แล้ว proxy และ HTTPS ถูกจัดการให้ ไม่ต้องตั้งเอง — สไลด์ถัดไปสำหรับ server ที่ดูแลเอง</p>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="Caddy: ง่ายที่สุด">
+    <div class="slide-inner">
+      <div class="eyebrow">ตัวอย่าง · Caddy</div>
+      <h2>Caddy: HTTPS อัตโนมัติใน 6 บรรทัด</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="text">
+# Caddyfile
+shop.example.com {
+    encode zstd gzip
+    handle_path /api/* {
+        reverse_proxy api:8080
+    }
+    reverse_proxy web:3000
+}
+</pre>
+<pre class="code" data-lang="yaml">
+# compose.yaml (ส่วนของ proxy)
+services:
+  caddy:
+    image: caddy:2.11-alpine
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data          # เก็บ certificate (ห้ามหาย)
+    restart: unless-stopped
+volumes:
+  caddy_data:
+</pre>
+      </div>
+      <div class="callout">เงื่อนไขเดียว: DNS ของ <code>shop.example.com</code> ต้องชี้มาที่ IP ของ server และเปิด port 80/443 แล้ว Caddy จะขอและต่ออายุ certificate ให้เอง · <code>handle_path</code> ตัด <code>/api</code> ออกก่อนส่งต่อ ถ้า API ต้องการ path เต็มให้ใช้ <code>handle</code> แทน</div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="Nginx: config มาตรฐาน">
+    <div class="slide-inner">
+      <div class="eyebrow">ตัวอย่าง · Nginx</div>
+      <h2>Nginx: config สำหรับ Next.js + .NET</h2>
+<pre class="code" data-lang="text">
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name shop.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/shop.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/shop.example.com/privkey.pem;
+
+    client_max_body_size 20m;                       # ขนาด upload สูงสุด
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;        # WebSocket
+        proxy_set_header Connection "upgrade";
+    }
+}
+server { listen 80; server_name shop.example.com; return 301 https://$host$request_uri; }
+</pre>
+      <p class="muted small">ขอ certificate ด้วย <code>sudo certbot --nginx -d shop.example.com</code> แล้ว certbot ตั้งการต่ออายุอัตโนมัติให้ · ตรวจ config ด้วย <code>sudo nginx -t</code> ก่อน <code>reload</code> ทุกครั้ง</p>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="Traefik: label ใน compose">
+    <div class="slide-inner">
+      <div class="eyebrow">ตัวอย่าง · Traefik</div>
+      <h2>Traefik: บอก routing ผ่าน label ของ container</h2>
+<pre class="code" data-lang="yaml">
+services:
+  traefik:
+    image: traefik:v3.7
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.le.acme.email=devops@example.com
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+    ports: ["80:80", "443:443"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt:/letsencrypt
+
+  web:
+    image: ghcr.io/mercent/shop-web:1.4.2
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.web.rule=Host(`shop.example.com`)
+      - traefik.http.routers.web.entrypoints=websecure
+      - traefik.http.routers.web.tls.certresolver=le
+volumes:
+  letsencrypt:
+</pre>
+      <p class="muted small">เพิ่มแอปใหม่ = ใส่ label ไม่ต้องแตะ config ของ proxy · Traefik ต้องอ่าน Docker socket จึงควรใช้แบบ read-only และดูแล server ให้ปลอดภัย</p>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="ให้แอปรู้ว่าเป็น HTTPS">
+    <div class="slide-inner">
+      <div class="eyebrow">ปัญหาที่เจอบ่อยที่สุด</div>
+      <h2>แอปข้างหลัง proxy ต้องเชื่อ <code>X-Forwarded-*</code></h2>
+      <p class="lead">proxy คุยกับแอปด้วย HTTP ธรรมดา ถ้าแอปไม่อ่าน header ที่ proxy ส่งมา จะคิดว่าผู้ใช้เข้ามาทาง HTTP → redirect วน, ลิงก์ login ผิด, cookie Secure ไม่ทำงาน, ได้ IP ผู้ใช้เป็น IP ของ proxy</p>
+      <div class="grid grid-2">
+<pre class="code" data-lang="csharp">
+// .NET: Program.cs (วางก่อน middleware อื่น)
+builder.Services.Configure&lt;ForwardedHeadersOptions&gt;(o =&gt;
+{
+    o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    o.KnownIPNetworks.Clear();   // ตั้งเป็น network ของ proxy ใน production
+    o.KnownProxies.Clear();
+});
+
+app.UseForwardedHeaders();
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4>.NET</h4><p class="small muted">ไม่ตั้ง → <code>Request.Scheme</code> เป็น http และ <code>UseHttpsRedirection</code> redirect วนไม่จบ</p></div>
+          <div class="card"><h4>Next.js</h4><p class="small muted">Auth.js ตั้ง <code>AUTH_URL</code> เป็น URL https จริง และ <code>AUTH_TRUST_HOST=true</code> เมื่ออยู่หลัง proxy</p></div>
+          <div class="card bad"><h4>อย่าเชื่อทุก IP</h4><p class="small muted">จำกัดให้เชื่อเฉพาะ IP ของ proxy ไม่งั้นผู้ใช้ปลอม header เป็น IP อื่นได้</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="Cloudflare ข้างหน้า">
+    <div class="slide-inner">
+      <div class="eyebrow">ชั้นเพิ่มเติม</div>
+      <h2>ใช้ Cloudflare ข้างหน้า server</h2>
+      <div class="diagram"><div class="flow">
+        <div class="node">ผู้ใช้</div><div class="arrow">→ HTTPS →</div>
+        <div class="node gold">Cloudflare<small>CDN · กัน DDoS · WAF</small></div><div class="arrow">→ HTTPS →</div>
+        <div class="node">Reverse Proxy</div><div class="arrow">→</div><div class="node violet">แอป</div>
+      </div></div>
+      <div class="grid grid-3 mt">
+        <div class="card gold"><h4>SSL mode: Full (strict)</h4><p class="small muted">Cloudflare ↔ server ต้องเป็น HTTPS ที่ cert ถูกต้อง — <strong>อย่าใช้ Flexible</strong> (ข้างหลังเป็น HTTP และ redirect วน)</p></div>
+        <div class="card"><h4>IP จริงของผู้ใช้</h4><p class="small muted">อ่านจาก header <code>CF-Connecting-IP</code> และเชื่อเฉพาะช่วง IP ของ Cloudflare</p></div>
+        <div class="card"><h4>ปิด IP ตรงของ server</h4><p class="small muted">firewall อนุญาต 80/443 เฉพาะจาก Cloudflare หรือใช้ Cloudflare Tunnel</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="ปัญหาที่พบบ่อย">
+    <div class="slide-inner">
+      <div class="eyebrow">Troubleshooting</div>
+      <h2>ปัญหาที่พบบ่อย</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>อาการ</th><th>สาเหตุ</th><th>วิธีแก้</th></tr>
+        <tr><td><code>502 Bad Gateway</code></td><td>proxy ต่อแอปไม่ได้ (แอปล่ม / port / ชื่อ service ผิด)</td><td>ดู log แอป, ตรวจ upstream</td></tr>
+        <tr><td><code>504 Gateway Timeout</code></td><td>แอปตอบช้าเกิน timeout</td><td>แก้ความช้า หรือเพิ่ม <code>proxy_read_timeout</code> เฉพาะ path</td></tr>
+        <tr><td><code>413 Request Entity Too Large</code></td><td>upload ใหญ่เกินกำหนด</td><td><code>client_max_body_size</code></td></tr>
+        <tr><td>redirect วน (too many redirects)</td><td>แอปไม่รู้ว่าเป็น HTTPS / Cloudflare Flexible</td><td>สไลด์ 7 และ 8</td></tr>
+        <tr><td>ขอ certificate ไม่ได้</td><td>DNS ยังไม่ชี้ / port 80 ถูกบล็อก</td><td>ตรวจ DNS และ firewall</td></tr>
+        <tr><td>WebSocket หลุด</td><td>ไม่ส่ง header <code>Upgrade</code></td><td>ใส่ใน location (สไลด์ 5)</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title="Checklist">
+    <div class="slide-inner">
+      <div class="eyebrow">สรุป</div>
+      <h2>Checklist Reverse Proxy &amp; HTTPS</h2>
+      <div class="grid grid-2">
+        <div class="card good"><ul>
+          <li>☐ ทุกโดเมนเป็น HTTPS · HTTP redirect ไป HTTPS</li>
+          <li>☐ certificate ต่ออายุอัตโนมัติ (อย่าต่อมือ) + แจ้งเตือนก่อนหมดอายุ</li>
+          <li>☐ แอปไม่ publish port ออกภายนอก ผ่าน proxy เท่านั้น</li>
+          <li>☐ แอปอ่าน <code>X-Forwarded-*</code> ถูกต้อง</li>
+        </ul></div>
+        <div class="card gold"><ul>
+          <li>☐ จำกัดขนาด upload และ timeout เหมาะกับงาน</li>
+          <li>☐ เปิด compression · cache ไฟล์ static</li>
+          <li>☐ security headers (HSTS, X-Content-Type-Options)</li>
+          <li>☐ ทดสอบด้วย SSL Labs ได้เกรด A</li>
+        </ul></div>
+      </div>
+      <div class="tag-row"><span class="muted small">อ่านต่อ →</span><a class="tag gold" href="linux-server-essentials.html" target="_blank" rel="noopener">Linux Server พื้นฐาน</a><a class="tag" href="../docker/docker-05-volumes-network.html" target="_blank" rel="noopener">Docker 5: Network</a><a class="tag blue" href="gitlab-cicd-2-pipeline.html" target="_blank" rel="noopener">GitLab CI/CD 2</a></div>
+    </div>
+  </section>
+
+</main>
+<script>
+window.KV_GLOSSARY = {
+  rproxy: { title: "Reverse Proxy", body: "server ที่ยืนอยู่หน้าแอปของเรา รับ request จากผู้ใช้ทั้งหมดก่อน แล้วส่งต่อให้แอปที่ถูกต้องข้างหลัง ผู้ใช้เห็นแค่ proxy ไม่เห็นแอปโดยตรง", example: "พนักงานต้อนรับของตึก รับแขกทุกคนที่ประตูเดียว แล้วพาไปห้องที่ถูกต้อง" }
+};
+</script>
+<script src="../../assets/kv-deck.js?v=20261008"></script>
+</body>
+</html>
