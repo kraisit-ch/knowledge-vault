@@ -15,8 +15,8 @@
     <div class="slide-inner">
       <div class="eyebrow">Messaging · Background Jobs</div>
       <h1><span class="grad">BullMQ ไม่ใช้ Redis ได้ไหม?</span><br>และงานเบื้องหลังแบบอื่น ๆ</h1>
-      <p class="lead">ตอบ 3 คำถาม: BullMQ จำเป็นต้องมี Redis หรือไม่, ถ้าไม่อยากมี Redis ใช้อะไรแทนได้ (ทั้ง Node.js และ .NET) และงานแบบ Queue Job ต่างจาก Batch, Cron, Fire-and-forget และ Workflow อย่างไร</p>
-      <div class="tag-row"><span class="tag gold">Redis-compatible</span><span class="tag blue">pg-boss</span><span class="tag">Hangfire</span><span class="tag">Batch</span><span class="tag">Cron</span><span class="tag">Workflow</span></div>
+      <p class="lead">ตอบ 3 คำถาม: BullMQ จำเป็นต้องมี Redis หรือไม่ (v6 รองรับ PostgreSQL แล้ว), ถ้าไม่อยากมี Redis ใช้อะไรแทนได้ (ทั้ง Node.js และ .NET) และงานแบบ Queue Job ต่างจาก Batch, Cron, Fire-and-forget และ Workflow อย่างไร</p>
+      <div class="tag-row"><span class="tag gold">BullMQ v6 + PostgreSQL</span><span class="tag">Redis-compatible</span><span class="tag blue">pg-boss</span><span class="tag">Hangfire</span><span class="tag">Batch</span><span class="tag">Cron</span><span class="tag">Workflow</span></div>
       <div class="quote">เลือกเครื่องมือจาก “ฐานข้อมูลที่มีอยู่แล้ว” และ “ลักษณะของงาน” ไม่ใช่จากความนิยม</div>
     </div>
   </section>
@@ -24,23 +24,62 @@
   <!-- 2 -->
   <section class="slide" data-title="BullMQ ต้องใช้ Redis ไหม">
     <div class="slide-inner">
-      <div class="eyebrow">คำตอบสั้น</div>
-      <h2>BullMQ <span class="red">ต้องมี Redis</span> (หรือตัวที่ทำงานเหมือน Redis)</h2>
-      <p class="lead">BullMQ ไม่มีที่เก็บข้อมูลของตัวเอง ทุกอย่าง — งาน, สถานะ, เวลาที่ต้องรอ, ลำดับความสำคัญ — ถูกเก็บใน Redis</p>
-      <div class="grid grid-4">
-        <div class="card gold"><h4>List / Sorted Set</h4><p class="small muted">คิวงานที่รอ และงานที่ต้องหน่วงเวลา (เรียงตามเวลา)</p></div>
-        <div class="card"><h4>Hash</h4><p class="small muted">ข้อมูลของแต่ละ job: data, จำนวนครั้งที่ลอง, สาเหตุที่ล้ม</p></div>
-        <div class="card"><h4>Lua script<button class="term" data-term="lua"></button></h4><p class="small muted">ย้ายสถานะงานแบบ “ทำทีเดียวจบ” ไม่ให้ worker 2 ตัวหยิบงานเดียวกัน</p></div>
-        <div class="card violet"><h4>Streams</h4><p class="small muted">ส่ง event completed / failed / progress ให้ QueueEvents</p></div>
+      <div class="eyebrow">คำตอบสั้น · อัปเดตตาม BullMQ v6</div>
+      <h2>ตั้งแต่ BullMQ v6 เลือกได้: <span class="gold">Redis</span> หรือ <span class="blue">PostgreSQL</span></h2>
+      <div class="grid grid-2">
+        <div class="card"><h3>BullMQ v5 และก่อนหน้า</h3><p class="muted">เก็บทุกอย่างใน <strong>Redis เท่านั้น</strong> (หรือตัวที่ทำงานเหมือน Redis)</p><p class="small">โปรเจกต์ที่ยังใช้ v5 → ต้องมี Redis</p></div>
+        <div class="card gold"><h3>BullMQ v6+ <span class="tag gold">ก.ค. 2026</span></h3><p class="muted">มี <strong>PostgreSQL backend อย่างเป็นทางการ</strong> ใช้ API เดิมทั้งหมด (Queue, Worker, Flow, Job Scheduler, Rate limit)</p><p class="small">Redis ยังเป็นค่าเริ่มต้นและผ่านการใช้งานจริงมากที่สุด</p></div>
       </div>
-      <div class="callout warn">ใช้ PostgreSQL, SQL Server หรือ MongoDB แทน Redis ใน BullMQ <strong>ไม่ได้</strong> ถ้าไม่อยากมี Redis ต้องเปลี่ยนไปใช้ library อื่น (สไลด์ 4)</div>
+      <div class="table-wrap mt"><table class="table">
+        <tr><th>หน้าที่</th><th>บน Redis</th><th>บน PostgreSQL</th></tr>
+        <tr><td>เก็บงานและสถานะ</td><td>List / Sorted Set / Hash</td><td>ตารางใน schema <code>bullmq</code></td></tr>
+        <tr><td>ย้ายสถานะแบบไม่ชนกัน</td><td>Lua script<button class="term" data-term="lua"></button></td><td>SQL function ใน transaction</td></tr>
+        <tr><td>Worker รองานใหม่</td><td>คำสั่ง blocking ของ Redis</td><td><code>LISTEN / NOTIFY</code></td></tr>
+      </table></div>
+      <div class="callout warn">SQL Server และ MongoDB <strong>ยังใช้กับ BullMQ ไม่ได้</strong> — ฝั่ง .NET / SQL Server ใช้ Hangfire (สไลด์ 7)</div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="BullMQ v6 + PostgreSQL">
+    <div class="slide-inner">
+      <div class="eyebrow">ทางเลือกที่ 1 · ใช้ BullMQ ต่อ แต่ไม่มี Redis</div>
+      <h2>BullMQ v6 บน PostgreSQL</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="ts">
+// npm install bullmq@6 pg   (PostgreSQL 13+, แนะนำ 14+)
+import { Queue, Worker, createPostgresBackend } from "bullmq";
+
+const opts = { connection: process.env.DATABASE_URL! };
+
+// ส่ง backend factory เป็น argument สุดท้าย — โค้ดส่วนอื่นเหมือน Redis ทุกอย่าง
+const emailQueue = new Queue("email", opts, createPostgresBackend);
+
+const worker = new Worker("email", async (job) =&gt; {
+  await mailer.sendOrderConfirmation(job.data.orderId);
+}, opts, createPostgresBackend);
+
+// ตอน deploy: สร้าง/อัปเกรดตารางเองครั้งเดียว (ไม่ทำอัตโนมัติ)
+// import { runMigrations } from "bullmq";  → runMigrations(pgClient)
+</pre>
+        <div class="table-wrap"><table class="table">
+          <tr><th>งาน (ตัวอย่างจากเอกสาร BullMQ)</th><th>PostgreSQL</th><th>Redis</th></tr>
+          <tr><td><code>add()</code> ทีละงาน</td><td>~7,000/s</td><td>~7,500/s</td></tr>
+          <tr><td><code>addBulk()</code></td><td>~45,000/s</td><td>~52,000/s</td></tr>
+          <tr><td>ประมวลผล (concurrency 8–32)</td><td>~11,000/s</td><td>~18,000/s</td></tr>
+        </table></div>
+      </div>
+      <div class="grid grid-3 mt">
+        <div class="card good"><h4>เหมาะเมื่อ</h4><p class="small muted">มี PostgreSQL อยู่แล้ว ไม่อยากดูแล Redis เพิ่ม หรืออยากให้งานอยู่ใน DB เดียวกับข้อมูล</p></div>
+        <div class="card gold"><h4>ต้องตั้งค่า</h4><p class="small muted"><code>runMigrations()</code> ตอน deploy · <code>max_connections</code> พอสำหรับทุก worker (แต่ละตัวใช้ connection ค้างเพิ่ม 1) · <code>removeOnComplete</code></p></div>
+        <div class="card bad"><h4>ข้อแลกเปลี่ยน</h4><p class="small muted">ประมวลผลช้ากว่า Redis ราว 1.5–2 เท่า และเป็นฟีเจอร์ใหม่ ควรทดสอบกับงานจริงก่อน</p></div>
+      </div>
     </div>
   </section>
 
   <!-- 3 -->
   <section class="slide" data-title="Redis-compatible ตัวอื่น">
     <div class="slide-inner">
-      <div class="eyebrow">ทางเลือกที่ 1 · ยังใช้ BullMQ</div>
+      <div class="eyebrow">ทางเลือกที่ 2 · ยังใช้ BullMQ แต่เปลี่ยนตัว Redis</div>
       <h2>ใช้ “Redis-compatible” ตัวอื่นแทน Redis ได้</h2>
       <div class="table-wrap"><table class="table">
         <tr><th>ตัวเลือก</th><th>ใช้กับ BullMQ</th><th>หมายเหตุ</th></tr>
@@ -58,11 +97,12 @@
   <!-- 4 -->
   <section class="slide" data-title="ไม่มี Redis เลย: ฝั่ง Node.js">
     <div class="slide-inner">
-      <div class="eyebrow">ทางเลือกที่ 2 · เปลี่ยน library (Node.js / Next.js)</div>
-      <h2>ไม่อยากมี Redis เลย ใช้อะไรแทน BullMQ ได้</h2>
+      <div class="eyebrow">ทางเลือกที่ 3 · เปลี่ยน library (Node.js / Next.js)</div>
+      <h2>ไม่ใช้ Redis: ทางเลือกอื่นนอกจาก BullMQ</h2>
       <div class="table-wrap"><table class="table">
         <tr><th>เครื่องมือ</th><th>เก็บงานที่</th><th>จุดเด่น</th><th>เหมาะกับ</th></tr>
-        <tr><td><strong class="gold">pg-boss</strong></td><td>PostgreSQL</td><td>retry, delay, cron, priority ครบ · ใช้ DB เดิม</td><td>มี Postgres อยู่แล้ว ไม่อยากเพิ่ม server</td></tr>
+        <tr><td><strong class="gold">BullMQ v6</strong> + PostgreSQL backend</td><td>PostgreSQL</td><td>API เดียวกับ BullMQ ย้ายจาก Redis แทบไม่ต้องแก้โค้ด</td><td>ทีมที่ใช้ BullMQ อยู่แล้ว / อยากได้ Flow, Rate limit ครบ</td></tr>
+        <tr><td><strong>pg-boss</strong></td><td>PostgreSQL</td><td>retry, delay, cron, priority ครบ · ใช้ DB เดิม</td><td>มี Postgres อยู่แล้ว ไม่อยากเพิ่ม server</td></tr>
         <tr><td><strong>Graphile Worker</strong></td><td>PostgreSQL</td><td>เร็ว เพิ่มงานจาก SQL / trigger ได้</td><td>อยากสร้างงานจากใน DB โดยตรง</td></tr>
         <tr><td><strong>Agenda</strong></td><td>MongoDB</td><td>เน้นงานตั้งเวลา</td><td>ทีมที่ใช้ MongoDB</td></tr>
         <tr><td><strong>Inngest / Trigger.dev</strong></td><td>บริการ cloud (มี self-host)</td><td>ไม่ต้องมี worker ค้าง ทำงานหลายขั้นได้</td><td>Next.js บน Vercel / serverless</td></tr>
@@ -153,7 +193,7 @@ app.UseHangfireDashboard("/jobs");   // หน้าเว็บดูงาน 
       <h2>เลือกเครื่องมือ Job Queue ตามสิ่งที่มีอยู่</h2>
       <div class="decision-tree">
         <div class="decision-row"><div class="decision-box">แอป Node.js / Next.js และมี Redis (หรือเพิ่มได้)</div><div class="arrow">→</div><div class="decision-result violet">BullMQ</div></div>
-        <div class="decision-row"><div class="decision-box">แอป Node.js มีแค่ PostgreSQL ไม่อยากเพิ่ม server</div><div class="arrow">→</div><div class="decision-result gold">pg-boss / Graphile Worker</div></div>
+        <div class="decision-row"><div class="decision-box">แอป Node.js มีแค่ PostgreSQL ไม่อยากเพิ่ม server</div><div class="arrow">→</div><div class="decision-result gold">BullMQ v6 + PostgreSQL (หรือ pg-boss)</div></div>
         <div class="decision-row"><div class="decision-box">Next.js บน Vercel / serverless ไม่มี process ค้าง</div><div class="arrow">→</div><div class="decision-result">Inngest / Trigger.dev / QStash</div></div>
         <div class="decision-row"><div class="decision-box">แอป .NET</div><div class="arrow">→</div><div class="decision-result gold">Hangfire (หรือ Quartz.NET ถ้าเน้นตั้งเวลา)</div></div>
         <div class="decision-row"><div class="decision-box">งานต้องส่งข้ามภาษา / ข้าม service</div><div class="arrow">→</div><div class="decision-result">RabbitMQ</div></div>
@@ -301,8 +341,8 @@ await _channel.Writer.WriteAsync(new TrackEvent(order.Id), ct);
       <div class="eyebrow">สรุป</div>
       <h2>จำ 4 ข้อนี้</h2>
       <div class="grid grid-2">
-        <div class="card gold"><div class="big-number">1</div><h3>BullMQ ต้องมี Redis</h3><p class="small muted">ใช้ตัวที่เข้ากันได้แทนได้ เช่น Valkey, Managed Redis, Dragonfly (ต้องตั้งค่า)</p></div>
-        <div class="card"><div class="big-number">2</div><h3>ไม่อยากมี Redis → เปลี่ยน library</h3><p class="small muted">Node + Postgres → pg-boss · .NET → Hangfire · serverless → Inngest / Trigger.dev</p></div>
+        <div class="card gold"><div class="big-number">1</div><h3>BullMQ v6: Redis หรือ PostgreSQL</h3><p class="small muted">v5 ต้องใช้ Redis (หรือ Valkey, Managed Redis, Dragonfly) · v6+ ใช้ PostgreSQL 13+ แทนได้ แลกกับความเร็วที่ลดลงเล็กน้อย</p></div>
+        <div class="card"><div class="big-number">2</div><h3>ไม่อยากมี Redis</h3><p class="small muted">Node + Postgres → BullMQ v6 / pg-boss · .NET → Hangfire · serverless → Inngest / Trigger.dev</p></div>
         <div class="card violet"><div class="big-number">3</div><h3>แยกให้ออกว่าเป็นงานแบบไหน</h3><p class="small muted">Queue / Scheduled / Batch / Fire-and-forget / Workflow / Stream</p></div>
         <div class="card bad"><div class="big-number">4</div><h3>งานที่ห้ามหาย ห้าม fire-and-forget</h3><p class="small muted">ต้องอยู่ในระบบที่เก็บงานถาวรและ retry ได้</p></div>
       </div>
@@ -313,7 +353,7 @@ await _channel.Writer.WriteAsync(new TrackEvent(order.Id), ct);
 </main>
 <script>
 window.KV_GLOSSARY = {
-  lua: { title: "Lua Script ใน Redis", body: "โปรแกรมสั้น ๆ ที่ Redis รันแบบ atomic คือทำทุกขั้นตอนรวดเดียวโดยไม่มีคำสั่งอื่นแทรก BullMQ ใช้ย้ายงานระหว่างสถานะอย่างปลอดภัย จึงต้องใช้ระบบที่รองรับ Lua แบบเดียวกับ Redis", example: "หยิบงานจาก waiting ไป active + ตั้ง lock ในขั้นเดียว worker 2 ตัวจึงไม่ได้งานเดียวกัน" },
+  lua: { title: "Lua Script ใน Redis", body: "โปรแกรมสั้น ๆ ที่ Redis รันแบบ atomic คือทำทุกขั้นตอนรวดเดียวโดยไม่มีคำสั่งอื่นแทรก BullMQ ใช้ย้ายงานระหว่างสถานะอย่างปลอดภัย บน PostgreSQL backend (v6) ใช้ SQL function ใน transaction ทำหน้าที่เดียวกัน", example: "หยิบงานจาก waiting ไป active + ตั้ง lock ในขั้นเดียว worker 2 ตัวจึงไม่ได้งานเดียวกัน" },
   valkey: { title: "Valkey", body: "ฐานข้อมูลแบบ Redis ที่แยกพัฒนาแบบ open source ภายใต้ Linux Foundation หลัง Redis เปลี่ยน license ในปี 2024 ใช้คำสั่งและ protocol เดียวกัน cloud หลายเจ้ามีให้ใช้แบบ managed", example: "เปลี่ยน image จาก redis:7-alpine เป็น valkey/valkey:8-alpine โดย BullMQ ไม่ต้องแก้โค้ด" },
   batch: { title: "Batch Job", body: "งานที่ประมวลผลข้อมูลจำนวนมากรวดเดียวตามรอบเวลา แทนที่จะทำทีละรายการเมื่อเกิดเหตุการณ์ ต้องออกแบบให้ทำต่อจากจุดที่ค้างได้ (checkpoint) เมื่อล้มกลางทาง", example: "ทุกคืนตี 1 คำนวณค่าคอมมิชชันของพนักงานขายทั้งหมดจากยอดขายทั้งวัน" },
   workflow: { title: "Workflow Engine", body: "ระบบที่รันงานหลายขั้นต่อกัน จดจำว่าทำถึงขั้นไหน รอเหตุการณ์หรือเวลาได้นานเป็นวัน และ retry แต่ละขั้นแยกกัน แม้ server restart ก็ทำต่อจากเดิม", example: "สมัครสมาชิก → ส่งอีเมลต้อนรับ → รอ 3 วัน → ถ้ายังไม่ซื้อ ส่งคูปอง" },

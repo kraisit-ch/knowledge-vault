@@ -104,14 +104,14 @@
       <h2>ตารางเปรียบเทียบ</h2>
       <div class="table-wrap"><table class="table">
         <tr><th>หัวข้อ</th><th class="blue">Kafka</th><th class="gold">RabbitMQ</th><th class="violet-text">BullMQ</th></tr>
-        <tr><td>เป็นอะไร</td><td>Event Streaming</td><td>Message Broker</td><td>Job Queue (บน Redis)</td></tr>
+        <tr><td>เป็นอะไร</td><td>Event Streaming</td><td>Message Broker</td><td>Job Queue (Redis หรือ PostgreSQL ตั้งแต่ v6)</td></tr>
         <tr><td>หลายระบบอ่านข้อมูลเดียวกัน</td><td><span class="status"><span class="dot good"></span>ถนัดมาก</span></td><td><span class="status"><span class="dot medium"></span>ได้ (copy ไปหลายคิว)</span></td><td><span class="status"><span class="dot low"></span>ไม่ใช่จุดประสงค์</span></td></tr>
         <tr><td>อ่านย้อนหลัง (Replay)</td><td><span class="status"><span class="dot good"></span>ได้</span></td><td><span class="status"><span class="dot low"></span>ไม่ได้ (ยกเว้น Streams)</span></td><td><span class="status"><span class="dot low"></span>ไม่ได้</span></td></tr>
         <tr><td>คัดแยกตามเงื่อนไข (Routing)</td><td><span class="status"><span class="dot medium"></span>แค่ระดับ topic</span></td><td><span class="status"><span class="dot good"></span>ถนัดมาก</span></td><td><span class="status"><span class="dot medium"></span>แค่ระดับคิว</span></td></tr>
         <tr><td>Retry / Delay / ตั้งเวลา</td><td><span class="status"><span class="dot low"></span>ต้องทำเอง</span></td><td><span class="status"><span class="dot medium"></span>ทำได้ (DLQ + TTL)</span></td><td><span class="status"><span class="dot good"></span>มีในตัวครบ</span></td></tr>
         <tr><td>ปริมาณข้อมูลที่รับได้</td><td><span class="status"><span class="dot good"></span>สูงมาก (ล้าน/วินาที)</span></td><td><span class="status"><span class="dot medium"></span>สูง</span></td><td><span class="status"><span class="dot medium"></span>ปานกลาง–สูง</span></td></tr>
         <tr><td>ภาษาที่ใช้ได้</td><td>ทุกภาษา (.NET, Node, …)</td><td>ทุกภาษา (.NET, Node, …)</td><td><strong>Node.js</strong> เป็นหลัก</td></tr>
-        <tr><td>ความยากในการดูแล</td><td><span class="status"><span class="dot low"></span>สูง</span></td><td><span class="status"><span class="dot medium"></span>ปานกลาง</span></td><td><span class="status"><span class="dot good"></span>ต่ำ (มี Redis ก็พอ)</span></td></tr>
+        <tr><td>ความยากในการดูแล</td><td><span class="status"><span class="dot low"></span>สูง</span></td><td><span class="status"><span class="dot medium"></span>ปานกลาง</span></td><td><span class="status"><span class="dot good"></span>ต่ำ (มี Redis หรือ PostgreSQL ก็พอ)</span></td></tr>
       </table></div>
     </div>
   </section>
@@ -249,7 +249,7 @@
       <h2>คำศัพท์ BullMQ ที่ต้องเข้าใจตรงกัน</h2>
       <div class="table-wrap"><table class="table">
         <tr><th>คำ</th><th>ความหมาย (ภาษาง่าย)</th><th>ตัวอย่างในระบบ Order</th></tr>
-        <tr><td><strong>Redis</strong></td><td>ฐานข้อมูลในหน่วยความจำ ที่ BullMQ ใช้เก็บงานทั้งหมด</td><td><code>redis:6379</code></td></tr>
+        <tr><td><strong>Backend</strong></td><td>ที่เก็บงานทั้งหมด: Redis (ค่าเริ่มต้น) หรือ PostgreSQL ตั้งแต่ BullMQ v6</td><td><code>redis:6379</code> / <code>postgres:5432</code></td></tr>
         <tr><td><strong>Queue</strong></td><td>กระดานงานแต่ละประเภท ใช้เพิ่มงาน</td><td><code>email</code>, <code>reports</code></td></tr>
         <tr><td><strong>Job</strong><button class="term" data-term="job"></button></td><td>งาน 1 ชิ้น มีข้อมูล + สถานะ + จำนวนครั้งที่ลองแล้ว</td><td>ส่งอีเมลยืนยัน ORD-1234</td></tr>
         <tr><td><strong>Worker</strong></td><td>process ที่หยิบงานจากกระดานไปทำ</td><td><code>email.worker.ts</code></td></tr>
@@ -292,7 +292,7 @@
         <div class="card violet"><h3>✉️ แจ้งเตือนหลังสั่งซื้อ</h3>
           <div class="diagram"><div class="node">Server Action → queue <code>notify</code></div><div class="branch-grid"><div class="node green">อีเมล</div><div class="node green">LINE / SMS</div></div></div>
           <p class="small mt"><strong>ทำงานอย่างไร:</strong> กดสั่งซื้อแล้วตอบลูกค้าทันที เพิ่ม job ส่งอีเมล ถ้าผู้ให้บริการอีเมลล่มก็ลองใหม่ 5 ครั้งแบบเว้นระยะ และจำกัด 100 ข้อความ/วินาที</p>
-          <p class="small muted"><strong>ทำไมต้อง BullMQ:</strong> retry + rate limit มีในตัว เขียนไม่กี่บรรทัด มี Redis อยู่แล้วก็ใช้ได้ทันที</p></div>
+          <p class="small muted"><strong>ทำไมต้อง BullMQ:</strong> retry + rate limit มีในตัว เขียนไม่กี่บรรทัด มี Redis หรือ PostgreSQL อยู่แล้วก็ใช้ได้ทันที</p></div>
         <div class="card violet"><h3>⏰ รายงานยอดขายทุกเช้า</h3>
           <div class="diagram"><div class="node">Job Scheduler<small>0 8 * * * · Asia/Bangkok</small></div><div class="branch-grid"><div class="node green">สร้าง PDF</div><div class="node green">ส่งผู้บริหาร</div></div></div>
           <p class="small mt"><strong>ทำงานอย่างไร:</strong> ตั้งเวลาครั้งเดียว BullMQ สร้าง job ทุกเช้า 08:00 แม้มี worker 3 ตัวก็ทำแค่ครั้งเดียว</p>
@@ -310,9 +310,9 @@
       <div class="eyebrow violet-text">📋 BullMQ · คำถามที่พบบ่อย</div>
       <h2>BullMQ ไม่ใช้ Redis ได้ไหม?</h2>
       <div class="grid grid-3">
-        <div class="card bad"><h3>❌ ไม่ได้</h3><p class="muted small">BullMQ เก็บงาน สถานะ และเวลารอทั้งหมดใน Redis ใช้ PostgreSQL / SQL Server / MongoDB แทนไม่ได้</p></div>
+        <div class="card good"><h3>✅ ได้ ตั้งแต่ v6 — ใช้ PostgreSQL</h3><p class="muted small">BullMQ v6 (ก.ค. 2026) มี PostgreSQL backend อย่างเป็นทางการ API เดิมทั้งหมด ช้ากว่า Redis ราว 1.5–2 เท่า · v5 ยังต้องใช้ Redis · SQL Server / MongoDB ยังไม่ได้</p></div>
         <div class="card gold"><h3>✅ ใช้ตัวที่ “เหมือน Redis” แทนได้</h3><p class="muted small"><strong>Valkey</strong>, Managed Redis (AWS / Azure / Redis Cloud), <strong>Dragonfly</strong> (ต้องตั้งค่าเพิ่ม)</p></div>
-        <div class="card violet"><h3>🔁 ไม่อยากมี Redis → เปลี่ยน library</h3><p class="muted small">Node + PostgreSQL → <strong>pg-boss</strong> · .NET → <strong>Hangfire</strong> · Serverless → <strong>Inngest / Trigger.dev</strong></p></div>
+        <div class="card violet"><h3>🔁 หรือใช้เครื่องมืออื่น</h3><p class="muted small">Node + PostgreSQL → <strong>pg-boss</strong> · .NET → <strong>Hangfire</strong> · Serverless → <strong>Inngest / Trigger.dev</strong></p></div>
       </div>
       <div class="table-wrap mt"><table class="table">
         <tr><th>งานเบื้องหลังแบบอื่นที่มักสับสน</th><th>ต่างจาก Job Queue อย่างไร</th><th>ตัวอย่าง</th></tr>

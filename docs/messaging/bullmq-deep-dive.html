@@ -17,8 +17,8 @@
       <h1><span class="grad">BullMQ</span><br>Background Job สำหรับ Node.js / Next.js</h1>
       <p class="lead">เจาะลึก Queue, Worker, Retry/Backoff, Delay, Priority, Rate Limit, Job Scheduler, Flow และการรัน Worker แยกจาก Next.js ให้เสถียรใน Production</p>
       <div class="tag-row">
-        <span class="tag gold">BullMQ v5</span><span class="tag blue">TypeScript</span>
-        <span class="tag">Redis</span><span class="tag">Job Scheduler</span><span class="tag">Flows</span>
+        <span class="tag gold">BullMQ v5–v6</span><span class="tag blue">TypeScript</span>
+        <span class="tag">Redis / PostgreSQL</span><span class="tag">Job Scheduler</span><span class="tag">Flows</span>
       </div>
       <div class="quote">BullMQ คือ “กระดานมอบหมายงาน” ที่รู้ว่างานไหนรอ งานไหนกำลังทำ งานไหนพัง และต้องลองใหม่เมื่อไร</div>
     </div>
@@ -41,7 +41,7 @@
         <div class="card gold"><h4>QueueEvents</h4><p class="small muted">ฟัง event ของทั้งคิว (completed, failed, progress)</p></div>
         <div class="card"><h4>FlowProducer</h4><p class="small muted">สร้าง job แม่-ลูกที่ต้องรอกัน</p></div>
       </div>
-      <div class="callout">BullMQ ไม่มี broker ของตัวเอง ทุกอย่างอยู่ใน Redis การดูแล Redis จึงสำคัญเท่ากับตัวแอป</div>
+      <div class="callout">BullMQ ไม่มี broker ของตัวเอง ทุกอย่างอยู่ใน Redis การดูแล Redis จึงสำคัญเท่ากับตัวแอป · <strong>ตั้งแต่ v6</strong> เลือกใช้ PostgreSQL แทน Redis ได้ด้วย API เดิม (ตัวอย่างในเรื่องนี้ใช้ Redis) — <a href="background-jobs-options.html#3" target="_blank" rel="noopener">ดูวิธีใช้ PostgreSQL</a></div>
     </div>
   </section>
 
