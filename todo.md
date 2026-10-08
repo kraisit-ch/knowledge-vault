@@ -159,7 +159,7 @@ git add . && git commit -m "docs(backend): add ef-core performance" && git push
 
 | งาน | Commit |
 |---|---|
-| เพิ่มเอกสาร **Background Jobs: ไม่ใช้ Redis ได้ไหม & งานแบบอื่น** (15 สไลด์): Redis-compatible (Valkey, Dragonfly…), ทางเลือกแทน BullMQ (pg-boss, Graphile, Inngest, Hangfire, Quartz.NET) พร้อมโค้ด, Queue vs Batch vs Cron vs Fire-and-forget vs Workflow vs Stream · เพิ่มสไลด์สรุปใน Kafka vs RabbitMQ vs BullMQ (→ 20 สไลด์) และลิงก์จาก BullMQ Deep Dive | ดู `git log` |
+| เพิ่มเอกสาร **Background Jobs: ไม่ใช้ Redis ได้ไหม & งานแบบอื่น** (15 สไลด์): Redis-compatible (Valkey, Dragonfly…), ทางเลือกแทน BullMQ (pg-boss, Graphile, Inngest, Hangfire, Quartz.NET) พร้อมโค้ด, Queue vs Batch vs Cron vs Fire-and-forget vs Workflow vs Stream · เพิ่มสไลด์สรุปใน Kafka vs RabbitMQ vs BullMQ (→ 20 สไลด์) และลิงก์จาก BullMQ Deep Dive | `4191e81` |
 | **Kafka vs RabbitMQ vs BullMQ** (12 → 19 สไลด์): เพิ่มสไลด์ “คำศัพท์ที่ต้องเข้าใจตรงกัน” ก่อนเข้าเรื่องแต่ละตัว (ตารางรูปแบบเดียวกับ Kafka Integration #4) · ตัวอย่างระบบที่เหมาะ ตัวละ 3 ระบบ พร้อมอธิบาย “ทำงานอย่างไร / ทำไมต้องใช้ตัวนี้” · สไลด์เปรียบเทียบ DLT vs DLQ ของ 3 ตัว | `2f77fd9` |
 | เพิ่มเอกสาร **DLT / DLQ อธิบายละเอียด** (10 สไลด์): ทำไมต้องมี, DLT vs DLQ, ส่งเข้าเมื่อไร, โค้ด Kafka / RabbitMQ / BullMQ, Runbook, Replay อย่างปลอดภัย, Checklist | `2f77fd9` |
 
