@@ -305,6 +305,26 @@
     </div>
   </section>
 
+  <section class="slide" data-title="BullMQ: ไม่ใช้ Redis ได้ไหม">
+    <div class="slide-inner">
+      <div class="eyebrow violet-text">📋 BullMQ · คำถามที่พบบ่อย</div>
+      <h2>BullMQ ไม่ใช้ Redis ได้ไหม?</h2>
+      <div class="grid grid-3">
+        <div class="card bad"><h3>❌ ไม่ได้</h3><p class="muted small">BullMQ เก็บงาน สถานะ และเวลารอทั้งหมดใน Redis ใช้ PostgreSQL / SQL Server / MongoDB แทนไม่ได้</p></div>
+        <div class="card gold"><h3>✅ ใช้ตัวที่ “เหมือน Redis” แทนได้</h3><p class="muted small"><strong>Valkey</strong>, Managed Redis (AWS / Azure / Redis Cloud), <strong>Dragonfly</strong> (ต้องตั้งค่าเพิ่ม)</p></div>
+        <div class="card violet"><h3>🔁 ไม่อยากมี Redis → เปลี่ยน library</h3><p class="muted small">Node + PostgreSQL → <strong>pg-boss</strong> · .NET → <strong>Hangfire</strong> · Serverless → <strong>Inngest / Trigger.dev</strong></p></div>
+      </div>
+      <div class="table-wrap mt"><table class="table">
+        <tr><th>งานเบื้องหลังแบบอื่นที่มักสับสน</th><th>ต่างจาก Job Queue อย่างไร</th><th>ตัวอย่าง</th></tr>
+        <tr><td><strong>Batch Job</strong></td><td>ทำข้อมูลก้อนใหญ่ครั้งเดียวตามรอบ ไม่ใช่ทีละรายการ</td><td>ปิดยอดสิ้นวัน 2 ล้านรายการ</td></tr>
+        <tr><td><strong>Cron ของ server</strong></td><td>มีหลายเครื่องจะรันซ้ำ ไม่มี retry ในตัว</td><td>ลบไฟล์ temp ทุกชั่วโมง</td></tr>
+        <tr><td><strong>Fire-and-forget</strong></td><td>รันในแอปเดียวกัน restart แล้วงานหาย</td><td>ส่ง analytics ด้วย <code>after()</code></td></tr>
+        <tr><td><strong>Workflow</strong></td><td>หลายขั้น รอเป็นวันได้ จำว่าถึงขั้นไหน</td><td>คืนเงิน: รอสินค้า 7 วัน → โอน</td></tr>
+      </table></div>
+      <div class="tag-row"><span class="muted small">อ่านเต็ม →</span><a class="tag gold" href="background-jobs-options.html">Background Jobs: ไม่ใช้ Redis ได้ไหม &amp; งานแบบอื่น</a></div>
+    </div>
+  </section>
+
   <!-- ===== DLT / DLQ ===== -->
   <section class="slide" data-title="DLT / DLQ ของแต่ละตัว">
     <div class="slide-inner">

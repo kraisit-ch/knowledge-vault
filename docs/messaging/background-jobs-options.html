@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050f22">
+  <title>Background Jobs: ไม่ใช้ Redis ได้ไหม และงานแบบอื่น</title>
+  <link rel="stylesheet" href="../../assets/kv-deck.css">
+</head>
+<body data-title="Background Jobs: ไม่ใช้ Redis ได้ไหม &amp; งานแบบอื่น" data-mark="JOB">
+<main class="slides">
+
+  <!-- 1 -->
+  <section class="slide active" data-title="บทนำ">
+    <div class="slide-inner">
+      <div class="eyebrow">Messaging · Background Jobs</div>
+      <h1><span class="grad">BullMQ ไม่ใช้ Redis ได้ไหม?</span><br>และงานเบื้องหลังแบบอื่น ๆ</h1>
+      <p class="lead">ตอบ 3 คำถาม: BullMQ จำเป็นต้องมี Redis หรือไม่, ถ้าไม่อยากมี Redis ใช้อะไรแทนได้ (ทั้ง Node.js และ .NET) และงานแบบ Queue Job ต่างจาก Batch, Cron, Fire-and-forget และ Workflow อย่างไร</p>
+      <div class="tag-row"><span class="tag gold">Redis-compatible</span><span class="tag blue">pg-boss</span><span class="tag">Hangfire</span><span class="tag">Batch</span><span class="tag">Cron</span><span class="tag">Workflow</span></div>
+      <div class="quote">เลือกเครื่องมือจาก “ฐานข้อมูลที่มีอยู่แล้ว” และ “ลักษณะของงาน” ไม่ใช่จากความนิยม</div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="BullMQ ต้องใช้ Redis ไหม">
+    <div class="slide-inner">
+      <div class="eyebrow">คำตอบสั้น</div>
+      <h2>BullMQ <span class="red">ต้องมี Redis</span> (หรือตัวที่ทำงานเหมือน Redis)</h2>
+      <p class="lead">BullMQ ไม่มีที่เก็บข้อมูลของตัวเอง ทุกอย่าง — งาน, สถานะ, เวลาที่ต้องรอ, ลำดับความสำคัญ — ถูกเก็บใน Redis</p>
+      <div class="grid grid-4">
+        <div class="card gold"><h4>List / Sorted Set</h4><p class="small muted">คิวงานที่รอ และงานที่ต้องหน่วงเวลา (เรียงตามเวลา)</p></div>
+        <div class="card"><h4>Hash</h4><p class="small muted">ข้อมูลของแต่ละ job: data, จำนวนครั้งที่ลอง, สาเหตุที่ล้ม</p></div>
+        <div class="card"><h4>Lua script<button class="term" data-term="lua"></button></h4><p class="small muted">ย้ายสถานะงานแบบ “ทำทีเดียวจบ” ไม่ให้ worker 2 ตัวหยิบงานเดียวกัน</p></div>
+        <div class="card violet"><h4>Streams</h4><p class="small muted">ส่ง event completed / failed / progress ให้ QueueEvents</p></div>
+      </div>
+      <div class="callout warn">ใช้ PostgreSQL, SQL Server หรือ MongoDB แทน Redis ใน BullMQ <strong>ไม่ได้</strong> ถ้าไม่อยากมี Redis ต้องเปลี่ยนไปใช้ library อื่น (สไลด์ 4)</div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="Redis-compatible ตัวอื่น">
+    <div class="slide-inner">
+      <div class="eyebrow">ทางเลือกที่ 1 · ยังใช้ BullMQ</div>
+      <h2>ใช้ “Redis-compatible” ตัวอื่นแทน Redis ได้</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>ตัวเลือก</th><th>ใช้กับ BullMQ</th><th>หมายเหตุ</th></tr>
+        <tr><td><strong>Valkey</strong><button class="term" data-term="valkey"></button></td><td><span class="status"><span class="dot good"></span>ได้</span></td><td>fork แบบ open source ของ Redis (Linux Foundation) ใช้แทนกันได้ตรง ๆ</td></tr>
+        <tr><td><strong>Managed Redis</strong> (AWS ElastiCache / MemoryDB, Azure Cache, Redis Cloud)</td><td><span class="status"><span class="dot good"></span>ได้</span></td><td>ไม่ต้องดูแล server เอง ตรวจว่าตั้ง <code>noeviction</code> ได้</td></tr>
+        <tr><td><strong>Dragonfly</strong></td><td><span class="status"><span class="dot medium"></span>ได้ (ต้องตั้งค่า)</span></td><td>เร็ว ใช้ RAM น้อย ต้องรันด้วย <code>--cluster_mode=emulated --lock_on_hashtags</code> และตั้ง prefix คิวแบบ <code>{bull}</code></td></tr>
+        <tr><td><strong>Upstash Redis</strong> (serverless)</td><td><span class="status"><span class="dot medium"></span>ได้ แต่ระวังค่าใช้จ่าย</span></td><td>คิดเงินต่อคำสั่ง worker ที่รอตลอดเวลาทำให้ค่าใช้จ่ายสูง</td></tr>
+        <tr><td><strong>Redis Cluster</strong></td><td><span class="status"><span class="dot medium"></span>ได้ (ต้องตั้ง prefix)</span></td><td>ใส่ hash tag ใน prefix เช่น <code>{bull}</code> ให้ key ของคิวอยู่ node เดียวกัน</td></tr>
+        <tr><td>Memcached / DB ทั่วไป</td><td><span class="status"><span class="dot low"></span>ไม่ได้</span></td><td>ไม่รองรับคำสั่งและ Lua script ที่ BullMQ ต้องใช้</td></tr>
+      </table></div>
+      <p class="muted small mt">ไม่ว่าตัวไหน ต้องตั้ง <code>maxmemory-policy noeviction</code> และเปิด persistence (AOF) ไม่งั้น job อาจหายเงียบ ๆ (ดู BullMQ Deep Dive)</p>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="ไม่มี Redis เลย: ฝั่ง Node.js">
+    <div class="slide-inner">
+      <div class="eyebrow">ทางเลือกที่ 2 · เปลี่ยน library (Node.js / Next.js)</div>
+      <h2>ไม่อยากมี Redis เลย ใช้อะไรแทน BullMQ ได้</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>เครื่องมือ</th><th>เก็บงานที่</th><th>จุดเด่น</th><th>เหมาะกับ</th></tr>
+        <tr><td><strong class="gold">pg-boss</strong></td><td>PostgreSQL</td><td>retry, delay, cron, priority ครบ · ใช้ DB เดิม</td><td>มี Postgres อยู่แล้ว ไม่อยากเพิ่ม server</td></tr>
+        <tr><td><strong>Graphile Worker</strong></td><td>PostgreSQL</td><td>เร็ว เพิ่มงานจาก SQL / trigger ได้</td><td>อยากสร้างงานจากใน DB โดยตรง</td></tr>
+        <tr><td><strong>Agenda</strong></td><td>MongoDB</td><td>เน้นงานตั้งเวลา</td><td>ทีมที่ใช้ MongoDB</td></tr>
+        <tr><td><strong>Inngest / Trigger.dev</strong></td><td>บริการ cloud (มี self-host)</td><td>ไม่ต้องมี worker ค้าง ทำงานหลายขั้นได้</td><td>Next.js บน Vercel / serverless</td></tr>
+        <tr><td><strong>Cloud queue</strong> (AWS SQS, Google Cloud Tasks, Azure Queue)</td><td>ผู้ให้บริการ cloud</td><td>ไม่ต้องดูแลเลย ขยายได้ไม่จำกัด</td><td>แอปที่อยู่บน cloud นั้นอยู่แล้ว</td></tr>
+        <tr><td><strong>RabbitMQ</strong></td><td>RabbitMQ</td><td>ข้ามภาษาได้ (.NET ↔ Node)</td><td>งานต้องส่งให้ worker คนละภาษา</td></tr>
+      </table></div>
+      <div class="callout">ข้อแลกเปลี่ยนของคิวบน PostgreSQL: ตั้งค่าง่ายและได้ transaction ร่วมกับข้อมูล แต่รองรับปริมาณงานได้น้อยกว่า Redis (เหมาะกับหลักร้อยถึงหลักพันงาน/วินาที)</div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="ตัวอย่าง pg-boss">
+    <div class="slide-inner">
+      <div class="eyebrow">ตัวอย่างโค้ด · PostgreSQL แทน Redis</div>
+      <h2>งานเดียวกับ BullMQ แต่ใช้ <span class="gold">pg-boss</span></h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="ts">
+// lib/jobs.ts
+import PgBoss from "pg-boss";
+
+export const boss = new PgBoss(process.env.DATABASE_URL!);
+await boss.start();                         // สร้างตาราง pgboss.* ให้เอง
+await boss.createQueue("email");
+
+// เพิ่มงาน (เทียบ queue.add ของ BullMQ)
+await boss.send("email", { orderId: "ORD-1234" }, {
+  retryLimit: 5,
+  retryDelay: 2,          // วินาที
+  retryBackoff: true,     // เว้นนานขึ้นเรื่อย ๆ
+  singletonKey: "order-confirmation:ORD-1234", // กันเพิ่มซ้ำ
+});
+</pre>
+<pre class="code" data-lang="ts">
+// worker.ts (process แยกจาก Next.js)
+await boss.work("email", async ([job]) =&gt; {
+  await mailer.sendOrderConfirmation(job.data.orderId);
+});                                         // throw = ลองใหม่ตาม retryLimit
+
+// งานตั้งเวลา (เทียบ Job Scheduler)
+await boss.schedule("daily-report", "0 8 * * *", {}, { tz: "Asia/Bangkok" });
+</pre>
+      </div>
+      <div class="grid grid-3 mt">
+        <div class="card good"><h4>ได้ transaction ร่วม</h4><p class="small muted">บันทึกออเดอร์ + เพิ่มงานส่งอีเมลใน transaction เดียว ถ้า rollback งานก็หายไปด้วย</p></div>
+        <div class="card"><h4>ไม่ต้องเพิ่ม server</h4><p class="small muted">backup พร้อมฐานข้อมูลเดิม</p></div>
+        <div class="card bad"><h4>ระวังภาระ DB</h4><p class="small muted">งานเยอะมากจะแย่งทรัพยากรกับแอปหลัก ควรแยก schema / ดู index</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="ฝั่ง .NET">
+    <div class="slide-inner">
+      <div class="eyebrow">ฝั่ง .NET / C#</div>
+      <h2>งานเบื้องหลังฝั่ง .NET ไม่ต้องใช้ BullMQ</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="csharp">
+// Hangfire — เก็บงานใน SQL Server / PostgreSQL (หรือ Redis)
+builder.Services.AddHangfire(c =&gt; c.UseSqlServerStorage(connStr));
+builder.Services.AddHangfireServer();
+
+// เพิ่มงานทันที (retry อัตโนมัติ 10 ครั้งเป็นค่าเริ่มต้น)
+BackgroundJob.Enqueue&lt;IEmailService&gt;(x =&gt; x.SendOrderConfirmation(orderId));
+
+// หน่วงเวลา
+BackgroundJob.Schedule&lt;ICartService&gt;(x =&gt; x.RemindAbandoned(cartId), TimeSpan.FromHours(1));
+
+// งานตั้งเวลา
+RecurringJob.AddOrUpdate&lt;SalesReportJob&gt;("daily-sales", x =&gt; x.Run(), "0 8 * * *",
+    new RecurringJobOptions { TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Bangkok") });
+
+app.UseHangfireDashboard("/jobs");   // หน้าเว็บดูงาน (ใส่ auth!)
+</pre>
+        <div class="grid">
+          <div class="card gold"><h4>Hangfire</h4><p class="small muted">เทียบเท่า BullMQ ของ .NET: queue, delay, recurring, retry, dashboard</p></div>
+          <div class="card"><h4>Quartz.NET</h4><p class="small muted">เน้นงานตั้งเวลาซับซ้อน (ปฏิทิน, ยกเว้นวันหยุด) รองรับ cluster</p></div>
+          <div class="card violet"><h4>Hosted Service + Channel</h4><p class="small muted">คิวในหน่วยความจำ เบาที่สุด แต่ <strong>งานหายเมื่อแอป restart</strong></p></div>
+          <div class="card"><h4>Cloud</h4><p class="small muted">Azure Functions (Timer / Queue trigger), AWS Lambda + SQS</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="เลือกเครื่องมือ Job Queue">
+    <div class="slide-inner">
+      <div class="eyebrow">Decision Guide</div>
+      <h2>เลือกเครื่องมือ Job Queue ตามสิ่งที่มีอยู่</h2>
+      <div class="decision-tree">
+        <div class="decision-row"><div class="decision-box">แอป Node.js / Next.js และมี Redis (หรือเพิ่มได้)</div><div class="arrow">→</div><div class="decision-result violet">BullMQ</div></div>
+        <div class="decision-row"><div class="decision-box">แอป Node.js มีแค่ PostgreSQL ไม่อยากเพิ่ม server</div><div class="arrow">→</div><div class="decision-result gold">pg-boss / Graphile Worker</div></div>
+        <div class="decision-row"><div class="decision-box">Next.js บน Vercel / serverless ไม่มี process ค้าง</div><div class="arrow">→</div><div class="decision-result">Inngest / Trigger.dev / QStash</div></div>
+        <div class="decision-row"><div class="decision-box">แอป .NET</div><div class="arrow">→</div><div class="decision-result gold">Hangfire (หรือ Quartz.NET ถ้าเน้นตั้งเวลา)</div></div>
+        <div class="decision-row"><div class="decision-box">งานต้องส่งข้ามภาษา / ข้าม service</div><div class="arrow">→</div><div class="decision-result">RabbitMQ</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="งานเบื้องหลังมีกี่แบบ">
+    <div class="slide-inner">
+      <div class="eyebrow">ภาพรวม</div>
+      <h2>งานเบื้องหลังมีหลายแบบ — แบ่งตาม “อะไรทำให้งานเริ่ม”</h2>
+      <div class="grid grid-3">
+        <div class="card gold"><div class="icon">📬</div><h3>Queue Job</h3><p class="muted small"><strong>เริ่มเมื่อ:</strong> มีเหตุการณ์ (ผู้ใช้กด, ออเดอร์เข้า)</p><p class="small">ทีละชิ้นเล็ก ๆ ต่อเนื่อง · BullMQ, Hangfire</p></div>
+        <div class="card"><div class="icon">⏰</div><h3>Scheduled / Cron</h3><p class="muted small"><strong>เริ่มเมื่อ:</strong> ถึงเวลาที่กำหนด</p><p class="small">ทุกวัน 08:00, ทุก 15 นาที · cron, Job Scheduler</p></div>
+        <div class="card violet"><div class="icon">📦</div><h3>Batch Job</h3><p class="muted small"><strong>เริ่มเมื่อ:</strong> ถึงรอบ ประมวลผลข้อมูลก้อนใหญ่ครั้งเดียว</p><p class="small">ปิดยอดสิ้นวัน, คำนวณเงินเดือน</p></div>
+        <div class="card"><div class="icon">🔥</div><h3>Fire-and-forget</h3><p class="muted small"><strong>เริ่มเมื่อ:</strong> โค้ดสั่งรันเบื้องหลังในแอปเดียวกัน</p><p class="small"><code>Task.Run</code>, <code>after()</code> · ไม่ทนต่อ restart</p></div>
+        <div class="card good"><div class="icon">🧭</div><h3>Workflow</h3><p class="muted small"><strong>เริ่มเมื่อ:</strong> มีเหตุการณ์ แล้วทำหลายขั้น อาจรอเป็นวัน</p><p class="small">คืนเงิน, onboarding · Temporal, Inngest</p></div>
+        <div class="card"><div class="icon">🌊</div><h3>Stream Processing</h3><p class="muted small"><strong>เริ่มเมื่อ:</strong> ข้อมูลไหลเข้าตลอดเวลา</p><p class="small">นับยอดขาย real-time · Kafka consumer</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="Queue Job vs Batch Job">
+    <div class="slide-inner">
+      <div class="eyebrow">เปรียบเทียบ</div>
+      <h2>Queue Job vs Batch Job<button class="term" data-term="batch"></button></h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th></th><th class="gold">Queue Job</th><th class="violet-text">Batch Job</th></tr>
+        <tr><td>เริ่มเมื่อ</td><td>มีเหตุการณ์ (ทีละรายการ)</td><td>ถึงรอบเวลา (ทีละก้อนใหญ่)</td></tr>
+        <tr><td>ขนาดงานต่อครั้ง</td><td>เล็ก: 1 ออเดอร์, 1 อีเมล</td><td>ใหญ่: ทุกรายการของวัน / เดือน</td></tr>
+        <tr><td>ผลลัพธ์เร็วแค่ไหน</td><td>ไม่กี่วินาที</td><td>ได้ผลหลังรันจบ (นาที–ชั่วโมง)</td></tr>
+        <tr><td>เมื่อล้มเหลว</td><td>ลองใหม่เฉพาะงานนั้น</td><td>ต้องรู้ว่าทำไปถึงไหน แล้วทำต่อจากจุดนั้น (checkpoint)</td></tr>
+        <tr><td>ภาระระบบ</td><td>กระจายตลอดวัน</td><td>หนักเป็นช่วง มักรันกลางคืน</td></tr>
+        <tr><td>ตัวอย่าง</td><td>ส่งอีเมลยืนยันออเดอร์ทันที</td><td>ปิดยอดขายสิ้นวัน 2 ล้านรายการ, กระทบยอดธนาคาร</td></tr>
+      </table></div>
+      <div class="callout"><strong>ใช้ร่วมกันได้:</strong> Batch ใหญ่มักถูกแตกเป็น Queue Job ย่อย เช่น job ตั้งเวลา 01:00 อ่านรายการทั้งหมด แล้วเพิ่มงานย่อยทีละ 1,000 รายการ ให้ worker หลายตัวช่วยทำและ retry เฉพาะชุดที่ล้ม</div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title="Cron vs Job Scheduler">
+    <div class="slide-inner">
+      <div class="eyebrow">เปรียบเทียบ</div>
+      <h2>Cron บน server vs Job Scheduler ในระบบคิว</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th></th><th>Cron ของ OS / Windows Task Scheduler / SQL Agent</th><th class="gold">Job Scheduler (BullMQ, Hangfire, pg-boss)</th></tr>
+        <tr><td>มีหลายเครื่อง (scale)</td><td><span class="status"><span class="dot low"></span>รันซ้ำทุกเครื่อง</span></td><td><span class="status"><span class="dot good"></span>รันครั้งเดียว</span></td></tr>
+        <tr><td>ล้มเหลวแล้วลองใหม่</td><td><span class="status"><span class="dot low"></span>ต้องเขียนเอง</span></td><td><span class="status"><span class="dot good"></span>มีในตัว</span></td></tr>
+        <tr><td>ดูประวัติ / ผลลัพธ์</td><td><span class="status"><span class="dot medium"></span>ดู log เอง</span></td><td><span class="status"><span class="dot good"></span>dashboard</span></td></tr>
+        <tr><td>เครื่องดับตอนถึงเวลา</td><td><span class="status"><span class="dot low"></span>รอบนั้นหายไป</span></td><td><span class="status"><span class="dot good"></span>worker ตัวอื่นทำแทน</span></td></tr>
+        <tr><td>ตั้งค่า</td><td><span class="status"><span class="dot good"></span>ง่าย ไม่ต้องมีอะไรเพิ่ม</span></td><td><span class="status"><span class="dot medium"></span>ต้องมี queue / storage</span></td></tr>
+      </table></div>
+      <div class="grid grid-2 mt">
+        <div class="card"><h4>Cron ธรรมดาเหมาะกับ</h4><p class="small muted">งานดูแลเครื่อง: ลบไฟล์ temp, หมุน log, backup เครื่องเดียว</p></div>
+        <div class="card gold"><h4>Job Scheduler เหมาะกับ</h4><p class="small muted">งานธุรกิจ: ส่งรายงาน, เตือนลูกค้า, sync ข้อมูล ที่ต้องไม่ซ้ำและต้องสำเร็จ</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide" data-title="Fire-and-forget">
+    <div class="slide-inner">
+      <div class="eyebrow">ทางลัดที่ต้องรู้ข้อจำกัด</div>
+      <h2>Fire-and-forget: รันเบื้องหลังในแอปเดียวกัน</h2>
+      <div class="grid grid-2">
+<pre class="code" data-lang="ts">
+// Next.js 15+: ทำงานต่อหลังส่ง response แล้ว
+import { after } from "next/server";
+
+export async function POST(req: Request) {
+  const order = await createOrder(await req.json());
+  after(() =&gt; analytics.track("order_created", order.id)); // ไม่สำคัญ หายได้
+  return Response.json(order);
+}
+</pre>
+<pre class="code" data-lang="csharp">
+// .NET: อย่าใช้ Task.Run ลอย ๆ ใน controller
+// ให้ใช้ Channel + BackgroundService (หรือ Hangfire ถ้างานห้ามหาย)
+await _channel.Writer.WriteAsync(new TrackEvent(order.Id), ct);
+</pre>
+      </div>
+      <div class="grid grid-2 mt">
+        <div class="do"><h4>ใช้ได้กับ</h4><ul><li>ส่ง analytics / log ที่หายได้บ้าง</li><li>ล้าง cache</li><li>งานสั้น ไม่กี่วินาที</li></ul></div>
+        <div class="dont"><h4>ห้ามใช้กับ</h4><ul><li>ส่งอีเมลยืนยัน, ตัดเงิน, ตัดสต็อก</li><li>งานที่ต้อง retry</li><li>งานยาว — deploy / restart แล้ว <strong>งานหายโดยไม่มีใครรู้</strong></li></ul></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 -->
+  <section class="slide" data-title="Workflow และ ETL">
+    <div class="slide-inner">
+      <div class="eyebrow">งานหลายขั้น / ข้อมูลก้อนใหญ่</div>
+      <h2>Workflow Engine และ Data Pipeline</h2>
+      <div class="grid grid-2">
+        <div class="card good"><h3>🧭 Workflow Engine<button class="term" data-term="workflow"></button></h3><p class="muted">Temporal, Inngest, Azure Durable Functions</p>
+          <div class="diagram"><div class="flow"><div class="node">ขอคืนเงิน</div><div class="arrow">→</div><div class="node">รอสินค้าคืน<small>สูงสุด 7 วัน</small></div><div class="arrow">→</div><div class="node">ตรวจสินค้า</div><div class="arrow">→</div><div class="node green">โอนเงินคืน</div></div></div>
+          <p class="small mt">จำว่าทำถึงขั้นไหน แม้ server restart ระหว่างรอ 7 วันก็ทำต่อได้ ถ้าใช้ Queue Job ต้องเขียนเก็บสถานะเองทั้งหมด</p></div>
+        <div class="card violet"><h3>🏭 Data Pipeline / ETL<button class="term" data-term="etl"></button></h3><p class="muted">Apache Airflow, SSIS, dbt, Azure Data Factory</p>
+          <div class="diagram"><div class="flow"><div class="node">ดึงยอดขาย</div><div class="arrow">→</div><div class="node">แปลง / รวม</div><div class="arrow">→</div><div class="node violet">โหลดเข้า Data Warehouse</div></div></div>
+          <p class="small mt">Batch ขนาดใหญ่ที่มีหลายขั้นต่อกัน มีตารางรันและลำดับการพึ่งพา เป็นงานของทีม data มากกว่าทีม app</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 13 -->
+  <section class="slide" data-title="ตารางเปรียบเทียบทุกแบบ">
+    <div class="slide-inner">
+      <div class="eyebrow">สรุปในหน้าเดียว</div>
+      <h2>เปรียบเทียบงานเบื้องหลังทุกแบบ</h2>
+      <div class="table-wrap"><table class="table">
+        <tr><th>แบบ</th><th>ตัวอย่าง</th><th>ทนต่อ restart</th><th>Retry</th><th>เครื่องมือ</th></tr>
+        <tr><td><strong class="gold">Queue Job</strong></td><td>ส่งอีเมลหลังสั่งซื้อ</td><td><span class="status"><span class="dot good"></span>ได้</span></td><td><span class="status"><span class="dot good"></span>ในตัว</span></td><td>BullMQ, pg-boss, Hangfire, RabbitMQ</td></tr>
+        <tr><td><strong>Scheduled</strong></td><td>รายงาน 08:00 ทุกวัน</td><td><span class="status"><span class="dot good"></span>ได้*</span></td><td><span class="status"><span class="dot good"></span>ในตัว*</span></td><td>Job Scheduler, Hangfire Recurring, Quartz.NET</td></tr>
+        <tr><td><strong class="violet-text">Batch</strong></td><td>ปิดยอดสิ้นวัน</td><td><span class="status"><span class="dot medium"></span>ต้องมี checkpoint</span></td><td><span class="status"><span class="dot medium"></span>ต้องออกแบบ</span></td><td>Scheduler + Queue, Spring Batch, SSIS</td></tr>
+        <tr><td><strong>Fire-and-forget</strong></td><td>ส่ง analytics</td><td><span class="status"><span class="dot low"></span>หาย</span></td><td><span class="status"><span class="dot low"></span>ไม่มี</span></td><td><code>after()</code>, Channel</td></tr>
+        <tr><td><strong class="green">Workflow</strong></td><td>คืนเงินหลายขั้น</td><td><span class="status"><span class="dot good"></span>ได้</span></td><td><span class="status"><span class="dot good"></span>ต่อขั้น</span></td><td>Temporal, Inngest, Durable Functions</td></tr>
+        <tr><td><strong class="blue">Stream</strong></td><td>ยอดขาย real-time</td><td><span class="status"><span class="dot good"></span>ได้</span></td><td><span class="status"><span class="dot medium"></span>ต้องออกแบบ (DLT)</span></td><td>Kafka consumer</td></tr>
+      </table></div>
+      <p class="muted small mt">* เมื่อใช้ Job Scheduler ในระบบคิว — ถ้าใช้ cron ของ OS จะไม่ได้คุณสมบัตินี้</p>
+    </div>
+  </section>
+
+  <!-- 14 -->
+  <section class="slide" data-title="ตัวอย่างระบบเดียวใช้หลายแบบ">
+    <div class="slide-inner">
+      <div class="eyebrow">ตัวอย่างระบบจริง</div>
+      <h2>ระบบ E-commerce เดียว ใช้งานเบื้องหลังหลายแบบ</h2>
+      <ol class="steps">
+        <li><strong class="gold">Queue Job:</strong> ลูกค้าสั่งซื้อ → เพิ่มงานส่งอีเมล / LINE ทันที ล้มก็ลองใหม่ 5 ครั้ง</li>
+        <li><strong>Scheduled:</strong> 08:00 ทุกวัน → สร้างรายงานยอดขายส่งผู้บริหาร</li>
+        <li><strong class="violet-text">Batch:</strong> 01:00 ทุกคืน → กระทบยอดกับธนาคาร แตกเป็นชุดละ 1,000 รายการ</li>
+        <li><strong class="blue">Stream:</strong> ทุกออเดอร์ → Kafka → dashboard ยอดขาย real-time</li>
+        <li><strong class="green">Workflow:</strong> ขอคืนสินค้า → รอส่งคืน 7 วัน → ตรวจ → โอนเงิน</li>
+        <li><strong>Fire-and-forget:</strong> บันทึกว่าลูกค้าดูหน้าไหน (หายได้บ้างไม่เป็นไร)</li>
+      </ol>
+      <div class="callout warn">เริ่มจากเครื่องมือเดียวที่ทำ Queue + Scheduled ได้ (BullMQ / pg-boss / Hangfire) ก็ครอบคลุมงานส่วนใหญ่แล้ว เพิ่ม Workflow engine หรือ Kafka เมื่อมีความต้องการจริงเท่านั้น</div>
+    </div>
+  </section>
+
+  <!-- 15 -->
+  <section class="slide" data-title="สรุป">
+    <div class="slide-inner">
+      <div class="eyebrow">สรุป</div>
+      <h2>จำ 4 ข้อนี้</h2>
+      <div class="grid grid-2">
+        <div class="card gold"><div class="big-number">1</div><h3>BullMQ ต้องมี Redis</h3><p class="small muted">ใช้ตัวที่เข้ากันได้แทนได้ เช่น Valkey, Managed Redis, Dragonfly (ต้องตั้งค่า)</p></div>
+        <div class="card"><div class="big-number">2</div><h3>ไม่อยากมี Redis → เปลี่ยน library</h3><p class="small muted">Node + Postgres → pg-boss · .NET → Hangfire · serverless → Inngest / Trigger.dev</p></div>
+        <div class="card violet"><div class="big-number">3</div><h3>แยกให้ออกว่าเป็นงานแบบไหน</h3><p class="small muted">Queue / Scheduled / Batch / Fire-and-forget / Workflow / Stream</p></div>
+        <div class="card bad"><div class="big-number">4</div><h3>งานที่ห้ามหาย ห้าม fire-and-forget</h3><p class="small muted">ต้องอยู่ในระบบที่เก็บงานถาวรและ retry ได้</p></div>
+      </div>
+      <div class="tag-row"><span class="muted small">อ่านต่อ →</span><a class="tag gold" href="bullmq-deep-dive.html">BullMQ Deep Dive</a><a class="tag" href="kafka-rabbitmq-bullmq-presentation.html">Kafka vs RabbitMQ vs BullMQ</a><a class="tag blue" href="dlt-dlq-explained.html">DLT / DLQ</a></div>
+    </div>
+  </section>
+
+</main>
+<script>
+window.KV_GLOSSARY = {
+  lua: { title: "Lua Script ใน Redis", body: "โปรแกรมสั้น ๆ ที่ Redis รันแบบ atomic คือทำทุกขั้นตอนรวดเดียวโดยไม่มีคำสั่งอื่นแทรก BullMQ ใช้ย้ายงานระหว่างสถานะอย่างปลอดภัย จึงต้องใช้ระบบที่รองรับ Lua แบบเดียวกับ Redis", example: "หยิบงานจาก waiting ไป active + ตั้ง lock ในขั้นเดียว worker 2 ตัวจึงไม่ได้งานเดียวกัน" },
+  valkey: { title: "Valkey", body: "ฐานข้อมูลแบบ Redis ที่แยกพัฒนาแบบ open source ภายใต้ Linux Foundation หลัง Redis เปลี่ยน license ในปี 2024 ใช้คำสั่งและ protocol เดียวกัน cloud หลายเจ้ามีให้ใช้แบบ managed", example: "เปลี่ยน image จาก redis:7-alpine เป็น valkey/valkey:8-alpine โดย BullMQ ไม่ต้องแก้โค้ด" },
+  batch: { title: "Batch Job", body: "งานที่ประมวลผลข้อมูลจำนวนมากรวดเดียวตามรอบเวลา แทนที่จะทำทีละรายการเมื่อเกิดเหตุการณ์ ต้องออกแบบให้ทำต่อจากจุดที่ค้างได้ (checkpoint) เมื่อล้มกลางทาง", example: "ทุกคืนตี 1 คำนวณค่าคอมมิชชันของพนักงานขายทั้งหมดจากยอดขายทั้งวัน" },
+  workflow: { title: "Workflow Engine", body: "ระบบที่รันงานหลายขั้นต่อกัน จดจำว่าทำถึงขั้นไหน รอเหตุการณ์หรือเวลาได้นานเป็นวัน และ retry แต่ละขั้นแยกกัน แม้ server restart ก็ทำต่อจากเดิม", example: "สมัครสมาชิก → ส่งอีเมลต้อนรับ → รอ 3 วัน → ถ้ายังไม่ซื้อ ส่งคูปอง" },
+  etl: { title: "ETL (Extract–Transform–Load)", body: "กระบวนการดึงข้อมูลจากหลายแหล่ง แปลงให้อยู่ในรูปแบบเดียวกัน แล้วโหลดเข้าที่เก็บสำหรับวิเคราะห์ มักรันเป็น batch ตามรอบ", example: "ดึงยอดขายจากระบบหน้าร้านและออนไลน์ รวมกัน แล้วโหลดเข้า Data Warehouse ทุกคืน" }
+};
+</script>
+<script src="../../assets/kv-deck.js"></script>
+</body>
+</html>
